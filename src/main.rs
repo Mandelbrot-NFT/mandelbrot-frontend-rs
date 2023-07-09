@@ -1,6 +1,9 @@
 mod chain;
 
-use std::sync::{Arc, Mutex};
+use std::{
+    env,
+    sync::{Arc, Mutex}
+};
 
 use ethabi::token::Token;
 use hex_literal::hex;
@@ -59,8 +62,7 @@ pub fn Eth() -> Html {
     let web3 = Web3::new(transport);
     let contract = Contract::from_json(
         web3.eth(),
-        env::var("CONTRACT_ADDRESS")
-            .unwrap()
+        env!("CONTRACT_ADDRESS")
             .trim_start_matches("0x")
             .parse()
             .unwrap(),
@@ -248,6 +250,5 @@ impl Component for Mandelbrot {
 
 
 fn main() {
-    dotenv::dotenv().ok();
     yew::Renderer::<App>::new().render();
 }
