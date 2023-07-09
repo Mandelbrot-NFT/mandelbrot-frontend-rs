@@ -59,7 +59,11 @@ pub fn Eth() -> Html {
     let web3 = Web3::new(transport);
     let contract = Contract::from_json(
         web3.eth(),
-        "6FFCf0b2D7cEC89d4D73419ca60B43b6793f8526".parse().unwrap(),
+        env::var("CONTRACT_ADDRESS")
+            .unwrap()
+            .trim_start_matches("0x")
+            .parse()
+            .unwrap(),
         include_bytes!("../resources/MandelbrotNFT.json"),
     ).unwrap();
 
@@ -243,21 +247,7 @@ impl Component for Mandelbrot {
 }
 
 
-fn consume(qwe: &String) {
-
-}
-
-
-fn mutate(qwe: &mut String) {
-
-}
-
-
 fn main() {
-    let mut qwe = "qwe".to_owned();
-    consume(&qwe);
-    mutate(&mut qwe);
-
-    println!("HELLO {}", qwe);
+    dotenv::dotenv().ok();
     yew::Renderer::<App>::new().render();
 }
