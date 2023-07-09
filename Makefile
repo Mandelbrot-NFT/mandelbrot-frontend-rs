@@ -1,6 +1,10 @@
 build:
 	RUSTFLAGS=--cfg=web_sys_unstable_apis trunk build --release
 
+build_render:
+	cargo install trunk wasm-bindgen-cli
+	RUSTFLAGS=--cfg=web_sys_unstable_apis trunk build --release
+
 run:
 	RUSTFLAGS=--cfg=web_sys_unstable_apis trunk serve
 
