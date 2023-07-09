@@ -20,54 +20,46 @@ use web3::{
     Web3
 };
 use yew_ethereum_provider::{
-    use_ethereum, AccountLabel, ConnectButton, EthereumContextProvider, SwitchNetworkButton, UseEthereumHandle, 
+    AccountLabel, ConnectButton, EthereumContextProvider, SwitchNetworkButton, UseEthereumHandle, 
 };
 
 
 #[function_component]
 fn App() -> Html {
-    // let counter = use_state(|| 0);
-    // let onclick = {
-    //     let counter = counter.clone();
-    //     move |_| {
-    //         let value = *counter + 1;
-    //         counter.set(value);
-    //     }
-    // };
-
     html! {
         <div>
             <EthereumContextProvider>
-                <button>
-                    <ConnectButton/>
-                </button>
+                <ConnectButton/>
                 <SwitchNetworkButton chain={chain::ethereum()}/>
                 <SwitchNetworkButton chain={chain::sepolia_testnet()}/>
                 <SwitchNetworkButton chain={yew_ethereum_provider::chain::avalanche_testnet()}/>
                 <AccountLabel/>
                 <Eth/>
             </EthereumContextProvider>
-            // <button {onclick}>{ "+1" }</button>
-            // <p>{ *counter }</p>
         </div>
     }
 }
 
 #[function_component]
 pub fn Eth() -> Html {
-    let ethereum = use_context::<UseEthereumHandle>().expect(
+    let (ethereum, contract) = if let Some(ethereum) = use_context::<Option<UseEthereumHandle>>().expect(
         "No ethereum provider found. You must wrap your components in an <EthereumContextProvider/>",
-    );
-    let transport = Eip1193::new(ethereum.provider.clone());
-    let web3 = Web3::new(transport);
-    let contract = Contract::from_json(
-        web3.eth(),
-        env!("CONTRACT_ADDRESS")
-            .trim_start_matches("0x")
-            .parse()
-            .unwrap(),
-        include_bytes!("../resources/MandelbrotNFT.json"),
-    ).unwrap();
+    ) {
+        let transport = Eip1193::new(ethereum.provider.clone());
+        let web3 = Web3::new(transport);
+        let contract = Contract::from_json(
+            web3.eth(),
+            env!("CONTRACT_ADDRESS")
+                .trim_start_matches("0x")
+                .parse()
+                .unwrap(),
+            include_bytes!("../resources/MandelbrotNFT.json"),
+        ).unwrap();
+
+        (Some(ethereum), Some(contract))
+    } else {
+        (None, None)
+    };
 
     html! {
         <Mandelbrot ..MandelbrotProps { ethereum, contract } />
@@ -76,8 +68,8 @@ pub fn Eth() -> Html {
 
 #[derive(Properties)]
 pub struct MandelbrotProps {
-    pub ethereum: UseEthereumHandle,
-    contract: Contract<Eip1193>,
+    pub ethereum: Option<UseEthereumHandle>,
+    contract: Option<Contract<Eip1193>>,
 }
 
 impl PartialEq for MandelbrotProps {
@@ -153,64 +145,38 @@ impl Component for Mandelbrot {
             log::info!("{:?}", params);
 
             spawn_local(async move {
-                let chain_id = ethereum.request("eth_chainId", vec![]).await;
-                log::info!("CHAIN ID {:?}", chain_id);
-                let address = ethereum.address().unwrap();
-                log::info!("ADDRESS {:?}", address);
+                if let (Some(ethereum), Some(contract)) = (ethereum, contract) {
+                    let chain_id = ethereum.request("eth_chainId", vec![]).await;
+                    log::info!("CHAIN ID {:?}", chain_id);
+                    let address = ethereum.address().unwrap();
+                    log::info!("ADDRESS {:?}", address);
 
-                let tx = contract.call("mintNFT", (
-                    *address,
-                    Field { 
-                        x_min: params.x_min as f64,
-                        y_min: params.y_min as f64,
-                        x_max: params.x_max as f64,
-                        y_max: params.y_max as f64
+                    let tx = contract.call("mintNFT", (
+                        *address,
+                        Field { 
+                            x_min: params.x_min as f64,
+                            y_min: params.y_min as f64,
+                            x_max: params.x_max as f64,
+                            y_max: params.y_max as f64
+                        }
+                    ), *address, Options::default()).await;
+
+                    log::info!("TRANSACTION {:?}", tx);
+
+                    let result = contract.query(
+                        "fields",
+                        (),
+                        None,
+                        Options::default(),
+                        None
+                    );
+                    if let Ok(balance_of) = result.await {
+                        let balance_of: Vec<Field> = balance_of;
+                        log::info!("SENDER BALANCE {:?}", balance_of);
+                    } else {
+                        log::info!("BALANCE OF ERROR");
                     }
-                ), *address, Options::default()).await;
-
-                log::info!("TRANSACTION {:?}", tx);
-
-                let result = contract.query(
-                    "fields",
-                    (),
-                    None,
-                    Options::default(),
-                    None
-                );
-                if let Ok(balance_of) = result.await {
-                    let balance_of: Vec<Field> = balance_of;
-                    log::info!("SENDER BALANCE {:?}", balance_of);
-                } else {
-                    log::info!("BALANCE OF ERROR");
                 }
-                // let qwe = result.await;
-                // let result = contract.query(
-                //     "balanceOf",
-                //     (*address, U256::from(0)),
-                //     None,
-                //     Options::default(),
-                //     None
-                // );
-                // let qwe = result.await;
-                // log::info!("ZXC {:?}", qwe);
-                // if let Ok(balance_of) = qwe {
-                //     let balance_of: U256 = balance_of;
-                //     log::info!("SENDER BALANCE {:?}", balance_of);
-                // } else {
-                //     log::info!("BALANCE OF ERROR");
-                // }
-
-                // let result = contract.query(
-                //     "balanceOf",
-                //     (Address::from(hex!("106EbfED93c3E174F798438D39f718D227b01906")), U256::from(1)),
-                //     None,
-                //     Options::default(),
-                //     None
-                // );
-                // if let Ok(balance_of) = result.await {
-                //     let balance_of: U256 = balance_of;
-                //     log::info!("RECEIVER BALANCE {:?}", balance_of);
-                // }
             });
         };
 
@@ -226,23 +192,25 @@ impl Component for Mandelbrot {
         if first_render {
             log::info!("FIRST RENDER");
             let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
-            let contract = ctx.props().contract.clone();
             let location = self.location.clone();
+            let contract = ctx.props().contract.clone();
             let fields = self.fields.clone();
             spawn_local(async move {
-                let result = contract.query(
-                    "fields",
-                    (),
-                    None,
-                    Options::default(),
-                    None
-                );
-                if let Ok(balance_of) = result.await {
-                    let mut balance_of: Vec<Field> = balance_of;
-                    log::info!("FIELDS: {:?}", balance_of);
-                    fields.lock().unwrap().append(&mut balance_of);
-                    mandelbrot_explorer::start(Some(canvas), Some(location));
+                if let Some(contract) = contract {
+                    let result = contract.query(
+                        "fields",
+                        (),
+                        None,
+                        Options::default(),
+                        None
+                    );
+                    if let Ok(balance_of) = result.await {
+                        let mut balance_of: Vec<Field> = balance_of;
+                        log::info!("FIELDS: {:?}", balance_of);
+                        fields.lock().unwrap().append(&mut balance_of);
+                    }
                 }
+                mandelbrot_explorer::start(Some(canvas), Some(location));
             });
         }
     }
