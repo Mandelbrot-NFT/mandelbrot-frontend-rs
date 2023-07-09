@@ -35,12 +35,14 @@ fn App() -> Html {
     html! {
         <div>
             <EthereumContextProvider>
-                <ConnectButton />
+                <button>
+                    <ConnectButton/>
+                </button>
                 <SwitchNetworkButton chain={chain::ethereum()}/>
                 <SwitchNetworkButton chain={chain::sepolia_testnet()}/>
                 <SwitchNetworkButton chain={yew_ethereum_provider::chain::avalanche_testnet()}/>
-                <AccountLabel />
-                <Eth />
+                <AccountLabel/>
+                <Eth/>
             </EthereumContextProvider>
             // <button {onclick}>{ "+1" }</button>
             // <p>{ *counter }</p>
