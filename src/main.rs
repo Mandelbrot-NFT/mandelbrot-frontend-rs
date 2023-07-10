@@ -62,7 +62,7 @@ pub fn Eth() -> Html {
     };
 
     html! {
-        <Mandelbrot ..MandelbrotProps { ethereum, contract } />
+        <Mandelbrot ..MandelbrotProps { ethereum, contract }/>
     }
 }
 
@@ -182,8 +182,8 @@ impl Component for Mandelbrot {
 
         html! {
             <>
-                <button {onclick}>{ "Get coords" }</button>
-                <canvas ref={self.node_ref.clone()} width="1000" height="1000"></canvas>
+                <p><canvas ref={self.node_ref.clone()} width="1500" height="1500"/></p>
+                <p><button {onclick}>{ "Mint" }</button></p>
             </>
         }
     }
