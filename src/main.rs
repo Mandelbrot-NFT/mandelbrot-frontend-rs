@@ -151,20 +151,22 @@ impl Component for Mandelbrot {
                 if let (Some(ethereum), Some(contract)) = (ethereum, contract) {
                     let chain_id = ethereum.request("eth_chainId", vec![]).await;
                     log::info!("CHAIN ID {:?}", chain_id);
-                    let address = ethereum.address().unwrap();
-                    log::info!("ADDRESS {:?}", address);
 
-                    let tx = contract.call("mintNFT", (
-                        *address,
-                        Field { 
-                            x_min: params.x_min as f64,
-                            y_min: params.y_min as f64,
-                            x_max: params.x_max as f64,
-                            y_max: params.y_max as f64
-                        }
-                    ), *address, Options::default()).await;
+                    if let Some(address) = ethereum.address() {
+                        log::info!("ADDRESS {:?}", address);
 
-                    log::info!("TRANSACTION {:?}", tx);
+                        let tx = contract.call("mintNFT", (
+                            *address,
+                            Field { 
+                                x_min: params.x_min as f64,
+                                y_min: params.y_min as f64,
+                                x_max: params.x_max as f64,
+                                y_max: params.y_max as f64
+                            }
+                        ), *address, Options::default()).await;
+
+                        log::info!("TRANSACTION {:?}", tx);
+                    }
 
                     let result = contract.query(
                         "fields",
