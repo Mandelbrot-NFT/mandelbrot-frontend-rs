@@ -119,17 +119,64 @@ pub struct Mandelbrot {
     fields: Arc<Mutex<Vec<Field>>>,
 }
 
+impl Mandelbrot {
+    async fn nft_selected(
+        interface: Arc<Mutex<mandelbrot_explorer::Interface>>,
+        contract: Option<Contract<Eip1193>>,
+        frame: mandelbrot_explorer::Frame
+    ) {
+        log::info!("FRAME: {:?}", frame);
+
+        if let Some(contract) = contract {
+            let result = contract.query(
+                "fields",
+                (),
+                None,
+                Options::default(),
+                None
+            );
+            if let Ok(fields) = result.await {
+                let fields: Vec<Field> = fields;
+                log::info!("{:?}", fields);
+                let frames = &mut interface.lock().unwrap().frames;
+                frames.clear();
+                frames.extend(fields.iter().map(|field| mandelbrot_explorer::Frame {
+                    x_min: field.x_min,
+                    x_max: field.x_max,
+                    y_min: field.y_min,
+                    y_max: field.y_max,
+                }));
+            }
+        }
+    }
+}
+
 impl Component for Mandelbrot {
     type Message = ();
     type Properties = MandelbrotProps;
 
     fn create(ctx: &Context<Self>) -> Self {
+        let contract = ctx.props().contract.clone();
+        let interface = Arc::new(Mutex::new(mandelbrot_explorer::Interface {
+            sample_location: mandelbrot_explorer::SampleLocation::new(1500.0, 1500.0),
+            frames: Vec::new(),
+            frame_selected_callback: None,
+        }));
+        {
+            let interface = interface.clone();
+            let interface_clone = interface.clone();
+            interface_clone.clone().lock().unwrap().frame_selected_callback = Some(Box::new(move |frame| {
+                let interface = interface.clone();
+                let contract = contract.clone();
+                let frame = frame.clone();
+                wasm_bindgen_futures::spawn_local(async move {
+                    Mandelbrot::nft_selected(interface, contract, frame).await
+                })
+            }));
+        }
         Self {
             node_ref: NodeRef::default(),
-            interface: Arc::new(Mutex::new(mandelbrot_explorer::Interface {
-                sample_location: mandelbrot_explorer::SampleLocation::new(1500.0, 1500.0),
-                frames: Vec::new()
-            })),
+            interface,
             fields: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -209,7 +256,7 @@ impl Component for Mandelbrot {
                         None
                     );
                     if let Ok(fields) = result.await {
-                        let mut fields: Vec<Field> = fields;
+                        let fields: Vec<Field> = fields;
                         let frames = &mut interface.lock().unwrap().frames;
                         frames.clear();
                         frames.extend(fields.iter().map(|field| mandelbrot_explorer::Frame {
