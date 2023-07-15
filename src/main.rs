@@ -115,7 +115,7 @@ impl web3::contract::tokens::TokenizableItem for Field {}
 
 pub struct Mandelbrot {
     node_ref: NodeRef,
-    location: Arc<Mutex<mandelbrot_explorer::SampleLocation>>,
+    interface: Arc<Mutex<mandelbrot_explorer::Interface>>,
     fields: Arc<Mutex<Vec<Field>>>,
 }
 
@@ -126,7 +126,10 @@ impl Component for Mandelbrot {
     fn create(ctx: &Context<Self>) -> Self {
         Self {
             node_ref: NodeRef::default(),
-            location: Arc::new(Mutex::new(mandelbrot_explorer::SampleLocation::new(1000.0, 1000.0))),
+            interface: Arc::new(Mutex::new(mandelbrot_explorer::Interface {
+                sample_location: mandelbrot_explorer::SampleLocation::new(1000.0, 1000.0),
+                frames: Vec::new()
+            })),
             fields: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -134,14 +137,14 @@ impl Component for Mandelbrot {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let ethereum = ctx.props().ethereum.clone();
         let contract = ctx.props().contract.clone();
-        let location = self.location.clone();
+        let interface = self.interface.clone();
         let fields = self.fields.clone();
         let onclick = move |_| {
             info!("onclick");
             log::info!("SENDER BALANCE {:?}", fields.lock());
             let ethereum = ethereum.clone();
             let contract = contract.clone();
-            let params = location.lock().unwrap().to_mandlebrot_params(0);
+            let params = interface.lock().unwrap().sample_location.to_mandlebrot_params(0);
             log::info!("{:?}", params);
 
             spawn_local(async move {
@@ -192,9 +195,8 @@ impl Component for Mandelbrot {
         if first_render {
             log::info!("FIRST RENDER");
             let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
-            let location = self.location.clone();
+            let interface = self.interface.clone();
             let contract = ctx.props().contract.clone();
-            let fields = self.fields.clone();
             spawn_local(async move {
                 if let Some(contract) = contract {
                     let result = contract.query(
@@ -204,13 +206,19 @@ impl Component for Mandelbrot {
                         Options::default(),
                         None
                     );
-                    if let Ok(balance_of) = result.await {
-                        let mut balance_of: Vec<Field> = balance_of;
-                        log::info!("FIELDS: {:?}", balance_of);
-                        fields.lock().unwrap().append(&mut balance_of);
+                    if let Ok(fields) = result.await {
+                        let mut fields: Vec<Field> = fields;
+                        let frames = &mut interface.lock().unwrap().frames;
+                        frames.clear();
+                        frames.extend(fields.iter().map(|field| [
+                            field.x_min as f32,
+                            field.y_min as f32,
+                            field.x_max as f32,
+                            field.y_max as f32,
+                        ]));
                     }
                 }
-                mandelbrot_explorer::start(Some(canvas), Some(location));
+                mandelbrot_explorer::start(Some(canvas), Some(interface));
             });
         }
     }
