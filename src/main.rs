@@ -211,10 +211,10 @@ impl Component for Mandelbrot {
                         let frames = &mut interface.lock().unwrap().frames;
                         frames.clear();
                         frames.extend(fields.iter().map(|field| [
-                            field.x_min as f32,
-                            field.y_min as f32,
-                            field.x_max as f32,
-                            field.y_max as f32,
+                            field.x_min,
+                            field.x_max,
+                            field.y_min,
+                            field.y_max,
                         ]));
                     }
                 }
