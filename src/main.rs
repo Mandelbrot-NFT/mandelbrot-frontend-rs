@@ -127,7 +127,7 @@ impl Component for Mandelbrot {
         Self {
             node_ref: NodeRef::default(),
             interface: Arc::new(Mutex::new(mandelbrot_explorer::Interface {
-                sample_location: mandelbrot_explorer::SampleLocation::new(1000.0, 1000.0),
+                sample_location: mandelbrot_explorer::SampleLocation::new(1500.0, 1500.0),
                 frames: Vec::new()
             })),
             fields: Arc::new(Mutex::new(Vec::new())),
@@ -210,12 +210,12 @@ impl Component for Mandelbrot {
                         let mut fields: Vec<Field> = fields;
                         let frames = &mut interface.lock().unwrap().frames;
                         frames.clear();
-                        frames.extend(fields.iter().map(|field| [
-                            field.x_min,
-                            field.x_max,
-                            field.y_min,
-                            field.y_max,
-                        ]));
+                        frames.extend(fields.iter().map(|field| mandelbrot_explorer::Frame {
+                            x_min: field.x_min,
+                            x_max: field.x_max,
+                            y_min: field.y_min,
+                            y_max: field.y_max,
+                        }));
                     }
                 }
                 mandelbrot_explorer::start(Some(canvas), Some(interface));
