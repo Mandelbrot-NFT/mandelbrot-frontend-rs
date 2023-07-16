@@ -113,38 +113,72 @@ impl Tokenizable for Field {
 
 impl web3::contract::tokens::TokenizableItem for Field {}
 
+
+#[derive(Debug)]
+pub struct Metadata {
+    token_id: U256,
+    parent_id: U256,
+    field: Field,
+}
+
+impl Tokenizable for Metadata {
+    fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
+        match token {
+            Token::Tuple(tokens) => {
+                Ok(Self { 
+                    token_id: U256::from_token(tokens[0].clone())?,
+                    parent_id: U256::from_token(tokens[1].clone())?,
+                    field: Field::from_token(tokens[2].clone())?,
+                })
+            }
+            _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
+        }
+    }
+
+    fn into_token(self) -> Token {
+        Token::Tuple(vec![
+            self.token_id.into_token(),
+            self.parent_id.into_token(),
+            self.field.into_token(),
+        ])
+    }
+}
+
+impl web3::contract::tokens::TokenizableItem for Metadata {}
+
+
 pub struct Mandelbrot {
     node_ref: NodeRef,
     interface: Arc<Mutex<mandelbrot_explorer::Interface>>,
-    fields: Arc<Mutex<Vec<Field>>>,
+    selected_nft_id: Arc<Mutex<U256>>,
 }
 
 impl Mandelbrot {
     async fn nft_selected(
         interface: Arc<Mutex<mandelbrot_explorer::Interface>>,
         contract: Option<Contract<Eip1193>>,
+        selected_nft_id: Arc<Mutex<U256>>,
         frame: mandelbrot_explorer::Frame
     ) {
-        log::info!("FRAME: {:?}", frame);
-
+        *selected_nft_id.lock().unwrap() = U256::from(frame.id);
         if let Some(contract) = contract {
             let result = contract.query(
-                "fields",
-                (),
+                "get_children",
+                (U256::from(frame.id),),
                 None,
                 Options::default(),
                 None
             );
-            if let Ok(fields) = result.await {
-                let fields: Vec<Field> = fields;
-                log::info!("{:?}", fields);
+            if let Ok(metadata) = result.await {
+                let metadata: Vec<Metadata> = metadata;
                 let frames = &mut interface.lock().unwrap().frames;
                 frames.clear();
-                frames.extend(fields.iter().map(|field| mandelbrot_explorer::Frame {
-                    x_min: field.x_min,
-                    x_max: field.x_max,
-                    y_min: field.y_min,
-                    y_max: field.y_max,
+                frames.extend(metadata.iter().map(|m| mandelbrot_explorer::Frame {
+                    id: m.token_id.as_u128(),
+                    x_min: m.field.x_min,
+                    x_max: m.field.x_max,
+                    y_min: m.field.y_min,
+                    y_max: m.field.y_max,
                 }));
             }
         }
@@ -162,22 +196,25 @@ impl Component for Mandelbrot {
             frames: Vec::new(),
             frame_selected_callback: None,
         }));
+        let selected_nft_id = Arc::new(Mutex::new(U256::from(0)));
         {
             let interface = interface.clone();
             let interface_clone = interface.clone();
+            let selected_nft_id = selected_nft_id.clone();
             interface_clone.clone().lock().unwrap().frame_selected_callback = Some(Box::new(move |frame| {
                 let interface = interface.clone();
                 let contract = contract.clone();
+                let selected_nft_id = selected_nft_id.clone();
                 let frame = frame.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    Mandelbrot::nft_selected(interface, contract, frame).await
+                    Mandelbrot::nft_selected(interface, contract, selected_nft_id, frame).await
                 })
             }));
         }
         Self {
             node_ref: NodeRef::default(),
             interface,
-            fields: Arc::new(Mutex::new(Vec::new())),
+            selected_nft_id,
         }
     }
 
@@ -185,12 +222,12 @@ impl Component for Mandelbrot {
         let ethereum = ctx.props().ethereum.clone();
         let contract = ctx.props().contract.clone();
         let interface = self.interface.clone();
-        let fields = self.fields.clone();
+        let selected_nft_id = self.selected_nft_id.clone();
         let onclick = move |_| {
             info!("onclick");
-            log::info!("SENDER BALANCE {:?}", fields.lock());
             let ethereum = ethereum.clone();
             let contract = contract.clone();
+            let selected_nft_id = selected_nft_id.clone();
             let params = interface.lock().unwrap().sample_location.to_mandlebrot_params(0);
             log::info!("{:?}", params);
 
@@ -203,8 +240,9 @@ impl Component for Mandelbrot {
                         log::info!("ADDRESS {:?}", address);
 
                         let tx = contract.call("mintNFT", (
+                            *selected_nft_id.lock().unwrap(),
                             *address,
-                            Field { 
+                            Field {
                                 x_min: params.x_min as f64,
                                 y_min: params.y_min as f64,
                                 x_max: params.x_max as f64,
@@ -213,20 +251,6 @@ impl Component for Mandelbrot {
                         ), *address, Options::default()).await;
 
                         log::info!("TRANSACTION {:?}", tx);
-                    }
-
-                    let result = contract.query(
-                        "fields",
-                        (),
-                        None,
-                        Options::default(),
-                        None
-                    );
-                    if let Ok(balance_of) = result.await {
-                        let balance_of: Vec<Field> = balance_of;
-                        log::info!("SENDER BALANCE {:?}", balance_of);
-                    } else {
-                        log::info!("BALANCE OF ERROR");
                     }
                 }
             });
@@ -245,25 +269,27 @@ impl Component for Mandelbrot {
             log::info!("FIRST RENDER");
             let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
             let interface = self.interface.clone();
+            let selected_nft_id = self.selected_nft_id.clone();
             let contract = ctx.props().contract.clone();
             spawn_local(async move {
                 if let Some(contract) = contract {
                     let result = contract.query(
-                        "fields",
-                        (),
+                        "get_children",
+                        (*selected_nft_id.lock().unwrap(),),
                         None,
                         Options::default(),
                         None
                     );
-                    if let Ok(fields) = result.await {
-                        let fields: Vec<Field> = fields;
+                    if let Ok(metadata) = result.await {
+                        let metadata: Vec<Metadata> = metadata;
                         let frames = &mut interface.lock().unwrap().frames;
                         frames.clear();
-                        frames.extend(fields.iter().map(|field| mandelbrot_explorer::Frame {
-                            x_min: field.x_min,
-                            x_max: field.x_max,
-                            y_min: field.y_min,
-                            y_max: field.y_max,
+                        frames.extend(metadata.iter().map(|m| mandelbrot_explorer::Frame {
+                            id: m.token_id.as_u128(),
+                            x_min: m.field.x_min,
+                            x_max: m.field.x_max,
+                            y_min: m.field.y_min,
+                            y_max: m.field.y_max,
                         }));
                     }
                 }
