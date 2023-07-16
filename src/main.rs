@@ -32,7 +32,6 @@ fn App() -> Html {
                 <ConnectButton/>
                 <SwitchNetworkButton chain={chain::ethereum()}/>
                 <SwitchNetworkButton chain={chain::sepolia_testnet()}/>
-                <SwitchNetworkButton chain={yew_ethereum_provider::chain::avalanche_testnet()}/>
                 <AccountLabel/>
                 <Eth/>
             </EthereumContextProvider>
@@ -163,7 +162,7 @@ impl Mandelbrot {
         *selected_nft_id.lock().unwrap() = U256::from(frame.id);
         if let Some(contract) = contract {
             let result = contract.query(
-                "get_children",
+                "getChildrenMetadata",
                 (U256::from(frame.id),),
                 None,
                 Options::default(),
@@ -196,7 +195,7 @@ impl Component for Mandelbrot {
             frames: Vec::new(),
             frame_selected_callback: None,
         }));
-        let selected_nft_id = Arc::new(Mutex::new(U256::from(0)));
+        let selected_nft_id = Arc::new(Mutex::new(U256::from(1)));
         {
             let interface = interface.clone();
             let interface_clone = interface.clone();
@@ -274,7 +273,7 @@ impl Component for Mandelbrot {
             spawn_local(async move {
                 if let Some(contract) = contract {
                     let result = contract.query(
-                        "get_children",
+                        "getChildrenMetadata",
                         (*selected_nft_id.lock().unwrap(),),
                         None,
                         Options::default(),
