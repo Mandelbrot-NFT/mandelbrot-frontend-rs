@@ -8,7 +8,7 @@ build:
 
 build_render:
 	cargo install trunk wasm-bindgen-cli
-	npm install -g
+	npm install
 	RUSTFLAGS=--cfg=web_sys_unstable_apis trunk build --release
 
 run:
