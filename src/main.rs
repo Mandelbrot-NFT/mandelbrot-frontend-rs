@@ -95,6 +95,38 @@ impl PartialEq for BalanceProps {
     }
 }
 
+async fn get_balance(
+    address: Address,
+    nft_contract: Contract<Eip1193>,
+    erc20_contract: Contract<Eip1193>,
+    fuel_balance: UseStateHandle<f64>,
+    wfuel_balance: UseStateHandle<f64>,
+) {
+    let result = nft_contract.query(
+        "balanceOf",
+        (address, U256::from(0),),
+        None,
+        Options::default(),
+        None
+    );
+    if let Ok(balance) = result.await {
+        let balance: U256 = balance;
+        fuel_balance.set(balance.as_u128() as f64 / 10_f64.powi(18));
+    }
+
+    let result = erc20_contract.query(
+        "balanceOf",
+        (address,),
+        None,
+        Options::default(),
+        None
+    );
+    if let Ok(balance) = result.await {
+        let balance: U256 = balance;
+        wfuel_balance.set(balance.as_u128() as f64 / 10_f64.powi(18));
+    }
+}
+
 #[function_component]
 pub fn Balance(props: &BalanceProps) -> Html {
     let nft_contract = props.nft_contract.clone();
@@ -117,6 +149,7 @@ pub fn Balance(props: &BalanceProps) -> Html {
     let refresh_balance = {
         let ethereum = props.ethereum.clone();
         let nft_contract = nft_contract.clone();
+        let erc20_contract = erc20_contract.clone();
         let fuel_balance = fuel_balance.clone();
         let wfuel_balance = wfuel_balance.clone();
         move |_| {
@@ -127,29 +160,13 @@ pub fn Balance(props: &BalanceProps) -> Html {
             if let Some(address) = ethereum.address() {
                 let address = address.clone();
                 spawn_local(async move {
-                    let result = nft_contract.query(
-                        "balanceOf",
-                        (address, U256::from(0),),
-                        None,
-                        Options::default(),
-                        None
-                    );
-                    if let Ok(balance) = result.await {
-                        let balance: U256 = balance;
-                        fuel_balance.set(balance.as_u128() as f64 / 10_f64.powi(18));
-                    }
-
-                    let result = erc20_contract.query(
-                        "balanceOf",
-                        (address,),
-                        None,
-                        Options::default(),
-                        None
-                    );
-                    if let Ok(balance) = result.await {
-                        let balance: U256 = balance;
-                        wfuel_balance.set(balance.as_u128() as f64 / 10_f64.powi(18));
-                    }
+                    get_balance(
+                        address,
+                        nft_contract,
+                        erc20_contract,
+                        fuel_balance,
+                        wfuel_balance
+                    ).await;
                 });
             }
         }
@@ -181,21 +198,33 @@ pub fn Balance(props: &BalanceProps) -> Html {
         let ethereum = props.ethereum.clone();
         let nft_contract = nft_contract.clone();
         let wrapper_contract = wrapper_contract.clone();
+        let erc20_contract = erc20_contract.clone();
+        let fuel_balance = fuel_balance.clone();
+        let wfuel_balance = wfuel_balance.clone();
         move |_| {
             let nft_contract = nft_contract.clone();
             let wrapper_contract = wrapper_contract.clone();
+            let erc20_contract = erc20_contract.clone();
+            let fuel_balance = fuel_balance.clone();
+            let wfuel_balance = wfuel_balance.clone();
             let wrap_amount = wrap_amount.clone();
             if let Some(address) = ethereum.address() {
                 let address = address.clone();
                 spawn_local(async move {
-                    let tx = nft_contract.call("safeTransferFrom", (
+                    nft_contract.call_with_confirmations("safeTransferFrom", (
                         address,
                         wrapper_contract.address(),
                         U256::from(0),
                         U256::from((*wrap_amount * 10_f64.powi(18)) as u128),
                         hex::decode("57726170706564204d616e64656c62726f74204655454c00000000000000002e774655454c00000000000000000000000000000000000000000000000000000a12").unwrap(),
-                    ), address, Options::default()).await;
-                    log::info!("{:?}", tx);
+                    ), address, Options::default(), 1).await;
+                    get_balance(
+                        address,
+                        nft_contract,
+                        erc20_contract,
+                        fuel_balance,
+                        wfuel_balance
+                    ).await;
                 });
             }
         }
@@ -203,21 +232,32 @@ pub fn Balance(props: &BalanceProps) -> Html {
 
     let unwrap = {
         let ethereum = props.ethereum.clone();
+        let fuel_balance = fuel_balance.clone();
+        let wfuel_balance = wfuel_balance.clone();
         move |_| {
             let nft_contract = nft_contract.clone();
             let wrapper_contract = wrapper_contract.clone();
+            let erc20_contract = erc20_contract.clone();
+            let fuel_balance = fuel_balance.clone();
+            let wfuel_balance = wfuel_balance.clone();
             let unwrap_amount = unwrap_amount.clone();
             if let Some(address) = ethereum.address() {
                 let address = address.clone();
                 spawn_local(async move {
-                    let tx = wrapper_contract.call("unwrap", (
+                    wrapper_contract.call_with_confirmations("unwrap", (
                         nft_contract.address(),
                         U256::from(0),
                         U256::from((*unwrap_amount * 10_f64.powi(18)) as u128),
                         address,
                         hex::decode("57726170706564204d616e64656c62726f74204655454c00000000000000002e774655454c00000000000000000000000000000000000000000000000000000a12").unwrap(),
-                    ), address, Options::default()).await;
-                    log::info!("{:?}", tx);
+                    ), address, Options::default(), 1).await;
+                    get_balance(
+                        address,
+                        nft_contract,
+                        erc20_contract,
+                        fuel_balance,
+                        wfuel_balance
+                    ).await;
                 });
             }
         }
