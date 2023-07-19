@@ -8,7 +8,11 @@ use std::{
 use ethabi::token::Token;
 use hex_literal::hex;
 use log::info;
+use patternfly_yew::prelude::*;
 use yew::prelude::*;
+use yew_ethereum_provider::{
+    AccountLabel, ConnectButton, EthereumContextProvider, SwitchNetworkButton, UseEthereumHandle, 
+};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlCanvasElement;
 use web3::{
@@ -19,49 +23,144 @@ use web3::{
     types::{FilterBuilder, Address, BlockNumber, BlockId, Log, Bytes, U256}, contract::{Contract, Options},
     Web3
 };
-use yew_ethereum_provider::{
-    AccountLabel, ConnectButton, EthereumContextProvider, SwitchNetworkButton, UseEthereumHandle, 
-};
 
 
 #[function_component]
 fn App() -> Html {
     html! {
-        <div>
+        <PageSectionGroup>
             <EthereumContextProvider>
-                <ConnectButton/>
-                <SwitchNetworkButton chain={chain::ethereum()}/>
-                <SwitchNetworkButton chain={chain::sepolia_testnet()}/>
-                <AccountLabel/>
-                <Eth/>
+                <Split>
+                    <SplitItem>
+                        <PageSection>
+                            <Eth/>
+                        </PageSection>
+                    </SplitItem>
+                    <SplitItem>
+                        <PageSection
+                            r#type={PageSectionType::Default}
+                            variant={PageSectionVariant::Light}
+                            limit_width=true
+                            sticky={[PageSectionSticky::Top]}
+                        >
+                            <ConnectButton/>
+                            <SwitchNetworkButton chain={chain::ethereum()}/>
+                            <SwitchNetworkButton chain={chain::sepolia_testnet()}/>
+                            <AccountLabel/>
+                        </PageSection>
+                    </SplitItem>
+                </Split>
             </EthereumContextProvider>
-        </div>
+        </PageSectionGroup>
     }
 }
 
 #[function_component]
 pub fn Eth() -> Html {
-    let (ethereum, contract) = if let Some(ethereum) = use_context::<Option<UseEthereumHandle>>().expect(
+    if let Some(ethereum) = use_context::<Option<UseEthereumHandle>>().expect(
         "No ethereum provider found. You must wrap your components in an <EthereumContextProvider/>",
     ) {
         let transport = Eip1193::new(ethereum.provider.clone());
         let web3 = Web3::new(transport);
-        let contract = Contract::from_json(
+        let nft_contract = Contract::from_json(
             web3.eth(),
-            env!("CONTRACT_ADDRESS")
-                .trim_start_matches("0x")
-                .parse()
-                .unwrap(),
+            env!("NFT_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
             include_bytes!("../resources/MandelbrotNFT.json"),
         ).unwrap();
 
-        (Some(ethereum), Some(contract))
+        html! {
+            <div>
+                <Mandelbrot ..MandelbrotProps { ethereum: Some(ethereum.clone()), contract: Some(nft_contract.clone()) }/>
+                <Balance ..BalanceProps { ethereum: ethereum.clone(), nft_contract: nft_contract.clone() }/>
+            </div>
+        }
     } else {
-        (None, None)
+        html! {
+            <div>
+                <Mandelbrot ..MandelbrotProps { ethereum: None, contract: None }/>
+            </div>
+        }
+    }
+}
+
+#[derive(Properties)]
+pub struct BalanceProps {
+    pub ethereum: UseEthereumHandle,
+    nft_contract: Contract<Eip1193>,
+}
+
+impl PartialEq for BalanceProps {
+    fn eq(&self, other: &Self) -> bool {
+        self.ethereum == other.ethereum
+    }
+}
+
+#[function_component]
+pub fn Balance(props: &BalanceProps) -> Html {
+    let fuel_balance = use_state(|| 0.0);
+    let wfuel_balance = use_state(|| 0.0);
+    let nft_contract = props.nft_contract.clone();
+
+    let transport = Eip1193::new(props.ethereum.provider.clone());
+    let web3 = Web3::new(transport);
+    let wrapper_contract = Contract::from_json(
+        web3.eth(),
+        env!("WRAPPER_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
+        include_bytes!("../resources/Wrapped1155Factory.json"),
+    ).unwrap();
+    let erc20_contract = Contract::from_json(
+        web3.eth(),
+        env!("ERC20_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
+        include_bytes!("../resources/Wrapped1155.json"),
+    ).unwrap();
+
+    let onclick = {
+        let ethereum = props.ethereum.clone();
+        let fuel_balance = fuel_balance.clone();
+        let wfuel_balance = wfuel_balance.clone();
+        move |_| {
+            let fuel_balance = fuel_balance.clone();
+            let wfuel_balance = wfuel_balance.clone();
+            let nft_contract = nft_contract.clone();
+            let erc20_contract = erc20_contract.clone();
+            if let Some(address) = ethereum.address() {
+                let address = address.clone();
+                spawn_local(async move {
+                    let result = nft_contract.query(
+                        "balanceOf",
+                        (address, U256::from(0),),
+                        None,
+                        Options::default(),
+                        None
+                    );
+                    if let Ok(balance) = result.await {
+                        let balance: U256 = balance;
+                        fuel_balance.set(balance.as_u128() as f64 / 10_f64.powi(18));
+                    }
+
+                    let result = erc20_contract.query(
+                        "balanceOf",
+                        (address,),
+                        None,
+                        Options::default(),
+                        None
+                    );
+                    if let Ok(balance) = result.await {
+                        let balance: U256 = balance;
+                        wfuel_balance.set(balance.as_u128() as f64 / 10_f64.powi(18));
+                    }
+                });
+            }
+        }
     };
 
     html! {
-        <Mandelbrot ..MandelbrotProps { ethereum, contract }/>
+        <div>
+            <div><strong>{ "FUEL balance: " }</strong> {*fuel_balance} </div>
+            <div><strong>{ "wFUEL balance: " }</strong> {*wfuel_balance} </div>
+            <button {onclick}>{ "Refresh balance" }</button>
+            <label>{ "Unwrap" }</label>
+        </div>
     }
 }
 
@@ -205,7 +304,7 @@ impl Component for Mandelbrot {
                 let contract = contract.clone();
                 let selected_nft_id = selected_nft_id.clone();
                 let frame = frame.clone();
-                wasm_bindgen_futures::spawn_local(async move {
+                spawn_local(async move {
                     Mandelbrot::nft_selected(interface, contract, selected_nft_id, frame).await
                 })
             }));
@@ -256,10 +355,10 @@ impl Component for Mandelbrot {
         };
 
         html! {
-            <>
-                <p><canvas ref={self.node_ref.clone()} width="1500" height="1500"/></p>
-                <p><button {onclick}>{ "Mint" }</button></p>
-            </>
+            <div>
+                <canvas ref={self.node_ref.clone()} width="1500" height="1500"/>
+                <button {onclick}>{ "Mint" }</button>
+            </div>
         }
     }
 

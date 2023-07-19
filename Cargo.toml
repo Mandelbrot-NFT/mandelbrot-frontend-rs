@@ -10,6 +10,7 @@ ethabi = "18.0.0"
 hex-literal = "0.4.1"
 log = "0.4.17"
 mandelbrot-explorer = { version = "0.1.0", path = "mandelbrot-explorer-rs" }
+patternfly-yew = "0.5.0-alpha.2"
 wasm-bindgen-futures = "0.4.33"
 web-sys = "0.3.60"
 web3 = { version = "0.19.0", default-features = false, features = ["wasm", "eip-1193"] }
