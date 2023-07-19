@@ -97,8 +97,6 @@ impl PartialEq for BalanceProps {
 
 #[function_component]
 pub fn Balance(props: &BalanceProps) -> Html {
-    let fuel_balance = use_state(|| 0.0);
-    let wfuel_balance = use_state(|| 0.0);
     let nft_contract = props.nft_contract.clone();
 
     let transport = Eip1193::new(props.ethereum.provider.clone());
@@ -114,8 +112,11 @@ pub fn Balance(props: &BalanceProps) -> Html {
         include_bytes!("../resources/Wrapped1155.json"),
     ).unwrap();
 
-    let onclick = {
+    let fuel_balance = use_state(|| 0.0);
+    let wfuel_balance = use_state(|| 0.0);
+    let refresh_balance = {
         let ethereum = props.ethereum.clone();
+        let nft_contract = nft_contract.clone();
         let fuel_balance = fuel_balance.clone();
         let wfuel_balance = wfuel_balance.clone();
         move |_| {
@@ -154,13 +155,89 @@ pub fn Balance(props: &BalanceProps) -> Html {
         }
     };
 
+    let wrap_amount = use_state(|| 0.0);
+    let wrap_amount_str = use_state(|| "0.0".to_owned());
+    let change_wrap_amount = {
+        let wrap_amount = wrap_amount.clone();
+        let wrap_amount_str = wrap_amount_str.clone();
+        move |value: f64| {
+            wrap_amount.set(value);
+            wrap_amount_str.set(format!("{value:.2}"));
+        }
+    };
+
+    let unwrap_amount = use_state(|| 0.0);
+    let unwrap_amount_str = use_state(|| "0.0".to_owned());
+    let change_unwrap_amount = {
+        let unwrap_amount = unwrap_amount.clone();
+        let unwrap_amount_str = unwrap_amount_str.clone();
+        move |value: f64| {
+            unwrap_amount.set(value);
+            unwrap_amount_str.set(format!("{value:.2}"));
+        }
+    };
+
+    let wrap = {
+        let ethereum = props.ethereum.clone();
+        let nft_contract = nft_contract.clone();
+        let wrapper_contract = wrapper_contract.clone();
+        move |_| {
+            let nft_contract = nft_contract.clone();
+            let wrapper_contract = wrapper_contract.clone();
+            let wrap_amount = wrap_amount.clone();
+            if let Some(address) = ethereum.address() {
+                let address = address.clone();
+                spawn_local(async move {
+                    let tx = nft_contract.call("safeTransferFrom", (
+                        address,
+                        wrapper_contract.address(),
+                        U256::from(0),
+                        U256::from((*wrap_amount * 10_f64.powi(18)) as u128),
+                        hex::decode("57726170706564204d616e64656c62726f74204655454c00000000000000002e774655454c00000000000000000000000000000000000000000000000000000a12").unwrap(),
+                    ), address, Options::default()).await;
+                    log::info!("{:?}", tx);
+                });
+            }
+        }
+    };
+
+    let unwrap = {
+        let ethereum = props.ethereum.clone();
+        move |_| {
+            let nft_contract = nft_contract.clone();
+            let wrapper_contract = wrapper_contract.clone();
+            let unwrap_amount = unwrap_amount.clone();
+            if let Some(address) = ethereum.address() {
+                let address = address.clone();
+                spawn_local(async move {
+                    let tx = wrapper_contract.call("unwrap", (
+                        nft_contract.address(),
+                        U256::from(0),
+                        U256::from((*unwrap_amount * 10_f64.powi(18)) as u128),
+                        address,
+                        hex::decode("57726170706564204d616e64656c62726f74204655454c00000000000000002e774655454c00000000000000000000000000000000000000000000000000000a12").unwrap(),
+                    ), address, Options::default()).await;
+                    log::info!("{:?}", tx);
+                });
+            }
+        }
+    };
+
     html! {
-        <div>
-            <div><strong>{ "FUEL balance: " }</strong> {*fuel_balance} </div>
-            <div><strong>{ "wFUEL balance: " }</strong> {*wfuel_balance} </div>
-            <button {onclick}>{ "Refresh balance" }</button>
-            <label>{ "Unwrap" }</label>
-        </div>
+        <Grid>
+            <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={refresh_balance}>{ "Refresh balance" }</Button></GridItem>
+            <GridItem cols={[10]} rows={[1]}/>
+
+            <GridItem cols={[3]} rows={[1]}><strong>{ "FUEL: " }</strong> {*fuel_balance} </GridItem>
+            <GridItem cols={[7]} rows={[1]}><Slider min=0f64 max={*fuel_balance} onchange={change_wrap_amount}/></GridItem>
+            <GridItem cols={[1]} rows={[1]}> { (*wrap_amount_str).clone() } </GridItem>
+            <GridItem cols={[1]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={wrap}>{ "Wrap" }</Button></GridItem>
+
+            <GridItem cols={[3]} rows={[1]}><strong>{ "wFUEL: " }</strong> {*wfuel_balance} </GridItem>
+            <GridItem cols={[7]} rows={[1]}><Slider min=0f64 max={*wfuel_balance} onchange={change_unwrap_amount}/></GridItem>
+            <GridItem cols={[1]} rows={[1]}> { (*unwrap_amount_str).clone() } </GridItem>
+            <GridItem cols={[1]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={unwrap}>{ "Unwrap" }</Button></GridItem>
+        </Grid>
     }
 }
 
