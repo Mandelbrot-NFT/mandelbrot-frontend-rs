@@ -6,10 +6,7 @@
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "dependencies": {
-        "@fortawesome/fontawesome-free": "^6.3.0",
-        "@patternfly/patternfly": "^5.0.0-prerelease.13"
-    },
-    "//dependencies": {
-        "@fortawesome/fontawesome-free": "Only required if you are enabling the icons-fab or icons-far feature"
+        "@patternfly/patternfly": "^5.0.0-prerelease.13",
+        "sass": "^1.63.6"
     }
 }
