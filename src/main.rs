@@ -334,6 +334,7 @@ pub struct Metadata {
     token_id: U256,
     parent_id: U256,
     field: Field,
+    minimum_price: U256,
 }
 
 impl Tokenizable for Metadata {
@@ -344,6 +345,7 @@ impl Tokenizable for Metadata {
                     token_id: U256::from_token(tokens[0].clone())?,
                     parent_id: U256::from_token(tokens[1].clone())?,
                     field: Field::from_token(tokens[2].clone())?,
+                    minimum_price: U256::from_token(tokens[3].clone())?,
                 })
             }
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
@@ -355,6 +357,7 @@ impl Tokenizable for Metadata {
             self.token_id.into_token(),
             self.parent_id.into_token(),
             self.field.into_token(),
+            self.minimum_price.into_token(),
         ])
     }
 }

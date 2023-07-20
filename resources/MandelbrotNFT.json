@@ -203,41 +203,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "fields",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "min_x",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "min_y",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "max_x",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "max_y",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct MandelbrotNFT.Field[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -285,6 +250,11 @@
             "internalType": "struct MandelbrotNFT.Field",
             "name": "field",
             "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "minimumPrice",
+            "type": "uint256"
           }
         ],
         "internalType": "struct MandelbrotNFT.Metadata[]",
@@ -343,6 +313,11 @@
             "internalType": "struct MandelbrotNFT.Field",
             "name": "field",
             "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "minimumPrice",
+            "type": "uint256"
           }
         ],
         "internalType": "struct MandelbrotNFT.Metadata",
