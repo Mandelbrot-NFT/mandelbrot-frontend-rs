@@ -1,27 +1,27 @@
 mod chain;
+mod components;
+mod evm;
 
-use std::{
-    env,
-    sync::{Arc, Mutex}
-};
+use std::sync::{Arc, Mutex};
 
-use ethabi::token::Token;
-use hex_literal::hex;
-use log::info;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 use yew_ethereum_provider::{
     AccountLabel, ConnectButton, EthereumContextProvider, SwitchNetworkButton, UseEthereumHandle, 
 };
 use wasm_bindgen_futures::spawn_local;
-use web_sys::HtmlCanvasElement;
 use web3::{
-    contract::tokens::Tokenizable,
-    // futures::StreamExt,
-    transports::eip_1193::{Eip1193, Provider},
-    // transports::WebSocket,
-    types::{FilterBuilder, Address, BlockNumber, BlockId, Log, Bytes, U256}, contract::{Contract, Options},
+    transports::eip_1193::Eip1193,
     Web3
+};
+
+use components::{
+    balance::{Balance, BalanceProps},
+    mandelbrot::{Mandelbrot, MandelbrotProps}
+};
+use evm::{
+    contracts::ERC1155Contract,
+    types::{Field, Metadata}
 };
 
 
@@ -33,7 +33,7 @@ fn App() -> Html {
                 <Split>
                     <SplitItem>
                         <PageSection>
-                            <Eth/>
+                            <EthWrapper/>
                         </PageSection>
                     </SplitItem>
                     <SplitItem>
@@ -55,469 +55,167 @@ fn App() -> Html {
     }
 }
 
+
 #[function_component]
-pub fn Eth() -> Html {
-    if let Some(ethereum) = use_context::<Option<UseEthereumHandle>>().expect(
+pub fn EthWrapper() -> Html {
+    let ethereum = use_context::<Option<UseEthereumHandle>>().expect(
         "No ethereum provider found. You must wrap your components in an <EthereumContextProvider/>",
-    ) {
-        let transport = Eip1193::new(ethereum.provider.clone());
-        let web3 = Web3::new(transport);
-        let nft_contract = Contract::from_json(
-            web3.eth(),
-            env!("NFT_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
-            include_bytes!("../resources/MandelbrotNFT.json"),
-        ).unwrap();
-
-        html! {
-            <div>
-                <Mandelbrot ..MandelbrotProps { ethereum: Some(ethereum.clone()), contract: Some(nft_contract.clone()) }/>
-                <Balance ..BalanceProps { ethereum: ethereum.clone(), nft_contract: nft_contract.clone() }/>
-            </div>
-        }
-    } else {
-        html! {
-            <div>
-                <Mandelbrot ..MandelbrotProps { ethereum: None, contract: None }/>
-            </div>
-        }
-    }
-}
-
-#[derive(Properties)]
-pub struct BalanceProps {
-    pub ethereum: UseEthereumHandle,
-    nft_contract: Contract<Eip1193>,
-}
-
-impl PartialEq for BalanceProps {
-    fn eq(&self, other: &Self) -> bool {
-        self.ethereum == other.ethereum
-    }
-}
-
-async fn get_balance(
-    address: Address,
-    nft_contract: Contract<Eip1193>,
-    erc20_contract: Contract<Eip1193>,
-    fuel_balance: UseStateHandle<f64>,
-    wfuel_balance: UseStateHandle<f64>,
-) {
-    let result = nft_contract.query(
-        "balanceOf",
-        (address, U256::from(0),),
-        None,
-        Options::default(),
-        None
     );
-    if let Ok(balance) = result.await {
-        let balance: U256 = balance;
-        fuel_balance.set(balance.as_u128() as f64 / 10_f64.powi(18));
-    }
-
-    let result = erc20_contract.query(
-        "balanceOf",
-        (address,),
-        None,
-        Options::default(),
-        None
-    );
-    if let Ok(balance) = result.await {
-        let balance: U256 = balance;
-        wfuel_balance.set(balance.as_u128() as f64 / 10_f64.powi(18));
-    }
-}
-
-#[function_component]
-pub fn Balance(props: &BalanceProps) -> Html {
-    let nft_contract = props.nft_contract.clone();
-
-    let transport = Eip1193::new(props.ethereum.provider.clone());
-    let web3 = Web3::new(transport);
-    let wrapper_contract = Contract::from_json(
-        web3.eth(),
-        env!("WRAPPER_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
-        include_bytes!("../resources/Wrapped1155Factory.json"),
-    ).unwrap();
-    let erc20_contract = Contract::from_json(
-        web3.eth(),
-        env!("ERC20_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
-        include_bytes!("../resources/Wrapped1155.json"),
-    ).unwrap();
-
-    let fuel_balance = use_state(|| 0.0);
-    let wfuel_balance = use_state(|| 0.0);
-    let refresh_balance = {
-        let ethereum = props.ethereum.clone();
-        let nft_contract = nft_contract.clone();
-        let erc20_contract = erc20_contract.clone();
-        let fuel_balance = fuel_balance.clone();
-        let wfuel_balance = wfuel_balance.clone();
-        move |_| {
-            let fuel_balance = fuel_balance.clone();
-            let wfuel_balance = wfuel_balance.clone();
-            let nft_contract = nft_contract.clone();
-            let erc20_contract = erc20_contract.clone();
-            if let Some(address) = ethereum.address() {
-                let address = address.clone();
-                spawn_local(async move {
-                    get_balance(
-                        address,
-                        nft_contract,
-                        erc20_contract,
-                        fuel_balance,
-                        wfuel_balance
-                    ).await;
-                });
-            }
-        }
-    };
-
-    let wrap_amount = use_state(|| 0.0);
-    let wrap_amount_str = use_state(|| "0.0".to_owned());
-    let change_wrap_amount = {
-        let wrap_amount = wrap_amount.clone();
-        let wrap_amount_str = wrap_amount_str.clone();
-        move |value: f64| {
-            wrap_amount.set(value);
-            wrap_amount_str.set(format!("{value:.2}"));
-        }
-    };
-
-    let unwrap_amount = use_state(|| 0.0);
-    let unwrap_amount_str = use_state(|| "0.0".to_owned());
-    let change_unwrap_amount = {
-        let unwrap_amount = unwrap_amount.clone();
-        let unwrap_amount_str = unwrap_amount_str.clone();
-        move |value: f64| {
-            unwrap_amount.set(value);
-            unwrap_amount_str.set(format!("{value:.2}"));
-        }
-    };
-
-    let wrap = {
-        let ethereum = props.ethereum.clone();
-        let nft_contract = nft_contract.clone();
-        let wrapper_contract = wrapper_contract.clone();
-        let erc20_contract = erc20_contract.clone();
-        let fuel_balance = fuel_balance.clone();
-        let wfuel_balance = wfuel_balance.clone();
-        move |_| {
-            let nft_contract = nft_contract.clone();
-            let wrapper_contract = wrapper_contract.clone();
-            let erc20_contract = erc20_contract.clone();
-            let fuel_balance = fuel_balance.clone();
-            let wfuel_balance = wfuel_balance.clone();
-            let wrap_amount = wrap_amount.clone();
-            if let Some(address) = ethereum.address() {
-                let address = address.clone();
-                spawn_local(async move {
-                    nft_contract.call_with_confirmations("safeTransferFrom", (
-                        address,
-                        wrapper_contract.address(),
-                        U256::from(0),
-                        U256::from((*wrap_amount * 10_f64.powi(18)) as u128),
-                        hex::decode("57726170706564204d616e64656c62726f74204655454c00000000000000002e774655454c00000000000000000000000000000000000000000000000000000a12").unwrap(),
-                    ), address, Options::default(), 1).await;
-                    get_balance(
-                        address,
-                        nft_contract,
-                        erc20_contract,
-                        fuel_balance,
-                        wfuel_balance
-                    ).await;
-                });
-            }
-        }
-    };
-
-    let unwrap = {
-        let ethereum = props.ethereum.clone();
-        let fuel_balance = fuel_balance.clone();
-        let wfuel_balance = wfuel_balance.clone();
-        move |_| {
-            let nft_contract = nft_contract.clone();
-            let wrapper_contract = wrapper_contract.clone();
-            let erc20_contract = erc20_contract.clone();
-            let fuel_balance = fuel_balance.clone();
-            let wfuel_balance = wfuel_balance.clone();
-            let unwrap_amount = unwrap_amount.clone();
-            if let Some(address) = ethereum.address() {
-                let address = address.clone();
-                spawn_local(async move {
-                    wrapper_contract.call_with_confirmations("unwrap", (
-                        nft_contract.address(),
-                        U256::from(0),
-                        U256::from((*unwrap_amount * 10_f64.powi(18)) as u128),
-                        address,
-                        hex::decode("57726170706564204d616e64656c62726f74204655454c00000000000000002e774655454c00000000000000000000000000000000000000000000000000000a12").unwrap(),
-                    ), address, Options::default(), 1).await;
-                    get_balance(
-                        address,
-                        nft_contract,
-                        erc20_contract,
-                        fuel_balance,
-                        wfuel_balance
-                    ).await;
-                });
-            }
-        }
-    };
-
     html! {
-        <Grid>
-            <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={refresh_balance}>{ "Refresh balance" }</Button></GridItem>
-            <GridItem cols={[10]} rows={[1]}/>
-
-            <GridItem cols={[3]} rows={[1]}><strong>{ "FUEL: " }</strong> {*fuel_balance} </GridItem>
-            <GridItem cols={[7]} rows={[1]}><Slider min=0f64 max={*fuel_balance} onchange={change_wrap_amount}/></GridItem>
-            <GridItem cols={[1]} rows={[1]}> { (*wrap_amount_str).clone() } </GridItem>
-            <GridItem cols={[1]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={wrap}>{ "Wrap" }</Button></GridItem>
-
-            <GridItem cols={[3]} rows={[1]}><strong>{ "wFUEL: " }</strong> {*wfuel_balance} </GridItem>
-            <GridItem cols={[7]} rows={[1]}><Slider min=0f64 max={*wfuel_balance} onchange={change_unwrap_amount}/></GridItem>
-            <GridItem cols={[1]} rows={[1]}> { (*unwrap_amount_str).clone() } </GridItem>
-            <GridItem cols={[1]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={unwrap}>{ "Unwrap" }</Button></GridItem>
-        </Grid>
+        <div>
+            <Eth ..EthProps {ethereum}/>
+        </div>
     }
 }
 
+
 #[derive(Properties)]
-pub struct MandelbrotProps {
+pub struct EthProps {
     pub ethereum: Option<UseEthereumHandle>,
-    contract: Option<Contract<Eip1193>>,
 }
 
-impl PartialEq for MandelbrotProps {
+impl PartialEq for EthProps {
     fn eq(&self, other: &Self) -> bool {
         self.ethereum == other.ethereum
     }
 }
 
-#[derive(Debug)]
-pub struct Field {
-    x_min: f64,
-    y_min: f64,
-    x_max: f64,
-    y_max: f64,
-}
-
-impl Tokenizable for Field {
-    fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
-        match token {
-            Token::Tuple(tokens) => {
-                Ok(Self { 
-                    x_min: U256::from_token(tokens[0].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.0,
-                    y_min: U256::from_token(tokens[1].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.0,
-                    x_max: U256::from_token(tokens[2].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.0,
-                    y_max: U256::from_token(tokens[3].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.0
-                })
-            }
-            _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
-        }
-    }
-
-    fn into_token(self) -> Token {
-        Token::Tuple(vec![
-            U256::from(((self.x_min + 2.0) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.y_min + 2.0) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.x_max + 2.0) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.y_max + 2.0) * 10_f64.powi(18)) as u128).into_token(),
-        ])
-    }
-}
-
-impl web3::contract::tokens::TokenizableItem for Field {}
-
-
-#[derive(Debug)]
-pub struct Metadata {
-    token_id: U256,
-    parent_id: U256,
-    field: Field,
-    minimum_price: U256,
-}
-
-impl Tokenizable for Metadata {
-    fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
-        match token {
-            Token::Tuple(tokens) => {
-                Ok(Self { 
-                    token_id: U256::from_token(tokens[0].clone())?,
-                    parent_id: U256::from_token(tokens[1].clone())?,
-                    field: Field::from_token(tokens[2].clone())?,
-                    minimum_price: U256::from_token(tokens[3].clone())?,
-                })
-            }
-            _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
-        }
-    }
-
-    fn into_token(self) -> Token {
-        Token::Tuple(vec![
-            self.token_id.into_token(),
-            self.parent_id.into_token(),
-            self.field.into_token(),
-            self.minimum_price.into_token(),
-        ])
-    }
-}
-
-impl web3::contract::tokens::TokenizableItem for Metadata {}
-
-
-pub struct Mandelbrot {
-    node_ref: NodeRef,
+pub struct Eth {
     interface: Arc<Mutex<mandelbrot_explorer::Interface>>,
-    selected_nft_id: Arc<Mutex<U256>>,
+    selected_nft_id: Arc<Mutex<u128>>,
 }
 
-impl Mandelbrot {
-    async fn nft_selected(
-        interface: Arc<Mutex<mandelbrot_explorer::Interface>>,
-        contract: Option<Contract<Eip1193>>,
-        selected_nft_id: Arc<Mutex<U256>>,
-        frame: mandelbrot_explorer::Frame
-    ) {
-        *selected_nft_id.lock().unwrap() = U256::from(frame.id);
-        if let Some(contract) = contract {
-            let result = contract.query(
-                "getChildrenMetadata",
-                (U256::from(frame.id),),
-                None,
-                Options::default(),
-                None
-            );
-            if let Ok(metadata) = result.await {
-                let metadata: Vec<Metadata> = metadata;
-                let frames = &mut interface.lock().unwrap().frames;
-                frames.clear();
-                frames.extend(metadata.iter().map(|m| mandelbrot_explorer::Frame {
-                    id: m.token_id.as_u128(),
-                    x_min: m.field.x_min,
-                    x_max: m.field.x_max,
-                    y_min: m.field.y_min,
-                    y_max: m.field.y_max,
-                }));
-            }
-        }
-    }
-}
-
-impl Component for Mandelbrot {
+impl Component for Eth {
     type Message = ();
-    type Properties = MandelbrotProps;
+    type Properties = EthProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let contract = ctx.props().contract.clone();
         let interface = Arc::new(Mutex::new(mandelbrot_explorer::Interface {
             sample_location: mandelbrot_explorer::SampleLocation::new(1500.0, 1500.0),
             frames: Vec::new(),
             frame_selected_callback: None,
         }));
-        let selected_nft_id = Arc::new(Mutex::new(U256::from(1)));
-        {
+        let selected_nft_id = Arc::new(Mutex::new(1));
+
+        if let Some(ethereum) = ctx.props().ethereum.clone() {
             let interface = interface.clone();
-            let interface_clone = interface.clone();
             let selected_nft_id = selected_nft_id.clone();
-            interface_clone.clone().lock().unwrap().frame_selected_callback = Some(Box::new(move |frame| {
-                let interface = interface.clone();
-                let contract = contract.clone();
-                let selected_nft_id = selected_nft_id.clone();
-                let frame = frame.clone();
-                spawn_local(async move {
-                    Mandelbrot::nft_selected(interface, contract, selected_nft_id, frame).await
-                })
-            }));
+            let transport = Eip1193::new(ethereum.provider.clone());
+            let web3 = Web3::new(transport);
+            let erc1155_contract = ERC1155Contract::new(&web3);
+            spawn_local(async move {
+                if let Ok(metadata) = erc1155_contract.get_metadata(*selected_nft_id.lock().unwrap()).await {
+                    let metadata: Metadata = metadata;
+                    interface.lock().unwrap().sample_location.move_into_frame(&metadata.to_frame());
+                }
+            });
         }
+
         Self {
-            node_ref: NodeRef::default(),
             interface,
             selected_nft_id,
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let ethereum = ctx.props().ethereum.clone();
-        let contract = ctx.props().contract.clone();
-        let interface = self.interface.clone();
-        let selected_nft_id = self.selected_nft_id.clone();
-        let onclick = move |_| {
-            info!("onclick");
-            let ethereum = ethereum.clone();
-            let contract = contract.clone();
-            let selected_nft_id = selected_nft_id.clone();
-            let params = interface.lock().unwrap().sample_location.to_mandlebrot_params(0);
-            log::info!("{:?}", params);
+        if let Some(ethereum) = ctx.props().ethereum.clone() {
+            let transport = Eip1193::new(ethereum.provider.clone());
+            let web3 = Web3::new(transport);
+            let erc1155_contract = ERC1155Contract::new(&web3);
 
-            spawn_local(async move {
-                if let (Some(ethereum), Some(contract)) = (ethereum, contract) {
-                    let chain_id = ethereum.request("eth_chainId", vec![]).await;
-                    log::info!("CHAIN ID {:?}", chain_id);
-
-                    if let Some(address) = ethereum.address() {
-                        log::info!("ADDRESS {:?}", address);
-
-                        let tx = contract.call("mintNFT", (
-                            *selected_nft_id.lock().unwrap(),
-                            *address,
-                            Field {
-                                x_min: params.x_min as f64,
-                                y_min: params.y_min as f64,
-                                x_max: params.x_max as f64,
-                                y_max: params.y_max as f64
-                            }
-                        ), *address, Options::default()).await;
-
-                        log::info!("TRANSACTION {:?}", tx);
-                    }
-                }
-            });
-        };
-
-        html! {
-            <div>
-                <canvas ref={self.node_ref.clone()} width="1500" height="1500"/>
-                <button {onclick}>{ "Mint" }</button>
-            </div>
-        }
-    }
-
-    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        if first_render {
-            log::info!("FIRST RENDER");
-            let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
             let interface = self.interface.clone();
             let selected_nft_id = self.selected_nft_id.clone();
-            let contract = ctx.props().contract.clone();
-            spawn_local(async move {
-                if let Some(contract) = contract {
-                    let result = contract.query(
-                        "getChildrenMetadata",
-                        (*selected_nft_id.lock().unwrap(),),
-                        None,
-                        Options::default(),
-                        None
-                    );
-                    if let Ok(metadata) = result.await {
-                        let metadata: Vec<Metadata> = metadata;
-                        let frames = &mut interface.lock().unwrap().frames;
-                        frames.clear();
-                        frames.extend(metadata.iter().map(|m| mandelbrot_explorer::Frame {
-                            id: m.token_id.as_u128(),
-                            x_min: m.field.x_min,
-                            x_max: m.field.x_max,
-                            y_min: m.field.y_min,
-                            y_max: m.field.y_max,
-                        }));
+            // let frames = self.interface.lock().unwrap().frames.clone();
+
+            let update_frames = {
+                let erc1155_contract = erc1155_contract.clone();
+                let interface = interface.clone();
+                move |parent_id| spawn_local({
+                    let erc1155_contract = erc1155_contract.clone();
+                    let interface = interface.clone();
+                    async move {
+                        if let Ok(metadata) = erc1155_contract.get_children_metadata(parent_id).await {
+                            let metadata: Vec<Metadata> = metadata;
+                            let frames = &mut interface.lock().unwrap().frames;
+                            frames.clear();
+                            frames.extend(metadata.iter().map(|m| m.to_frame()));
+                        }
                     }
+                })
+            };
+
+            update_frames(*selected_nft_id.lock().unwrap());
+
+            let on_frame_selected = Callback::from({
+                let selected_nft_id = selected_nft_id.clone();
+                move |frame: mandelbrot_explorer::Frame| {
+                    *selected_nft_id.lock().unwrap() = frame.id;
+                    update_frames(frame.id);
                 }
-                mandelbrot_explorer::start(Some(canvas), Some(interface));
             });
+
+            self.interface.lock().unwrap().frame_selected_callback = Some(Box::new({
+                let on_frame_selected = on_frame_selected.clone();
+                move |frame| on_frame_selected.emit(frame.clone())
+            }));
+
+            let on_mint_clicked = {
+                let ethereum = ethereum.clone();
+                let erc1155_contract = erc1155_contract.clone();
+                let interface = self.interface.clone();
+                move |_| {
+                    log::info!("onclick");
+                    let ethereum = ethereum.clone();
+                    let erc1155_contract = erc1155_contract.clone();
+                    let selected_nft_id = selected_nft_id.clone();
+                    let params = interface.lock().unwrap().sample_location.to_mandlebrot_params(0);
+                    log::info!("{:?}", params);
+
+                    spawn_local(async move {
+                        let chain_id = ethereum.request("eth_chainId", vec![]).await;
+                        log::info!("CHAIN ID {:?}", chain_id);
+
+                        if let Some(address) = ethereum.address() {
+                            log::info!("ADDRESS {:?}", address);
+
+                            let tx = erc1155_contract.mint(
+                                *selected_nft_id.lock().unwrap(),
+                                *address,
+                                Field {
+                                    x_min: params.x_min as f64,
+                                    y_min: params.y_min as f64,
+                                    x_max: params.x_max as f64,
+                                    y_max: params.y_max as f64
+                                }
+                            ).await;
+
+                            log::info!("TRANSACTION {:?}", tx);
+                        }
+                    });
+                }
+            };
+
+            html! {
+                <div>
+                    <Mandelbrot ..MandelbrotProps {interface: self.interface.clone()}/>
+                    <button onclick={on_mint_clicked}>{ "Mint" }</button>
+                    <Balance ..BalanceProps { ethereum: ethereum.clone(), erc1155_contract: erc1155_contract.clone() }/>
+                </div>
+            }
+        } else {
+            html! {
+                <div>
+                    <Mandelbrot ..MandelbrotProps {
+                        interface: self.interface.clone(),
+                    }/>
+                </div>
+            }
         }
     }
 }
 
 
 fn main() {
+    console_log::init_with_level(log::Level::Info).expect("could not initialize logger");
     yew::Renderer::<App>::new().render();
 }
