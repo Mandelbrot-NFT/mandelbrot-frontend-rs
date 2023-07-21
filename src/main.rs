@@ -21,7 +21,7 @@ use components::{
 };
 use evm::{
     contracts::ERC1155Contract,
-    types::{Field, Metadata}
+    types::{Bid, Field, Metadata}
 };
 
 
@@ -83,6 +83,7 @@ impl PartialEq for EthProps {
 pub struct Eth {
     interface: Arc<Mutex<mandelbrot_explorer::Interface>>,
     selected_nft_id: Arc<Mutex<u128>>,
+    bid_amount: Arc<Mutex<f64>>,
 }
 
 impl Component for Eth {
@@ -92,7 +93,8 @@ impl Component for Eth {
     fn create(ctx: &Context<Self>) -> Self {
         let interface = Arc::new(Mutex::new(mandelbrot_explorer::Interface {
             sample_location: mandelbrot_explorer::SampleLocation::new(1500.0, 1500.0),
-            frames: Vec::new(),
+            red_frames: Vec::new(),
+            yellow_frames: Vec::new(),
             frame_selected_callback: None,
         }));
         let selected_nft_id = Arc::new(Mutex::new(1));
@@ -114,6 +116,7 @@ impl Component for Eth {
         Self {
             interface,
             selected_nft_id,
+            bid_amount: Arc::new(Mutex::new(0.0)),
         }
     }
 
@@ -125,7 +128,6 @@ impl Component for Eth {
 
             let interface = self.interface.clone();
             let selected_nft_id = self.selected_nft_id.clone();
-            // let frames = self.interface.lock().unwrap().frames.clone();
 
             let update_frames = {
                 let erc1155_contract = erc1155_contract.clone();
@@ -136,9 +138,15 @@ impl Component for Eth {
                     async move {
                         if let Ok(metadata) = erc1155_contract.get_children_metadata(parent_id).await {
                             let metadata: Vec<Metadata> = metadata;
-                            let frames = &mut interface.lock().unwrap().frames;
+                            let frames = &mut interface.lock().unwrap().red_frames;
                             frames.clear();
                             frames.extend(metadata.iter().map(|m| m.to_frame()));
+                        }
+                        if let Ok(bids) = erc1155_contract.get_bids(parent_id).await {
+                            let bids: Vec<Bid> = bids;
+                            let frames = &mut interface.lock().unwrap().yellow_frames;
+                            frames.clear();
+                            frames.extend(bids.iter().map(|m| m.to_frame()));
                         }
                     }
                 })
@@ -154,33 +162,65 @@ impl Component for Eth {
                 }
             });
 
-            self.interface.lock().unwrap().frame_selected_callback = Some(Box::new({
+            interface.lock().unwrap().frame_selected_callback = Some(Box::new({
                 let on_frame_selected = on_frame_selected.clone();
                 move |frame| on_frame_selected.emit(frame.clone())
             }));
 
+            let change_bid_amount = {
+                let bid_amount = self.bid_amount.clone();
+                move |value: String| {
+                    if let Ok(value) = value.parse::<f64>() {
+                        *bid_amount.lock().unwrap() = value;
+                    }
+                }
+            };
+
+            let on_bid_clicked = {
+                let ethereum = ethereum.clone();
+                let erc1155_contract = erc1155_contract.clone();
+                let interface = interface.clone();
+                let selected_nft_id = selected_nft_id.clone();
+                let bid_amount = self.bid_amount.clone();
+                move |_| {
+                    if let Some(address) = ethereum.address() {
+                        let address = address.clone();
+                        let erc1155_contract = erc1155_contract.clone();
+                        let selected_nft_id = selected_nft_id.clone();
+                        let bid_amount = bid_amount.clone();
+                        let params = interface.lock().unwrap().sample_location.to_mandlebrot_params(0);
+                        spawn_local(async move {
+                            let tx = erc1155_contract.bid(
+                                *selected_nft_id.lock().unwrap(),
+                                address,
+                                Field {
+                                    x_min: params.x_min as f64,
+                                    y_min: params.y_min as f64,
+                                    x_max: params.x_max as f64,
+                                    y_max: params.y_max as f64
+                                },
+                                *bid_amount.lock().unwrap()
+                            ).await;
+                            log::info!("{:?}", tx);
+                        });
+                    }
+                }
+            };
+
             let on_mint_clicked = {
                 let ethereum = ethereum.clone();
                 let erc1155_contract = erc1155_contract.clone();
-                let interface = self.interface.clone();
+                let interface = interface.clone();
                 move |_| {
-                    log::info!("onclick");
-                    let ethereum = ethereum.clone();
-                    let erc1155_contract = erc1155_contract.clone();
-                    let selected_nft_id = selected_nft_id.clone();
-                    let params = interface.lock().unwrap().sample_location.to_mandlebrot_params(0);
-                    log::info!("{:?}", params);
-
-                    spawn_local(async move {
-                        let chain_id = ethereum.request("eth_chainId", vec![]).await;
-                        log::info!("CHAIN ID {:?}", chain_id);
-
-                        if let Some(address) = ethereum.address() {
-                            log::info!("ADDRESS {:?}", address);
-
-                            let tx = erc1155_contract.mint(
+                    if let Some(address) = ethereum.address() {
+                        let address = address.clone();
+                        let erc1155_contract = erc1155_contract.clone();
+                        let selected_nft_id = selected_nft_id.clone();
+                        let params = interface.lock().unwrap().sample_location.to_mandlebrot_params(0);
+                        spawn_local(async move {
+                            erc1155_contract.mint(
                                 *selected_nft_id.lock().unwrap(),
-                                *address,
+                                address,
                                 Field {
                                     x_min: params.x_min as f64,
                                     y_min: params.y_min as f64,
@@ -188,16 +228,18 @@ impl Component for Eth {
                                     y_max: params.y_max as f64
                                 }
                             ).await;
-
-                            log::info!("TRANSACTION {:?}", tx);
-                        }
-                    });
+                        });
+                    }
                 }
             };
 
             html! {
                 <div>
-                    <Mandelbrot ..MandelbrotProps {interface: self.interface.clone()}/>
+                    <Mandelbrot ..MandelbrotProps {interface: interface.clone()}/>
+                    <TextInputGroup>
+                        <TextInputGroupMain r#type="number" oninput={change_bid_amount}></TextInputGroupMain>
+                        <button onclick={on_bid_clicked}>{ "Bid" }</button>
+                    </TextInputGroup>
                     <button onclick={on_mint_clicked}>{ "Mint" }</button>
                     <Balance ..BalanceProps { ethereum: ethereum.clone(), erc1155_contract: erc1155_contract.clone() }/>
                 </div>

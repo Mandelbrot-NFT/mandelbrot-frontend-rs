@@ -208,6 +208,130 @@
         "internalType": "uint256",
         "name": "parentId",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "min_x",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "min_y",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "max_x",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "max_y",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct MandelbrotNFT.Field",
+        "name": "field",
+        "type": "tuple"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "bid",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "parentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getBids",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "bidIndex",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "parentId",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "min_x",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "min_y",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "max_x",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "max_y",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct MandelbrotNFT.Field",
+            "name": "field",
+            "type": "tuple"
+          },
+          {
+            "internalType": "address",
+            "name": "recepient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct MandelbrotNFT.BidView[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "parentId",
+        "type": "uint256"
       }
     ],
     "name": "getChildrenMetadata",
@@ -503,6 +627,24 @@
       }
     ],
     "name": "setApprovalForAll",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      }
+    ],
+    "name": "setMinimumPrice",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

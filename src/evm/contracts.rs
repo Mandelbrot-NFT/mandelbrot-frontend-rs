@@ -6,7 +6,7 @@ use web3::{
     Web3
 };
 
-use super::types::{Metadata, Field};
+use super::types::{Bid, Field, Metadata};
 
 
 const FUEL: U256 = U256([0, 0, 0, 0]);
@@ -33,6 +33,15 @@ impl ERC1155Contract {
         self.contract.address()
     }
 
+    pub async fn mint(&self, parent_id: u128, recipient: Address, field: Field) -> Result<H256> {
+        Ok(self.contract.call(
+            "mintNFT",
+            (U256::from(parent_id), recipient, field),
+            recipient,
+            Options::default()
+        ).await?)
+    }
+
     pub async fn get_metadata(&self, token_id: u128) -> Result<Metadata> {
         let result: web3::contract::Result<Metadata> = self.contract.query(
             "getMetadata",
@@ -55,13 +64,32 @@ impl ERC1155Contract {
         Ok(result?)
     }
 
-    pub async fn mint(&self, parent_id: u128, recipient: Address, field: Field) -> Result<H256> {
+    pub async fn bid(&self, parent_id: u128, recipient: Address, field: Field, amount: f64) -> Result<H256> {
+        let gas = self.contract.estimate_gas(
+            "bid",
+            (U256::from(parent_id), recipient, field.clone(), U256::from((amount * 10_f64.powi(18)) as u128)),
+            recipient,
+            Options::default()
+        ).await?;
+        log::info!("bid GAS: {:?}", gas);
+
         Ok(self.contract.call(
-            "mintNFT",
-            (U256::from(parent_id), recipient, field),
+            "bid",
+            (U256::from(parent_id), recipient, field, U256::from((amount * 10_f64.powi(18)) as u128)),
             recipient,
             Options::default()
         ).await?)
+    }
+
+    pub async fn get_bids(&self, parent_id: u128) -> Result<Vec<Bid>> {
+        let result: web3::contract::Result<Vec<Bid>> = self.contract.query(
+            "getBids",
+            (U256::from(parent_id),),
+            None,
+            Options::default(),
+            None
+        ).await;
+        Ok(result?)
     }
 
     pub async fn get_fuel_balance(&self, address: Address) -> Result<f64> {

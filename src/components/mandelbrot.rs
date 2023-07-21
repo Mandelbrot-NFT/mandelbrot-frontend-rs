@@ -1,15 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use log::info;
 use yew::prelude::*;
-use yew_ethereum_provider::UseEthereumHandle;
-use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlCanvasElement;
-
-use crate::evm::{
-    contracts::ERC1155Contract,
-    types::{Field, Metadata}
-};
 
 
 #[derive(Properties)]
@@ -18,7 +10,7 @@ pub struct MandelbrotProps {
 }
 
 impl PartialEq for MandelbrotProps {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         true
     }
 }
@@ -41,7 +33,7 @@ impl Component for Mandelbrot {
         }
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         let sample_location = &self.interface.lock().unwrap().sample_location;
         html! {
             <div>
@@ -54,7 +46,7 @@ impl Component for Mandelbrot {
         }
     }
 
-    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+    fn rendered(&mut self, _ctx: &Context<Self>, first_render: bool) {
         if first_render {
             log::info!("FIRST RENDER");
             let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();

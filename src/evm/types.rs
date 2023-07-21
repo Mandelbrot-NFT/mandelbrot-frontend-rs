@@ -1,11 +1,11 @@
 use ethabi::token::Token;
 use web3::{
     contract::tokens::Tokenizable,
-    types::U256,
+    types::{Address, U256},
 };
 
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Field {
     pub x_min: f64,
     pub y_min: f64,
@@ -80,6 +80,57 @@ impl Metadata {
     pub fn to_frame(&self) -> mandelbrot_explorer::Frame {
         mandelbrot_explorer::Frame {
             id: self.token_id.as_u128(),
+            x_min: self.field.x_min,
+            x_max: self.field.x_max,
+            y_min: self.field.y_min,
+            y_max: self.field.y_max,
+        }
+    } 
+}
+
+
+#[derive(Debug)]
+pub struct Bid {
+    pub bid_id: U256,
+    parent_id: U256,
+    pub field: Field,
+    recipient: Address,
+    amount: U256,
+}
+
+impl Tokenizable for Bid {
+    fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
+        match token {
+            Token::Tuple(tokens) => {
+                Ok(Self { 
+                    bid_id: U256::from_token(tokens[0].clone())?,
+                    parent_id: U256::from_token(tokens[1].clone())?,
+                    field: Field::from_token(tokens[2].clone())?,
+                    recipient: Address::from_token(tokens[3].clone())?,
+                    amount: U256::from_token(tokens[4].clone())?,
+                })
+            }
+            _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
+        }
+    }
+
+    fn into_token(self) -> Token {
+        Token::Tuple(vec![
+            self.bid_id.into_token(),
+            self.parent_id.into_token(),
+            self.field.into_token(),
+            self.recipient.into_token(),
+            self.amount.into_token(),
+        ])
+    }
+}
+
+impl web3::contract::tokens::TokenizableItem for Bid {}
+
+impl Bid {
+    pub fn to_frame(&self) -> mandelbrot_explorer::Frame {
+        mandelbrot_explorer::Frame {
+            id: self.bid_id.as_u128(),
             x_min: self.field.x_min,
             x_max: self.field.x_max,
             y_min: self.field.y_min,

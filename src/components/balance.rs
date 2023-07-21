@@ -1,10 +1,11 @@
+use eyre::Result;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 use yew_ethereum_provider::UseEthereumHandle;
 use wasm_bindgen_futures::spawn_local;
 use web3::{
     transports::eip_1193::Eip1193,
-    types::{Address, U256}, contract::{Contract, Options},
+    types::Address,
     Web3
 };
 
@@ -31,15 +32,8 @@ async fn get_balance(
     address: Address,
     erc1155_contract: ERC1155Contract,
     erc20_contract: ERC20Contract,
-    fuel_balance: UseStateHandle<f64>,
-    wfuel_balance: UseStateHandle<f64>,
-) {
-    if let Ok(balance) = erc1155_contract.get_fuel_balance(address).await {
-        fuel_balance.set(balance);
-    }
-    if let Ok(balance) = erc20_contract.get_balance(address).await {
-        wfuel_balance.set(balance);
-    }
+) -> Result<(f64, f64)> {
+    Ok((erc1155_contract.get_fuel_balance(address).await?, erc20_contract.get_balance(address).await?))
 }
 
 #[function_component]
@@ -59,7 +53,7 @@ pub fn Balance(props: &BalanceProps) -> Html {
         let erc20_contract = erc20_contract.clone();
         let fuel_balance = fuel_balance.clone();
         let wfuel_balance = wfuel_balance.clone();
-        move |_| {
+        move || {
             let fuel_balance = fuel_balance.clone();
             let wfuel_balance = wfuel_balance.clone();
             let erc1155_contract = erc1155_contract.clone();
@@ -67,16 +61,17 @@ pub fn Balance(props: &BalanceProps) -> Html {
             if let Some(address) = ethereum.address() {
                 let address = address.clone();
                 spawn_local(async move {
-                    get_balance(
-                        address,
-                        erc1155_contract,
-                        erc20_contract,
-                        fuel_balance,
-                        wfuel_balance
-                    ).await;
+                    if let Ok((fuel_balance_, wfuel_balance_)) = get_balance(address, erc1155_contract, erc20_contract).await {
+                        fuel_balance.set(fuel_balance_);
+                        wfuel_balance.set(wfuel_balance_);
+                    }
                 });
             }
         }
+    };
+    let refresh_balance_onclick = {
+        let refresh_balance = refresh_balance.clone();
+        move |_| refresh_balance()
     };
 
     let wrap_amount = use_state(|| 0.0);
@@ -118,18 +113,11 @@ pub fn Balance(props: &BalanceProps) -> Html {
             if let Some(address) = ethereum.address() {
                 let address = address.clone();
                 spawn_local(async move {
-                    erc1155_contract.transfer_fuel(
-                        address,
-                        wrapper_contract.address(),
-                        *wrap_amount,
-                    ).await;
-                    get_balance(
-                        address,
-                        erc1155_contract,
-                        erc20_contract,
-                        fuel_balance,
-                        wfuel_balance
-                    ).await;
+                    erc1155_contract.transfer_fuel(address, wrapper_contract.address(), *wrap_amount).await;
+                    if let Ok((fuel_balance_, wfuel_balance_)) = get_balance(address, erc1155_contract, erc20_contract).await {
+                        fuel_balance.set(fuel_balance_);
+                        wfuel_balance.set(wfuel_balance_);
+                    }
                 });
             }
         }
@@ -150,21 +138,20 @@ pub fn Balance(props: &BalanceProps) -> Html {
                 let address = address.clone();
                 spawn_local(async move {
                     wrapper_contract.unwrap(address, *unwrap_amount).await;
-                    get_balance(
-                        address,
-                        erc1155_contract,
-                        erc20_contract,
-                        fuel_balance,
-                        wfuel_balance
-                    ).await;
+                    if let Ok((fuel_balance_, wfuel_balance_)) = get_balance(address, erc1155_contract, erc20_contract).await {
+                        fuel_balance.set(fuel_balance_);
+                        wfuel_balance.set(wfuel_balance_);
+                    }
                 });
             }
         }
     };
 
+    refresh_balance();
+
     html! {
         <Grid>
-            <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={refresh_balance}>{ "Refresh balance" }</Button></GridItem>
+            <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={refresh_balance_onclick}>{ "Refresh balance" }</Button></GridItem>
             <GridItem cols={[10]} rows={[1]}/>
 
             <GridItem cols={[3]} rows={[1]}><strong>{ "FUEL: " }</strong> {*fuel_balance} </GridItem>
