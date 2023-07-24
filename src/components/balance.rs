@@ -149,20 +149,28 @@ pub fn Balance(props: &BalanceProps) -> Html {
 
     refresh_balance();
 
+    let uniswap_link = format!("https://app.uniswap.org/#/swap?inputCurrency=ETH&outputCurrency={}", env!("ERC20_CONTRACT_ADDRESS"));
     html! {
         <Grid>
             <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={refresh_balance_onclick}>{ "Refresh balance" }</Button></GridItem>
-            <GridItem cols={[10]} rows={[1]}/>
+            <GridItem cols={[8]} rows={[1]}/>
+            <GridItem cols={[2]} rows={[1]}>
+                <a href={uniswap_link} target="_blank">
+                    <Button variant={ButtonVariant::Primary}>
+                        { "Buy wFUEL" }
+                    </Button>
+                </a>
+            </GridItem>
 
             <GridItem cols={[3]} rows={[1]}><strong>{ "FUEL: " }</strong> {*fuel_balance} </GridItem>
-            <GridItem cols={[7]} rows={[1]}><Slider min=0f64 max={*fuel_balance} onchange={change_wrap_amount}/></GridItem>
-            <GridItem cols={[1]} rows={[1]}> { (*wrap_amount_str).clone() } </GridItem>
-            <GridItem cols={[1]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={wrap}>{ "Wrap" }</Button></GridItem>
+            <GridItem cols={[6]} rows={[1]}><Slider min=0f64 max={*fuel_balance} onchange={change_wrap_amount}/></GridItem>
+            <GridItem cols={[1]} rows={[1]}>{ (*wrap_amount_str).clone() }</GridItem>
+            <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={wrap}>{ "Wrap" }</Button></GridItem>
 
             <GridItem cols={[3]} rows={[1]}><strong>{ "wFUEL: " }</strong> {*wfuel_balance} </GridItem>
-            <GridItem cols={[7]} rows={[1]}><Slider min=0f64 max={*wfuel_balance} onchange={change_unwrap_amount}/></GridItem>
-            <GridItem cols={[1]} rows={[1]}> { (*unwrap_amount_str).clone() } </GridItem>
-            <GridItem cols={[1]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={unwrap}>{ "Unwrap" }</Button></GridItem>
+            <GridItem cols={[6]} rows={[1]}><Slider min=0f64 max={*wfuel_balance} onchange={change_unwrap_amount}/></GridItem>
+            <GridItem cols={[1]} rows={[1]}>{ (*unwrap_amount_str).clone() }</GridItem>
+            <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={unwrap}>{ "Unwrap" }</Button></GridItem>
         </Grid>
     }
 }
