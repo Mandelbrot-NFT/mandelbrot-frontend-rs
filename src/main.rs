@@ -78,7 +78,7 @@ pub struct EthProps {
 }
 
 impl PartialEq for EthProps {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         true
     }
 }
@@ -93,21 +93,21 @@ pub fn Eth(props: &EthProps) -> Html {
     if let Some(ethereum) = use_context::<Option<UseEthereumHandle>>().expect(
         "No ethereum provider found. You must wrap your components in an <EthereumContextProvider/>",
     ) {
-        let interface = interface.clone();
-        let selected_nft_id = selected_nft_id.clone();
-        let transport = Eip1193::new(ethereum.provider.clone());
-        let web3 = Web3::new(transport);
-        let erc1155_contract = ERC1155Contract::new(&web3);
-        spawn_local({
-            let interface = interface.clone();
-            let selected_nft_id = selected_nft_id.clone();
-            async move {
-                if let Ok(metadata) = erc1155_contract.get_metadata(*selected_nft_id.lock().unwrap()).await {
-                    let metadata: Metadata = metadata;
-                    interface.lock().unwrap().sample_location.move_into_frame(&metadata.to_frame());
-                }
-            }
-        });
+        // let interface = interface.clone();
+        // let selected_nft_id = selected_nft_id.clone();
+        // let transport = Eip1193::new(ethereum.provider.clone());
+        // let web3 = Web3::new(transport);
+        // let erc1155_contract = ERC1155Contract::new(&web3);
+        // spawn_local({
+        //     let interface = interface.clone();
+        //     let selected_nft_id = selected_nft_id.clone();
+        //     async move {
+        //         if let Ok(metadata) = erc1155_contract.get_metadata(*selected_nft_id.lock().unwrap()).await {
+        //             let metadata: Metadata = metadata;
+        //             interface.lock().unwrap().sample_location.move_into_frame(&metadata.to_frame());
+        //         }
+        //     }
+        // });
 
         let transport = Eip1193::new(ethereum.provider.clone());
         let web3 = Web3::new(transport);

@@ -16,7 +16,6 @@ impl PartialEq for MandelbrotProps {
     }
 }
 
-
 pub struct Mandelbrot {
     node_ref: NodeRef,
 }
@@ -25,7 +24,7 @@ impl Component for Mandelbrot {
     type Message = ();
     type Properties = MandelbrotProps;
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self { node_ref: NodeRef::default() }
     }
 
