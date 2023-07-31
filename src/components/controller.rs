@@ -61,32 +61,40 @@ struct Inner {
     mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
     erc1155_contract: ERC1155Contract,
     selected_nft_id: Arc<Mutex<u128>>,
-    bid_amount: Arc<Mutex<f64>>,
+    nav_history: Arc<Mutex<Vec<Metadata>>>,
+    children: Arc<Mutex<HashMap<u128, Metadata>>>,
     bids: Arc<Mutex<HashMap<u128, Bid>>>,
+    bid_amount: Arc<Mutex<f64>>,
     approve_amount_node_ref: NodeRef,
 }
 
 impl Inner {
-    fn update_frames(&self, parent_id: u128) {
+    fn obtain_tokens(&self, parent_id: u128) {
         spawn_local({
             let this = self.clone();
             async move {
                 if let Ok(metadata) = this.erc1155_contract.get_children_metadata(parent_id).await {
-                    let frames = &mut this.mandelbrot.lock().unwrap().frames.red;
-                    frames.clear();
-                    frames.extend(metadata.iter().map(|m| m.to_frame()));
+                    let children = &mut (*this.children.lock().unwrap());
+                    children.clear();
+                    children.extend(metadata.into_iter().map(|m: Metadata| (m.token_id, m)));
                 }
                 if let Ok(bids) = this.erc1155_contract.get_bids(parent_id).await {
-                    let frames = &mut this.mandelbrot.lock().unwrap().frames.yellow;
-                    frames.clear();
-                    frames.extend(bids.iter().map(|m| m.to_frame()));
                     let bids_ = &mut (*this.bids.lock().unwrap());
                     bids_.clear();
                     bids_.extend(bids.into_iter().map(|bid| (bid.bid_id, bid)));
                 }
+                this.update_frames();
                 this.redraw.emit(());
             }
         });
+    }
+
+    fn update_frames(&self) {
+        let frames = &mut self.mandelbrot.lock().unwrap().frames;
+        frames.clear();
+        frames.extend(self.children.lock().unwrap().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
+        frames.extend(self.nav_history.lock().unwrap().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
+        frames.extend(self.bids.lock().unwrap().values().map(|token| token.to_frame()));
     }
 }
 
@@ -100,14 +108,16 @@ impl Component for Inner {
         let web3 = Web3::new(transport);
         let erc1155_contract = ERC1155Contract::new(&web3);
         let selected_nft_id = Arc::new(Mutex::new(1));
+        let nav_history = Arc::new(Mutex::new(Vec::new()));
         {
             let mandelbrot = mandelbrot.clone();
             let erc1155_contract = erc1155_contract.clone();
             let selected_nft_id = selected_nft_id.clone();
+            let nav_history = nav_history.clone();
             spawn_local(async move {
                 if let Ok(metadata) = erc1155_contract.get_metadata(*selected_nft_id.lock().unwrap()).await {
-                    let metadata: Metadata = metadata;
-                    mandelbrot.lock().unwrap().sample_location.move_into_frame(&metadata.to_frame());
+                    mandelbrot.lock().unwrap().sample_location.move_into_frame(&metadata.to_frame(mandelbrot_explorer::FrameColor::Blue));
+                    nav_history.lock().unwrap().push(metadata);
                 }
             });
         }
@@ -117,25 +127,47 @@ impl Component for Inner {
             mandelbrot: mandelbrot.clone(),
             erc1155_contract,
             selected_nft_id: selected_nft_id.clone(),
-            bid_amount: Arc::new(Mutex::new(0.0)),
+            nav_history,
+            children: Arc::new(Mutex::new(HashMap::new())),
             bids: Arc::new(Mutex::new(HashMap::new())),
+            bid_amount: Arc::new(Mutex::new(0.0)),
             approve_amount_node_ref: NodeRef::default(),
         };
 
         let on_frame_selected = Callback::from({
             let this = this.clone();
+            let mandelbrot = mandelbrot.clone();
             move |frame: mandelbrot_explorer::Frame| {
                 *this.selected_nft_id.lock().unwrap() = frame.id;
-                this.update_frames(frame.id);
+                match frame.color {
+                    mandelbrot_explorer::FrameColor::Red | mandelbrot_explorer::FrameColor::Blue => {
+                        mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
+                        let nav_history = &mut this.nav_history.lock().unwrap();
+                        for (token_id, token) in this.children.lock().unwrap().iter() {
+                            if *token_id == frame.id {
+                                nav_history.push(token.clone());
+                                break
+                            }
+                        }
+                        for (i, token) in nav_history.iter().enumerate().rev() {
+                            if token.token_id == frame.id {
+                                nav_history.truncate(i + 1);
+                                break
+                            }
+                        }
+                        this.obtain_tokens(frame.id);
+                    }
+                    _ => {}
+                }
             }
         });
 
-        mandelbrot.lock().unwrap().frame_selected_callback = Some(Box::new({
+        mandelbrot.lock().unwrap().frame_selected_callback = Some(Arc::new({
             let on_frame_selected = on_frame_selected.clone();
             move |frame| on_frame_selected.emit(frame.clone())
         }));
 
-        this.update_frames(*selected_nft_id.lock().unwrap());
+        this.obtain_tokens(*selected_nft_id.lock().unwrap());
         this
     }
 
@@ -218,7 +250,6 @@ impl Component for Inner {
         };
 
         let on_approve_clicked = {
-            let props = ctx.props().clone();
             let this = self.clone();
             let ethereum = ethereum.clone();
             move |_| {
@@ -256,7 +287,7 @@ impl Component for Inner {
                     <StackItem>
                         <button onclick={on_mint_clicked}>{ "Mint" }</button>
                     </StackItem>
-                    if self.mandelbrot.lock().unwrap().frames.yellow.len() > 0 {
+                    if bids.len() > 0 {
                         <StackItem>
                             <br/>
                             <p>{ "Bids:" }</p>

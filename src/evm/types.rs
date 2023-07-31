@@ -41,7 +41,7 @@ impl Tokenizable for Field {
 impl web3::contract::tokens::TokenizableItem for Field {}
 
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Metadata {
     pub token_id: u128,
     parent_id: u128,
@@ -77,13 +77,14 @@ impl Tokenizable for Metadata {
 impl web3::contract::tokens::TokenizableItem for Metadata {}
 
 impl Metadata {
-    pub fn to_frame(&self) -> mandelbrot_explorer::Frame {
+    pub fn to_frame(&self, color: mandelbrot_explorer::FrameColor) -> mandelbrot_explorer::Frame {
         mandelbrot_explorer::Frame {
             id: self.token_id,
             x_min: self.field.x_min,
             x_max: self.field.x_max,
             y_min: self.field.y_min,
             y_max: self.field.y_max,
+            color,
         }
     } 
 }
@@ -137,6 +138,7 @@ impl Bid {
             x_max: self.field.x_max,
             y_min: self.field.y_min,
             y_max: self.field.y_max,
+            color: mandelbrot_explorer::FrameColor::Yellow,
         }
     } 
 }
