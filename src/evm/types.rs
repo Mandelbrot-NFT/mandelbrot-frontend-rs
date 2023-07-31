@@ -138,7 +138,7 @@ impl Bid {
             x_max: self.field.x_max,
             y_min: self.field.y_min,
             y_max: self.field.y_max,
-            color: mandelbrot_explorer::FrameColor::Yellow,
+            color: if self.selected {mandelbrot_explorer::FrameColor::Green} else {mandelbrot_explorer::FrameColor::Yellow},
         }
     } 
 }

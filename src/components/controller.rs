@@ -236,16 +236,19 @@ impl Component for Inner {
         let on_bid_toggled = {
             let this = self.clone();
             move |bid_id, state| {
-                let mut bids_lock = this.bids.lock().unwrap();
-                if let Some(bid) = bids_lock.get_mut(&bid_id) {
-                    bid.selected = state;
+                {
+                    let mut bids_lock = this.bids.lock().unwrap();
+                    if let Some(bid) = bids_lock.get_mut(&bid_id) {
+                        bid.selected = state;
 
-                    let total_approve_amount: f64 = bids_lock.values()
-                        .filter(|bid| bid.selected)
-                        .map(|bid| bid.amount)
-                        .sum();
-                    this.approve_amount_node_ref.get().unwrap().set_text_content(Some(&total_approve_amount.to_string()));
+                        let total_approve_amount: f64 = bids_lock.values()
+                            .filter(|bid| bid.selected)
+                            .map(|bid| bid.amount)
+                            .sum();
+                        this.approve_amount_node_ref.get().unwrap().set_text_content(Some(&total_approve_amount.to_string()));
+                    }
                 }
+                this.update_frames();
             }
         };
 
