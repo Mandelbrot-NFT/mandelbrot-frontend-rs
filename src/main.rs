@@ -60,8 +60,10 @@ fn App() -> Html {
                     <PageSection>
                         <Balance/>
                     </PageSection>
-                    <PageSection>
-                        <Controller ..ControllerProps {interface}/>
+                    <PageSection
+                        variant={PageSectionVariant::Light}
+                    >
+                        <Controller ..ControllerProps {mandelbrot: interface}/>
                     </PageSection>
                 </EthereumContextProvider>
             </SplitItem>

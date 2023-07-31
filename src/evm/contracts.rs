@@ -33,11 +33,32 @@ impl ERC1155Contract {
         self.contract.address()
     }
 
-    pub async fn mint(&self, parent_id: u128, recipient: Address, field: Field) -> Result<H256> {
+    pub async fn get_fuel_balance(&self, address: Address) -> Result<f64> {
+        let result: web3::contract::Result<U256> = self.contract.query(
+            "balanceOf",
+            (address, FUEL,),
+            None,
+            Options::default(),
+            None
+        ).await;
+        Ok(result?.as_u128() as f64 / 10_f64.powi(18))
+    }
+
+    pub async fn transfer_fuel(&self, from: Address, to: Address, amount: f64) -> Result<TransactionReceipt> {
+        Ok(self.contract.call_with_confirmations("safeTransferFrom", (
+            from,
+            to,
+            FUEL,
+            U256::from((amount * 10_f64.powi(18)) as u128),
+            CALLDATA.to_vec(),
+        ), from, Options::default(), 1).await?)
+    }
+
+    pub async fn mint(&self, sender: Address, parent_id: u128, field: Field) -> Result<H256> {
         Ok(self.contract.call(
             "mintNFT",
-            (U256::from(parent_id), recipient, field),
-            recipient,
+            (U256::from(parent_id), sender, field),
+            sender,
             Options::default()
         ).await?)
     }
@@ -64,19 +85,19 @@ impl ERC1155Contract {
         Ok(result?)
     }
 
-    pub async fn bid(&self, parent_id: u128, recipient: Address, field: Field, amount: f64) -> Result<H256> {
+    pub async fn bid(&self, sender: Address, parent_id: u128, field: Field, amount: f64) -> Result<H256> {
         let gas = self.contract.estimate_gas(
             "bid",
-            (U256::from(parent_id), recipient, field.clone(), U256::from((amount * 10_f64.powi(18)) as u128)),
-            recipient,
+            (U256::from(parent_id), sender, field.clone(), U256::from((amount * 10_f64.powi(18)) as u128)),
+            sender,
             Options::default()
         ).await?;
         log::info!("bid GAS: {:?}", gas);
 
         Ok(self.contract.call(
             "bid",
-            (U256::from(parent_id), recipient, field, U256::from((amount * 10_f64.powi(18)) as u128)),
-            recipient,
+            (U256::from(parent_id), sender, field, U256::from((amount * 10_f64.powi(18)) as u128)),
+            sender,
             Options::default()
         ).await?)
     }
@@ -92,25 +113,13 @@ impl ERC1155Contract {
         Ok(result?)
     }
 
-    pub async fn get_fuel_balance(&self, address: Address) -> Result<f64> {
-        let result: web3::contract::Result<U256> = self.contract.query(
-            "balanceOf",
-            (address, FUEL,),
-            None,
-            Options::default(),
-            None
-        ).await;
-        Ok(result?.as_u128() as f64 / 10_f64.powi(18))
-    }
-
-    pub async fn transfer_fuel(&self, from: Address, to: Address, amount: f64) -> Result<TransactionReceipt> {
-        Ok(self.contract.call_with_confirmations("safeTransferFrom", (
-            from,
-            to,
-            FUEL,
-            U256::from((amount * 10_f64.powi(18)) as u128),
-            CALLDATA.to_vec(),
-        ), from, Options::default(), 1).await?)
+    pub async fn approve_bid(&self, sender: Address, bid_id: u128) -> Result<H256> {
+        Ok(self.contract.call(
+            "approveBid",
+            (U256::from(bid_id),),
+            sender,
+            Options::default()
+        ).await?)
     }
 }
 
