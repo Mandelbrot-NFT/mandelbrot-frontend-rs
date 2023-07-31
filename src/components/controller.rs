@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::HashMap,
     sync::{Arc, Mutex},
 };
 
@@ -35,7 +35,7 @@ pub fn Controller(props: &ControllerProps) -> Html {
         "No ethereum provider found. You must wrap your components in an <EthereumContextProvider/>",
     ) {
         html! {
-            <Inner ..InnerProps {ethereum, mandelbrot: props.mandelbrot.clone()}/>
+            <Inner ethereum={ethereum} mandelbrot={props.mandelbrot.clone()}/>
         }
     } else {
         html! {}
@@ -62,29 +62,29 @@ struct Inner {
     erc1155_contract: ERC1155Contract,
     selected_nft_id: Arc<Mutex<u128>>,
     bid_amount: Arc<Mutex<f64>>,
-    selected_bids: Arc<Mutex<HashSet<u128>>>,
+    bids: Arc<Mutex<HashMap<u128, Bid>>>,
+    approve_amount_node_ref: NodeRef,
 }
 
 impl Inner {
     fn update_frames(&self, parent_id: u128) {
         spawn_local({
-            let redraw = self.redraw.clone();
-            let mandelbrot = self.mandelbrot.clone();
-            let erc1155_contract = self.erc1155_contract.clone();
+            let this = self.clone();
             async move {
-                if let Ok(metadata) = erc1155_contract.get_children_metadata(parent_id).await {
-                    let metadata: Vec<Metadata> = metadata;
-                    let frames = &mut mandelbrot.lock().unwrap().frames.red;
+                if let Ok(metadata) = this.erc1155_contract.get_children_metadata(parent_id).await {
+                    let frames = &mut this.mandelbrot.lock().unwrap().frames.red;
                     frames.clear();
                     frames.extend(metadata.iter().map(|m| m.to_frame()));
                 }
-                if let Ok(bids) = erc1155_contract.get_bids(parent_id).await {
-                    let bids: Vec<Bid> = bids;
-                    let frames = &mut mandelbrot.lock().unwrap().frames.yellow;
+                if let Ok(bids) = this.erc1155_contract.get_bids(parent_id).await {
+                    let frames = &mut this.mandelbrot.lock().unwrap().frames.yellow;
                     frames.clear();
                     frames.extend(bids.iter().map(|m| m.to_frame()));
+                    let bids_ = &mut (*this.bids.lock().unwrap());
+                    bids_.clear();
+                    bids_.extend(bids.into_iter().map(|bid| (bid.bid_id, bid)));
                 }
-                redraw.emit(());
+                this.redraw.emit(());
             }
         });
     }
@@ -118,7 +118,8 @@ impl Component for Inner {
             erc1155_contract,
             selected_nft_id: selected_nft_id.clone(),
             bid_amount: Arc::new(Mutex::new(0.0)),
-            selected_bids: Arc::new(Mutex::new(HashSet::new())),
+            bids: Arc::new(Mutex::new(HashMap::new())),
+            approve_amount_node_ref: NodeRef::default(),
         };
 
         let on_frame_selected = Callback::from({
@@ -203,32 +204,45 @@ impl Component for Inner {
         let on_bid_toggled = {
             let this = self.clone();
             move |bid_id, state| {
-                if state {
-                    this.selected_bids.lock().unwrap().insert(bid_id);
-                } else {
-                    this.selected_bids.lock().unwrap().remove(&bid_id);
+                let mut bids_lock = this.bids.lock().unwrap();
+                if let Some(bid) = bids_lock.get_mut(&bid_id) {
+                    bid.selected = state;
+
+                    let total_approve_amount: f64 = bids_lock.values()
+                        .filter(|bid| bid.selected)
+                        .map(|bid| bid.amount)
+                        .sum();
+                    this.approve_amount_node_ref.get().unwrap().set_text_content(Some(&total_approve_amount.to_string()));
                 }
             }
         };
 
         let on_approve_clicked = {
+            let props = ctx.props().clone();
             let this = self.clone();
             let ethereum = ethereum.clone();
             move |_| {
-                log::info!("BIDS {:?}", *this.selected_bids.lock().unwrap());
                 let this = this.clone();
                 if let Some(address) = ethereum.address() {
                     let address = address.clone();
-                    let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
                     spawn_local(async move {
-                        for bid_id in &*this.selected_bids.lock().unwrap() {
-                            log::info!("approve_bid {}", bid_id);
+                        let selected_bids: Vec<u128> = this.bids.lock().unwrap()
+                            .values()
+                            .filter(|bid| bid.selected)
+                            .map(|bid| bid.bid_id)
+                            .collect();
+                        for bid_id in &selected_bids {
                             this.erc1155_contract.approve_bid(address, *bid_id).await;
                         }
                     });
                 }
             }
         };
+
+        let bids_lock = self.bids.lock().unwrap();
+        let mut bids: Vec<&Bid> = bids_lock.values().collect();
+        bids.sort_by(|bid_a, bid_b| bid_a.amount.partial_cmp(&bid_b.amount).unwrap());
+        let total_approve_amount: f64 = bids.iter().filter(|bid| bid.selected).map(|bid| bid.amount).sum();
 
         html! {
             <div>
@@ -247,15 +261,19 @@ impl Component for Inner {
                             <br/>
                             <p>{ "Bids:" }</p>
                             {
-                                for self.mandelbrot.lock().unwrap().frames.yellow.iter().map(|frame| {
+                                for bids.iter().map(|bid| {
                                     let on_bid_toggled = on_bid_toggled.clone();
-                                    let bid_id = frame.id; 
+                                    let bid_id = bid.bid_id;
+                                    let amount = bid.amount;
                                     html_nested!{
-                                        <p><Switch label={bid_id.to_string()} onchange={move |state| on_bid_toggled(bid_id, state)}/></p>
+                                        <p><Switch label={amount.to_string()} onchange={move |state| on_bid_toggled(bid_id, state)}/></p>
                                     }
                                 })
                             }
-                            <p><button onclick={on_approve_clicked}>{ "Approve" }</button></p>
+                            <p>
+                                <label ref={self.approve_amount_node_ref.clone()}>{ total_approve_amount }</label>
+                                <button onclick={on_approve_clicked}>{ "Approve" }</button>
+                            </p>
                         </StackItem>
                     }
                 </Stack>

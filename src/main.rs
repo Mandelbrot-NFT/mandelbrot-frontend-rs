@@ -13,8 +13,8 @@ use wasm_bindgen::JsCast;
 
 use components::{
     balance::Balance,
-    controller::{Controller, ControllerProps},
-    mandelbrot::{Mandelbrot, MandelbrotProps}
+    controller::Controller,
+    mandelbrot::Mandelbrot,
 };
 
 
@@ -43,7 +43,7 @@ fn App() -> Html {
     html! {
         <Split>
             <SplitItem fill={true}>
-                <Mandelbrot ..MandelbrotProps {size: (*height, *height), interface: interface.clone()}/>
+                <Mandelbrot size={(*height, *height)} interface={interface.clone()}/>
             </SplitItem>
             <SplitItem>
                 <EthereumContextProvider>
@@ -63,7 +63,7 @@ fn App() -> Html {
                     <PageSection
                         variant={PageSectionVariant::Light}
                     >
-                        <Controller ..ControllerProps {mandelbrot: interface}/>
+                        <Controller mandelbrot={interface}/>
                     </PageSection>
                 </EthereumContextProvider>
             </SplitItem>
