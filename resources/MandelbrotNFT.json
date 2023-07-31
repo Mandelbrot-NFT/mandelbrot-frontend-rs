@@ -162,7 +162,7 @@
         "type": "uint256"
       }
     ],
-    "name": "approveBid",
+    "name": "approve",
     "outputs": [
       {
         "internalType": "uint256",
@@ -219,6 +219,25 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "bidIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "batchApprove",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -493,57 +512,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "parentId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "min_x",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "min_y",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "max_x",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "max_y",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct MandelbrotNFT.Field",
-        "name": "field",
-        "type": "tuple"
-      }
-    ],
-    "name": "mintNFT",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

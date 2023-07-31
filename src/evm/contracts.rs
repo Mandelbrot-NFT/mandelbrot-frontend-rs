@@ -115,8 +115,17 @@ impl ERC1155Contract {
 
     pub async fn approve_bid(&self, sender: Address, bid_id: u128) -> Result<H256> {
         Ok(self.contract.call(
-            "approveBid",
+            "approve",
             (U256::from(bid_id),),
+            sender,
+            Options::default()
+        ).await?)
+    }
+
+    pub async fn batch_approve_bids(&self, sender: Address, bid_ids: &[u128]) -> Result<H256> {
+        Ok(self.contract.call(
+            "batchApprove",
+            (bid_ids.iter().map(|bid_id| U256::from(*bid_id)).collect::<Vec<U256>>(),),
             sender,
             Options::default()
         ).await?)

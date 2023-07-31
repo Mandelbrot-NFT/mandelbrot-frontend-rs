@@ -209,29 +209,29 @@ impl Component for Inner {
             }
         };
 
-        let on_mint_clicked = {
-            let this = self.clone();
-            let ethereum = ethereum.clone();
-            move |_| {
-                let this = this.clone();
-                if let Some(address) = ethereum.address() {
-                    let address = address.clone();
-                    let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
-                    spawn_local(async move {
-                        this.erc1155_contract.mint(
-                            address,
-                            *this.selected_nft_id.lock().unwrap(),
-                            Field {
-                                x_min: params.x_min as f64,
-                                y_min: params.y_min as f64,
-                                x_max: params.x_max as f64,
-                                y_max: params.y_max as f64
-                            }
-                        ).await;
-                    });
-                }
-            }
-        };
+        // let on_mint_clicked = {
+        //     let this = self.clone();
+        //     let ethereum = ethereum.clone();
+        //     move |_| {
+        //         let this = this.clone();
+        //         if let Some(address) = ethereum.address() {
+        //             let address = address.clone();
+        //             let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
+        //             spawn_local(async move {
+        //                 this.erc1155_contract.mint(
+        //                     address,
+        //                     *this.selected_nft_id.lock().unwrap(),
+        //                     Field {
+        //                         x_min: params.x_min as f64,
+        //                         y_min: params.y_min as f64,
+        //                         x_max: params.x_max as f64,
+        //                         y_max: params.y_max as f64
+        //                     }
+        //                 ).await;
+        //             });
+        //         }
+        //     }
+        // };
 
         let on_bid_toggled = {
             let this = self.clone();
@@ -265,9 +265,7 @@ impl Component for Inner {
                             .filter(|bid| bid.selected)
                             .map(|bid| bid.bid_id)
                             .collect();
-                        for bid_id in &selected_bids {
-                            this.erc1155_contract.approve_bid(address, *bid_id).await;
-                        }
+                        this.erc1155_contract.batch_approve_bids(address, &selected_bids).await;
                     });
                 }
             }
@@ -287,9 +285,9 @@ impl Component for Inner {
                             <button onclick={on_bid_clicked}>{ "Bid" }</button>
                         </TextInputGroup>
                     </StackItem>
-                    <StackItem>
-                        <button onclick={on_mint_clicked}>{ "Mint" }</button>
-                    </StackItem>
+                    // <StackItem>
+                    //     <button onclick={on_mint_clicked}>{ "Mint" }</button>
+                    // </StackItem>
                     if bids.len() > 0 {
                         <StackItem>
                             <br/>
