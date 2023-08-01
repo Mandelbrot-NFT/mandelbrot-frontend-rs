@@ -70,24 +70,36 @@ struct Inner {
 }
 
 impl Inner {
-    fn obtain_tokens(&self, parent_id: u128) {
+    fn draw_new_frames(&self, parent_id: u128) {
         spawn_local({
             let this = self.clone();
             async move {
-                if let Ok(metadata) = this.erc1155_contract.get_children_metadata(parent_id).await {
-                    let children = &mut (*this.children.lock().unwrap());
-                    children.clear();
-                    children.extend(metadata.into_iter().map(|m: Metadata| (m.token_id, m)));
+                {
+                    {
+                        let children = &mut (*this.children.lock().unwrap());
+                        let bids_ = &mut (*this.bids.lock().unwrap());
+                        children.clear();
+                        bids_.clear();
+                    }
+                    this.update_frames();
+
+                    this.obtain_tokens(parent_id).await;
+                    this.update_frames();
+                    this.redraw.emit(());
                 }
-                if let Ok(bids) = this.erc1155_contract.get_bids(parent_id).await {
-                    let bids_ = &mut (*this.bids.lock().unwrap());
-                    bids_.clear();
-                    bids_.extend(bids.into_iter().map(|bid| (bid.bid_id, bid)));
-                }
-                this.update_frames();
-                this.redraw.emit(());
             }
         });
+    }
+    
+    async fn obtain_tokens(&self, parent_id: u128) {
+        if let Ok(metadata) = self.erc1155_contract.get_children_metadata(parent_id).await {
+            let children = &mut (*self.children.lock().unwrap());
+            children.extend(metadata.into_iter().map(|m: Metadata| (m.token_id, m)));
+        }
+        if let Ok(bids) = self.erc1155_contract.get_bids(parent_id).await {
+            let bids_ = &mut (*self.bids.lock().unwrap());
+            bids_.extend(bids.into_iter().map(|bid| (bid.bid_id, bid)));
+        }
     }
 
     fn update_frames(&self) {
@@ -164,7 +176,7 @@ impl Component for Inner {
                             node.set_text_content(Some(&"0".to_string()));
                         }
     
-                        this.obtain_tokens(frame.id);
+                        this.draw_new_frames(frame.id);
                     }
                     _ => {}
                 }
@@ -176,7 +188,7 @@ impl Component for Inner {
             move |frame| on_frame_selected.emit(frame.clone())
         }));
 
-        this.obtain_tokens(1);
+        this.draw_new_frames(1);
         this
     }
 
