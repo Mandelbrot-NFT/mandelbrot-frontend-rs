@@ -31,7 +31,7 @@ impl Component for Mandelbrot {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let size = ctx.props().size.clone();
         let interface = ctx.props().interface.clone();
-        interface.lock().unwrap().sample_location.resize(size.0 as f64, size.1 as f64);
+        interface.lock().unwrap().sample_location.resize(size.0, size.1);
         let style = format!(
             "width: {}px; height: {}px;",
             (size.0 / 2.0).max(1.0).to_string(),
