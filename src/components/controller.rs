@@ -164,6 +164,10 @@ impl Component for Inner {
                             this.owner_node_ref.get().unwrap().set_text_content(Some(&token.owner.to_string()));
                             this.minimum_price_node_ref.get().unwrap().set_text_content(Some(&token.minimum_price.to_string()));
                         }
+
+                        if let Some(node) = this.approve_amount_node_ref.get() {
+                            node.set_text_content(Some(&"0".to_string()));
+                        }
     
                         this.obtain_tokens(frame.id);
                     }
