@@ -60,7 +60,6 @@ struct Inner {
     redraw: Callback<()>,
     mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
     erc1155_contract: ERC1155Contract,
-    selected_nft_id: Arc<Mutex<u128>>,
     nav_history: Arc<Mutex<Vec<Metadata>>>,
     children: Arc<Mutex<HashMap<u128, Metadata>>>,
     bids: Arc<Mutex<HashMap<u128, Bid>>>,
@@ -109,15 +108,13 @@ impl Component for Inner {
         let transport = Eip1193::new(ctx.props().ethereum.provider.clone());
         let web3 = Web3::new(transport);
         let erc1155_contract = ERC1155Contract::new(&web3);
-        let selected_nft_id = Arc::new(Mutex::new(1));
         let nav_history = Arc::new(Mutex::new(Vec::new()));
         {
             let mandelbrot = mandelbrot.clone();
             let erc1155_contract = erc1155_contract.clone();
-            let selected_nft_id = selected_nft_id.clone();
             let nav_history = nav_history.clone();
             spawn_local(async move {
-                if let Ok(metadata) = erc1155_contract.get_metadata(*selected_nft_id.lock().unwrap()).await {
+                if let Ok(metadata) = erc1155_contract.get_metadata(1).await {
                     mandelbrot.lock().unwrap().sample_location.move_into_frame(&metadata.to_frame(mandelbrot_explorer::FrameColor::Blue));
                     nav_history.lock().unwrap().push(metadata);
                 }
@@ -128,7 +125,6 @@ impl Component for Inner {
             redraw: ctx.link().callback(|_| ()),
             mandelbrot: mandelbrot.clone(),
             erc1155_contract,
-            selected_nft_id: selected_nft_id.clone(),
             nav_history,
             children: Arc::new(Mutex::new(HashMap::new())),
             bids: Arc::new(Mutex::new(HashMap::new())),
@@ -142,7 +138,6 @@ impl Component for Inner {
             let this = this.clone();
             let mandelbrot = mandelbrot.clone();
             move |frame: mandelbrot_explorer::Frame| {
-                *this.selected_nft_id.lock().unwrap() = frame.id;
                 match frame.color {
                     mandelbrot_explorer::FrameColor::Red | mandelbrot_explorer::FrameColor::Blue => {
                         mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
@@ -181,7 +176,7 @@ impl Component for Inner {
             move |frame| on_frame_selected.emit(frame.clone())
         }));
 
-        this.obtain_tokens(*selected_nft_id.lock().unwrap());
+        this.obtain_tokens(1);
         this
     }
 
@@ -206,18 +201,20 @@ impl Component for Inner {
                     let address = address.clone();
                     let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
                     spawn_local(async move {
-                        let tx = this.erc1155_contract.bid(
-                            address,
-                            *this.selected_nft_id.lock().unwrap(),
-                            Field {
-                                x_min: params.x_min as f64,
-                                y_min: params.y_min as f64,
-                                x_max: params.x_max as f64,
-                                y_max: params.y_max as f64
-                            },
-                            *this.bid_amount.lock().unwrap()
-                        ).await;
-                        log::info!("{:?}", tx);
+                        if let Some(token) = this.nav_history.lock().unwrap().last() {
+                            let tx = this.erc1155_contract.bid(
+                                address,
+                                token.token_id,
+                                Field {
+                                    x_min: params.x_min as f64,
+                                    y_min: params.y_min as f64,
+                                    x_max: params.x_max as f64,
+                                    y_max: params.y_max as f64
+                                },
+                                *this.bid_amount.lock().unwrap()
+                            ).await;
+                            log::info!("{:?}", tx);
+                        }
                     });
                 }
             }
