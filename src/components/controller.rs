@@ -334,8 +334,9 @@ impl Component for Inner {
                                     let on_bid_toggled = on_bid_toggled.clone();
                                     let bid_id = bid.bid_id;
                                     let amount = bid.amount;
+                                    let recipient = bid.recipient;
                                     html_nested!{
-                                        <p><Switch label={amount.to_string()} onchange={move |state| on_bid_toggled(bid_id, state)}/></p>
+                                        <p><Switch label={format!("{} {:?}", amount.to_string(), recipient)} onchange={move |state| on_bid_toggled(bid_id, state)}/></p>
                                     }
                                 })
                             }

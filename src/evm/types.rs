@@ -98,7 +98,7 @@ pub struct Bid {
     pub bid_id: u128,
     parent_id: u128,
     pub field: Field,
-    recipient: Address,
+    pub recipient: Address,
     pub amount: f64,
     pub selected: bool,
 }
