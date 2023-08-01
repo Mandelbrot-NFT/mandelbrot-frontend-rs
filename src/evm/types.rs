@@ -44,9 +44,10 @@ impl web3::contract::tokens::TokenizableItem for Field {}
 #[derive(Clone, Debug)]
 pub struct Metadata {
     pub token_id: u128,
+    pub owner: Address,
     parent_id: u128,
     pub field: Field,
-    minimum_price: u128,
+    pub minimum_price: f64,
 }
 
 impl Tokenizable for Metadata {
@@ -55,9 +56,10 @@ impl Tokenizable for Metadata {
             Token::Tuple(tokens) => {
                 Ok(Self { 
                     token_id: U256::from_token(tokens[0].clone())?.as_u128(),
-                    parent_id: U256::from_token(tokens[1].clone())?.as_u128(),
-                    field: Field::from_token(tokens[2].clone())?,
-                    minimum_price: U256::from_token(tokens[3].clone())?.as_u128(),
+                    owner: Address::from_token(tokens[1].clone())?,
+                    parent_id: U256::from_token(tokens[2].clone())?.as_u128(),
+                    field: Field::from_token(tokens[3].clone())?,
+                    minimum_price: U256::from_token(tokens[4].clone())?.as_u128() as f64 / 10_f64.powi(18),
                 })
             }
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
@@ -67,9 +69,10 @@ impl Tokenizable for Metadata {
     fn into_token(self) -> Token {
         Token::Tuple(vec![
             self.token_id.into_token(),
+            self.owner.into_token(),
             self.parent_id.into_token(),
             self.field.into_token(),
-            self.minimum_price.into_token(),
+            U256::from(((self.minimum_price) * 10_f64.powi(18)) as u128).into_token(),
         ])
     }
 }

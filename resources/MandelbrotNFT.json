@@ -382,6 +382,11 @@
             "type": "uint256"
           },
           {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
             "internalType": "uint256",
             "name": "parentId",
             "type": "uint256"
@@ -443,6 +448,11 @@
             "internalType": "uint256",
             "name": "tokenId",
             "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
           },
           {
             "internalType": "uint256",
