@@ -92,8 +92,8 @@ impl Inner {
         let frames = &mut self.mandelbrot.lock().unwrap().frames;
         frames.clear();
         frames.extend(self.children.lock().unwrap().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
-        frames.extend(self.nav_history.lock().unwrap().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
         frames.extend(self.bids.lock().unwrap().values().map(|token| token.to_frame()));
+        frames.extend(self.nav_history.lock().unwrap().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
     }
 }
 
@@ -157,7 +157,20 @@ impl Component for Inner {
     
                         this.obtain_tokens(frame.id);
                     }
-                    _ => {}
+                    mandelbrot_explorer::FrameColor::Yellow => {
+                        if let Some(bid) = this.bids.lock().unwrap().get_mut(&frame.id) {
+                            bid.selected = true;
+                        }
+                        this.update_frames();
+                        this.redraw.emit(());
+                    }
+                    mandelbrot_explorer::FrameColor::Green => {
+                        if let Some(bid) = this.bids.lock().unwrap().get_mut(&frame.id) {
+                            bid.selected = false;
+                        }
+                        this.update_frames();
+                        this.redraw.emit(());
+                    }
                 }
             }
         });
@@ -342,11 +355,13 @@ impl Component for Inner {
                                     let on_bid_toggled = on_bid_toggled.clone();
                                     let on_delete_clicked = on_delete_clicked.clone();
                                     let bid_id = bid.bid_id;
-                                    let amount = bid.amount;
-                                    let recipient = bid.recipient;
                                     html_nested!{
                                         <p>
-                                            <Switch label={format!("{} {:?}", amount.to_string(), recipient)} onchange={move |state| on_bid_toggled(bid_id, state)}/>
+                                            <Switch
+                                                label={format!("{} {:?}", bid.amount.to_string(), bid.recipient)}
+                                                checked={bid.selected}
+                                                onchange={move |state| on_bid_toggled(bid_id, state)}
+                                            />
                                             <button onclick={move |_| on_delete_clicked(bid_id)}>{ "Delete" }</button>
                                         </p>
                                     }
