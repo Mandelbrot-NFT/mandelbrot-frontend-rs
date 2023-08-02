@@ -65,6 +65,7 @@ struct Inner {
     bids: Arc<Mutex<HashMap<u128, Bid>>>,
     bid_amount: Arc<Mutex<f64>>,
     owner_node_ref: NodeRef,
+    locked_fuel_node_ref: NodeRef,
     minimum_price_node_ref: NodeRef,
     approve_amount_node_ref: NodeRef,
 }
@@ -130,6 +131,7 @@ impl Component for Inner {
             bids: Arc::new(Mutex::new(HashMap::new())),
             bid_amount: Arc::new(Mutex::new(0.0)),
             owner_node_ref: NodeRef::default(),
+            locked_fuel_node_ref: NodeRef::default(),
             minimum_price_node_ref: NodeRef::default(),
             approve_amount_node_ref: NodeRef::default(),
         };
@@ -157,6 +159,7 @@ impl Component for Inner {
 
                         if let Some(token) = nav_history.last() {
                             this.owner_node_ref.get().unwrap().set_text_content(Some(&token.owner.to_string()));
+                            this.locked_fuel_node_ref.get().unwrap().set_text_content(Some(&token.locked_fuel.to_string()));
                             this.minimum_price_node_ref.get().unwrap().set_text_content(Some(&token.minimum_price.to_string()));
                         }
 
@@ -282,10 +285,10 @@ impl Component for Inner {
             }
         };
 
-        let (owner, minimum_price) = if let Some(token) = self.nav_history.lock().unwrap().last() {
-            (token.owner.to_string(), token.minimum_price.to_string())
+        let (owner, locked_fuel, minimum_price) = if let Some(token) = self.nav_history.lock().unwrap().last() {
+            (token.owner.to_string(), token.locked_fuel.to_string(), token.minimum_price.to_string())
         } else {
-            ("".to_string(), 0.to_string())
+            ("".to_string(), 0.to_string(), 0.to_string())
         };
 
         let bids_lock = self.bids.lock().unwrap();
@@ -300,6 +303,10 @@ impl Component for Inner {
                         <p>
                             <label>{ "Owner:" }</label>
                             <label ref={self.owner_node_ref.clone()}>{ owner }</label>
+                        </p>
+                        <p>
+                            <label>{ "Locked FUEL:" }</label>
+                            <label ref={self.locked_fuel_node_ref.clone()}>{ locked_fuel }</label>
                         </p>
                         <p>
                             <label>{ "Minimum bid:" }</label>
