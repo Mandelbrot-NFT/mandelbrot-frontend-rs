@@ -63,6 +63,15 @@ impl ERC1155Contract {
         ).await?)
     }
 
+    pub async fn burn(&self, sender: Address, token_id: u128) -> Result<H256> {
+        Ok(self.contract.call(
+            "burn",
+            (U256::from(token_id),),
+            sender,
+            Options::default()
+        ).await?)
+    }
+
     pub async fn get_metadata(&self, token_id: u128) -> Result<Metadata> {
         let result: web3::contract::Result<Metadata> = self.contract.query(
             "getMetadata",

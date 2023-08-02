@@ -186,6 +186,20 @@ impl Component for Inner {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let ethereum = ctx.props().ethereum.clone();
 
+        let on_burn_clicked = {
+            let this = self.clone();
+            let ethereum = ethereum.clone();
+            move |token_id| {
+                let this = this.clone();
+                if let Some(address) = ethereum.address() {
+                    let address = address.clone();
+                    spawn_local(async move {
+                        this.erc1155_contract.burn(address, token_id).await;
+                    });
+                }
+            }
+        };
+
         let change_bid_amount = {
             let bid_amount = self.bid_amount.clone();
             move |value: String| {
@@ -299,10 +313,15 @@ impl Component for Inner {
             }
         };
 
-        let (owner, locked_fuel, minimum_price) = if let Some(token) = self.nav_history.lock().unwrap().last() {
-            (token.owner.to_string(), token.locked_fuel.to_string(), token.minimum_price.to_string())
+        let (
+            token_id,
+            owner,
+            locked_fuel,
+            minimum_price
+        ) = if let Some(token) = self.nav_history.lock().unwrap().last() {
+            (token.token_id, token.owner.to_string(), token.locked_fuel.to_string(), token.minimum_price.to_string())
         } else {
-            ("".to_string(), 0.to_string(), 0.to_string())
+            (0, "".to_string(), 0.to_string(), 0.to_string())
         };
 
         let bids_lock = self.bids.lock().unwrap();
@@ -326,6 +345,7 @@ impl Component for Inner {
                             <label>{ "Minimum bid:" }</label>
                             <label ref={self.minimum_price_node_ref.clone()}>{ minimum_price }</label>
                         </p>
+                        <p><button onclick={move |_| on_burn_clicked(token_id)}>{ "Burn" }</button></p>
                         <TextInputGroup>
                             <TextInputGroupMain value={self.bid_amount.lock().unwrap().to_string()} r#type="number" oninput={change_bid_amount}/>
                             <button onclick={on_bid_clicked}>{ "Bid" }</button>
