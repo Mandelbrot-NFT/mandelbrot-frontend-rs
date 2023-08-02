@@ -64,9 +64,6 @@ struct Inner {
     children: Arc<Mutex<HashMap<u128, Metadata>>>,
     bids: Arc<Mutex<HashMap<u128, Bid>>>,
     bid_amount: Arc<Mutex<f64>>,
-    owner_node_ref: NodeRef,
-    locked_fuel_node_ref: NodeRef,
-    minimum_price_node_ref: NodeRef,
     approve_amount_node_ref: NodeRef,
 }
 
@@ -130,9 +127,6 @@ impl Component for Inner {
             children: Arc::new(Mutex::new(HashMap::new())),
             bids: Arc::new(Mutex::new(HashMap::new())),
             bid_amount: Arc::new(Mutex::new(0.0)),
-            owner_node_ref: NodeRef::default(),
-            locked_fuel_node_ref: NodeRef::default(),
-            minimum_price_node_ref: NodeRef::default(),
             approve_amount_node_ref: NodeRef::default(),
         };
 
@@ -155,12 +149,6 @@ impl Component for Inner {
                                 nav_history.truncate(i + 1);
                                 break
                             }
-                        }
-
-                        if let Some(token) = nav_history.last() {
-                            this.owner_node_ref.get().unwrap().set_text_content(Some(&token.owner.to_string()));
-                            this.locked_fuel_node_ref.get().unwrap().set_text_content(Some(&token.locked_fuel.to_string()));
-                            this.minimum_price_node_ref.get().unwrap().set_text_content(Some(&token.minimum_price.to_string()));
                         }
 
                         if let Some(node) = this.approve_amount_node_ref.get() {
@@ -333,18 +321,9 @@ impl Component for Inner {
             <div>
                 <Stack>
                     <StackItem>
-                        <p>
-                            <label>{ "Owner:" }</label>
-                            <label ref={self.owner_node_ref.clone()}>{ owner }</label>
-                        </p>
-                        <p>
-                            <label>{ "Locked FUEL:" }</label>
-                            <label ref={self.locked_fuel_node_ref.clone()}>{ locked_fuel }</label>
-                        </p>
-                        <p>
-                            <label>{ "Minimum bid:" }</label>
-                            <label ref={self.minimum_price_node_ref.clone()}>{ minimum_price }</label>
-                        </p>
+                        <p><label>{format!("Owner: {}", owner)}</label></p>
+                        <p><label>{format!("Locked FUEL: {}", locked_fuel)}</label></p>
+                        <p><label>{format!("Minimum bid: {}", minimum_price)}</label></p>
                         <p><button onclick={move |_| on_burn_clicked(token_id)}>{ "Burn" }</button></p>
                         <TextInputGroup>
                             <TextInputGroupMain value={self.bid_amount.lock().unwrap().to_string()} r#type="number" oninput={change_bid_amount}/>
