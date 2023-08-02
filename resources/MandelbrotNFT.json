@@ -143,6 +143,19 @@
   },
   {
     "inputs": [],
+    "name": "BASE_MINIMUM_BID",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "FUEL",
     "outputs": [
       {
@@ -156,7 +169,33 @@
   },
   {
     "inputs": [],
+    "name": "MAX_CHILDREN",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "PARENT_SHARE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "TOTAL_SUPPLY",
     "outputs": [
       {
         "internalType": "uint256",
@@ -319,6 +358,19 @@
         "type": "uint256"
       }
     ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "bidId",
+        "type": "uint256"
+      }
+    ],
+    "name": "deleteBid",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },

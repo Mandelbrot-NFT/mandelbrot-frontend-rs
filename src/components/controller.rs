@@ -285,6 +285,20 @@ impl Component for Inner {
             }
         };
 
+        let on_delete_clicked = {
+            let this = self.clone();
+            let ethereum = ethereum.clone();
+            move |bid_id| {
+                let this = this.clone();
+                if let Some(address) = ethereum.address() {
+                    let address = address.clone();
+                    spawn_local(async move {
+                        this.erc1155_contract.delete_bid(address, bid_id).await;
+                    });
+                }
+            }
+        };
+
         let (owner, locked_fuel, minimum_price) = if let Some(token) = self.nav_history.lock().unwrap().last() {
             (token.owner.to_string(), token.locked_fuel.to_string(), token.minimum_price.to_string())
         } else {
@@ -327,11 +341,15 @@ impl Component for Inner {
                             {
                                 for bids.iter().map(|bid| {
                                     let on_bid_toggled = on_bid_toggled.clone();
+                                    let on_delete_clicked = on_delete_clicked.clone();
                                     let bid_id = bid.bid_id;
                                     let amount = bid.amount;
                                     let recipient = bid.recipient;
                                     html_nested!{
-                                        <p><Switch label={format!("{} {:?}", amount.to_string(), recipient)} onchange={move |state| on_bid_toggled(bid_id, state)}/></p>
+                                        <p>
+                                            <Switch label={format!("{} {:?}", amount.to_string(), recipient)} onchange={move |state| on_bid_toggled(bid_id, state)}/>
+                                            <button onclick={move |_| on_delete_clicked(bid_id)}>{ "Delete" }</button>
+                                        </p>
                                     }
                                 })
                             }

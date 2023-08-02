@@ -130,6 +130,15 @@ impl ERC1155Contract {
             Options::default()
         ).await?)
     }
+
+    pub async fn delete_bid(&self, sender: Address, bid_id: u128) -> Result<H256> {
+        Ok(self.contract.call(
+            "deleteBid",
+            (U256::from(bid_id),),
+            sender,
+            Options::default()
+        ).await?)
+    }
 }
 
 
