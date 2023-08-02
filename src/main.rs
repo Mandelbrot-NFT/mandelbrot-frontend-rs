@@ -35,6 +35,7 @@ fn App() -> Html {
         sample_location: mandelbrot_explorer::SampleLocation::new(*height, *height),
         frames: Vec::new(),
         frame_selected_callback: None,
+        redraw: None,
     }));
 
     html! {

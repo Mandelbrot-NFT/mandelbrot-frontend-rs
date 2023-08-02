@@ -89,11 +89,15 @@ impl Inner {
     }
 
     fn update_frames(&self) {
-        let frames = &mut self.mandelbrot.lock().unwrap().frames;
+        let mandelbrot = &mut self.mandelbrot.lock().unwrap();
+        let frames = &mut mandelbrot.frames;
         frames.clear();
         frames.extend(self.children.lock().unwrap().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
         frames.extend(self.bids.lock().unwrap().values().map(|token| token.to_frame()));
         frames.extend(self.nav_history.lock().unwrap().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
+        if let Some(redraw) = &mandelbrot.redraw {
+            redraw();
+        }
     }
 }
 
