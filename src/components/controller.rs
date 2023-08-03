@@ -9,7 +9,7 @@ use yew_ethereum_provider::UseEthereumHandle;
 use wasm_bindgen_futures::spawn_local;
 use web3::{
     transports::eip_1193::Eip1193,
-    Web3
+    Web3, types::Address
 };
 
 use crate::evm::{
@@ -58,6 +58,7 @@ impl PartialEq for InnerProps {
 #[derive(Clone)]
 struct Inner {
     redraw: Callback<()>,
+    address: Arc<Mutex<Option<Address>>>,
     mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
     erc1155_contract: ERC1155Contract,
     nav_history: Arc<Mutex<Vec<Metadata>>>,
@@ -76,17 +77,29 @@ impl Inner {
                 if let Ok(metadata) = this.erc1155_contract.get_children_metadata(parent_id).await {
                     let children = &mut (*this.children.lock().unwrap());
                     children.clear();
-                    children.extend(metadata.into_iter().map(|m: Metadata| (m.token_id, m)));
+                    children.extend(metadata.into_iter().map(|mut m: Metadata| (m.token_id, m)));
                 }
                 if let Ok(bids) = this.erc1155_contract.get_bids(parent_id).await {
                     let bids_ = &mut (*this.bids.lock().unwrap());
                     bids_.clear();
-                    bids_.extend(bids.into_iter().map(|bid| (bid.bid_id, bid)));
+                    bids_.extend(bids.into_iter().map(|mut bid| (bid.bid_id, bid)));
                 }
+                this.check_ownership();
                 this.update_frames();
                 this.redraw.emit(());
             }
         });
+    }
+
+    fn check_ownership(&self) {
+        if let Some(address) = *self.address.lock().unwrap() {
+            self.children.lock().unwrap().values_mut().for_each(|token| {
+                token.owned = token.owner == address;
+            });
+            self.bids.lock().unwrap().values_mut().for_each(|bid| {
+                bid.owned = bid.recipient == address;
+            });
+        }
     }
 
     fn update_frames(&self) {
@@ -107,8 +120,9 @@ impl Component for Inner {
     type Properties = InnerProps;
 
     fn create(ctx: &Context<Self>) -> Self {
+        let ethereum = ctx.props().ethereum.clone();
         let mandelbrot = ctx.props().mandelbrot.clone();
-        let transport = Eip1193::new(ctx.props().ethereum.provider.clone());
+        let transport = Eip1193::new(ethereum.provider.clone());
         let web3 = Web3::new(transport);
         let erc1155_contract = ERC1155Contract::new(&web3);
         let nav_history = Arc::new(Mutex::new(Vec::new()));
@@ -126,6 +140,7 @@ impl Component for Inner {
 
         let this = Self {
             redraw: ctx.link().callback(|_| ()),
+            address: Arc::new(Mutex::new(None)),
             mandelbrot: mandelbrot.clone(),
             erc1155_contract,
             nav_history,
@@ -141,7 +156,10 @@ impl Component for Inner {
             let mandelbrot = mandelbrot.clone();
             move |frame: mandelbrot_explorer::Frame| {
                 match frame.color {
-                    mandelbrot_explorer::FrameColor::Red | mandelbrot_explorer::FrameColor::Blue => {
+                    mandelbrot_explorer::FrameColor::Red |
+                    mandelbrot_explorer::FrameColor::Pink |
+                    mandelbrot_explorer::FrameColor::Blue |
+                    mandelbrot_explorer::FrameColor::LightBlue => {
                         mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
                         let nav_history = &mut this.nav_history.lock().unwrap();
                         for (token_id, token) in this.children.lock().unwrap().iter() {
@@ -163,7 +181,8 @@ impl Component for Inner {
     
                         this.obtain_tokens(frame.id);
                     }
-                    mandelbrot_explorer::FrameColor::Yellow => {
+                    mandelbrot_explorer::FrameColor::Yellow |
+                    mandelbrot_explorer::FrameColor::Lemon => {
                         if let Some(bid) = this.bids.lock().unwrap().get_mut(&frame.id) {
                             bid.selected = true;
                         }
@@ -192,6 +211,17 @@ impl Component for Inner {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let ethereum = ctx.props().ethereum.clone();
+
+        *self.address.lock().unwrap() = if let Some(address) = ethereum.address() {
+            Some(address.clone())
+        } else {
+            None
+        };
+        self.check_ownership();
+        self.update_frames();
+        if let Some(redraw) = &self.mandelbrot.lock().unwrap().redraw {
+            redraw();
+        }
 
         let on_burn_clicked = {
             let this = self.clone();

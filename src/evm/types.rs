@@ -49,6 +49,7 @@ pub struct Metadata {
     pub field: Field,
     pub locked_fuel: f64,
     pub minimum_price: f64,
+    pub owned: bool,
 }
 
 impl Tokenizable for Metadata {
@@ -62,6 +63,7 @@ impl Tokenizable for Metadata {
                     field: Field::from_token(tokens[3].clone())?,
                     locked_fuel: U256::from_token(tokens[4].clone())?.as_u128() as f64 / 10_f64.powi(18),
                     minimum_price: U256::from_token(tokens[5].clone())?.as_u128() as f64 / 10_f64.powi(18),
+                    owned: false,
                 })
             }
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
@@ -90,7 +92,12 @@ impl Metadata {
             x_max: self.field.x_max,
             y_min: self.field.y_min,
             y_max: self.field.y_max,
-            color,
+            color: if self.owned {
+                match color {
+                    mandelbrot_explorer::FrameColor::Red => mandelbrot_explorer::FrameColor::Pink,
+                    _ => mandelbrot_explorer::FrameColor::LightBlue
+                }
+            } else {color},
         }
     } 
 }
@@ -104,6 +111,7 @@ pub struct Bid {
     pub recipient: Address,
     pub amount: f64,
     pub minimum_price: f64,
+    pub owned: bool,
     pub selected: bool,
 }
 
@@ -118,6 +126,7 @@ impl Tokenizable for Bid {
                     recipient: Address::from_token(tokens[3].clone())?,
                     amount: U256::from_token(tokens[4].clone())?.as_u128() as f64 / 10_f64.powi(18),
                     minimum_price: U256::from_token(tokens[5].clone())?.as_u128() as f64 / 10_f64.powi(18),
+                    owned: false,
                     selected: false,
                 })
             }
@@ -147,7 +156,15 @@ impl Bid {
             x_max: self.field.x_max,
             y_min: self.field.y_min,
             y_max: self.field.y_max,
-            color: if self.selected {mandelbrot_explorer::FrameColor::Green} else {mandelbrot_explorer::FrameColor::Yellow},
+            color: if self.selected {
+                mandelbrot_explorer::FrameColor::Green
+            } else {
+                if self.owned {
+                    mandelbrot_explorer::FrameColor::Lemon
+                } else {
+                    mandelbrot_explorer::FrameColor::Yellow
+                }
+            },
         }
     } 
 }
