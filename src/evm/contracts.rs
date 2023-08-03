@@ -121,6 +121,17 @@ impl ERC1155Contract {
         Ok(result?)
     }
 
+    pub async fn get_ancestry_metadata(&self, token_id: u128) -> Result<Vec<Metadata>> {
+        let result: web3::contract::Result<Vec<Metadata>> = self.contract.query(
+            "getAncestryMetadata",
+            (U256::from(token_id),),
+            None,
+            Options::default(),
+            None
+        ).await;
+        Ok(result?)
+    }
+
     pub async fn bid(&self, sender: Address, parent_id: u128, field: Field, amount: f64, minimum_price: f64) -> Result<H256> {
         Ok(self.call(
             "bid",

@@ -396,6 +396,79 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getAncestryMetadata",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "parentId",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "min_x",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "min_y",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "max_x",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "max_y",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct MandelbrotNFT.Field",
+            "name": "field",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockedFuel",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "minimumBid",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct MandelbrotNFT.Metadata[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "parentId",
         "type": "uint256"
       }

@@ -21,6 +21,8 @@ use crate::evm::{
 #[derive(Properties)]
 pub struct ControllerProps {
     pub mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
+    #[prop_or(1)]
+    pub token_id: u128,
 }
 
 impl PartialEq for ControllerProps {
@@ -35,7 +37,7 @@ pub fn Controller(props: &ControllerProps) -> Html {
         "No ethereum provider found. You must wrap your components in an <EthereumContextProvider/>",
     ) {
         html! {
-            <Inner ethereum={ethereum} mandelbrot={props.mandelbrot.clone()}/>
+            <Inner ethereum={ethereum} mandelbrot={props.mandelbrot.clone()} token_id={props.token_id}/>
         }
     } else {
         html! {}
@@ -45,13 +47,14 @@ pub fn Controller(props: &ControllerProps) -> Html {
 
 #[derive(Properties)]
 struct InnerProps {
-    pub ethereum: UseEthereumHandle,
-    pub mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
+    ethereum: UseEthereumHandle,
+    mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
+    token_id: u128,
 }
 
 impl PartialEq for InnerProps {
     fn eq(&self, other: &Self) -> bool {
-        self.ethereum == other.ethereum
+        self.ethereum == other.ethereum && self.token_id == other.token_id
     }
 }
 
@@ -77,12 +80,12 @@ impl Inner {
                 if let Ok(metadata) = this.erc1155_contract.get_children_metadata(parent_id).await {
                     let children = &mut (*this.children.lock().unwrap());
                     children.clear();
-                    children.extend(metadata.into_iter().map(|mut m: Metadata| (m.token_id, m)));
+                    children.extend(metadata.into_iter().map(|m| (m.token_id, m)));
                 }
                 if let Ok(bids) = this.erc1155_contract.get_bids(parent_id).await {
                     let bids_ = &mut (*this.bids.lock().unwrap());
                     bids_.clear();
-                    bids_.extend(bids.into_iter().map(|mut bid| (bid.bid_id, bid)));
+                    bids_.extend(bids.into_iter().map(|bid| (bid.bid_id, bid)));
                 }
                 this.check_ownership();
                 this.update_frames();
@@ -98,6 +101,9 @@ impl Inner {
             });
             self.bids.lock().unwrap().values_mut().for_each(|bid| {
                 bid.owned = bid.recipient == address;
+            });
+            self.nav_history.lock().unwrap().iter_mut().for_each(|token| {
+                token.owned = token.owner == address;
             });
         }
     }
@@ -122,6 +128,7 @@ impl Component for Inner {
     fn create(ctx: &Context<Self>) -> Self {
         let ethereum = ctx.props().ethereum.clone();
         let mandelbrot = ctx.props().mandelbrot.clone();
+        let token_id = ctx.props().token_id;
         let transport = Eip1193::new(ethereum.provider.clone());
         let web3 = Web3::new(transport);
         let erc1155_contract = ERC1155Contract::new(&web3);
@@ -131,9 +138,12 @@ impl Component for Inner {
             let erc1155_contract = erc1155_contract.clone();
             let nav_history = nav_history.clone();
             spawn_local(async move {
-                if let Ok(metadata) = erc1155_contract.get_metadata(1).await {
-                    mandelbrot.lock().unwrap().sample_location.move_into_frame(&metadata.to_frame(mandelbrot_explorer::FrameColor::Blue));
-                    nav_history.lock().unwrap().push(metadata);
+                if let Ok(metadata) = erc1155_contract.get_ancestry_metadata(token_id).await {
+                    let nav_history = &mut *nav_history.lock().unwrap();
+                    nav_history.extend(metadata.into_iter().rev());
+                    if let Some(token) = nav_history.last() {
+                        mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
+                    }
                 }
             });
         }
@@ -205,7 +215,7 @@ impl Component for Inner {
             move |frame| on_frame_selected.emit(frame.clone())
         }));
 
-        this.obtain_tokens(1);
+        this.obtain_tokens(token_id);
         this
     }
 
@@ -380,6 +390,7 @@ impl Component for Inner {
             <div>
                 <Stack>
                     <StackItem>
+                        <p><label>{format!("NFT id: {}", token_id)}</label></p>
                         <p><label>{format!("Owner: {}", owner)}</label></p>
                         <p><label>{format!("Locked FUEL: {}", locked_fuel)}</label></p>
                         <p><label>{format!("Minimum bid: {}", minimum_price)}</label></p>
