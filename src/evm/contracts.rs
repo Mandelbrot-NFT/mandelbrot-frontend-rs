@@ -1,6 +1,7 @@
+use async_trait::async_trait;
 use eyre::Result;
 use web3::{
-    contract::{Contract, Options},
+    contract::{tokens::Tokenize, Contract, Options},
     types::{Address, H256, U256, TransactionReceipt},
     transports::eip_1193::Eip1193,
     Web3
@@ -13,9 +14,34 @@ const FUEL: U256 = U256([0, 0, 0, 0]);
 const CALLDATA: &[u8] = &[87, 114, 97, 112, 112, 101, 100, 32, 77, 97, 110, 100, 101, 108, 98, 114, 111, 116, 32, 70, 85, 69, 76, 0, 0, 0, 0, 0, 0, 0, 0, 46, 119, 70, 85, 69, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 18];
 
 
+#[async_trait(?Send)]
+trait CallWrapper {
+    fn contract(&self) -> &Contract<Eip1193>;
+
+    async fn call<T: Clone + Tokenize + std::marker::Send>(&self, method: &str, params: T, sender: Address) -> Result<H256> {
+        let gas = self.contract().estimate_gas(method, params.clone(), sender, Options::default()).await?;
+        log::info!("{} GAS: {:?}", method, gas);
+        Ok(self.contract().call(method, params, sender, Options::default()).await?)
+    }
+
+    async fn call_with_confirmations<T: Clone + Tokenize + std::marker::Send>(&self, method: &str, params: T, sender: Address) -> Result<TransactionReceipt> {
+        let gas = self.contract().estimate_gas(method, params.clone(), sender, Options::default()).await?;
+        log::info!("{} GAS: {:?}", method, gas);
+        Ok(self.contract().call_with_confirmations(method, params, sender, Options::default(), 1).await?)
+    }
+}
+
+
 #[derive(Clone)]
 pub struct ERC1155Contract {
     contract: Contract<Eip1193>
+}
+
+#[async_trait]
+impl CallWrapper for ERC1155Contract {
+    fn contract(&self) -> &Contract<Eip1193> {
+        &self.contract
+    }
 }
 
 impl ERC1155Contract {
@@ -45,30 +71,31 @@ impl ERC1155Contract {
     }
 
     pub async fn transfer_fuel(&self, from: Address, to: Address, amount: f64) -> Result<TransactionReceipt> {
-        Ok(self.contract.call_with_confirmations("safeTransferFrom", (
+        Ok(self.call_with_confirmations(
+            "safeTransferFrom", (
+                from,
+                to,
+                FUEL,
+                U256::from((amount * 10_f64.powi(18)) as u128),
+                CALLDATA.to_vec(),
+            ),
             from,
-            to,
-            FUEL,
-            U256::from((amount * 10_f64.powi(18)) as u128),
-            CALLDATA.to_vec(),
-        ), from, Options::default(), 1).await?)
+        ).await?)
     }
 
     pub async fn mint(&self, sender: Address, parent_id: u128, field: Field) -> Result<H256> {
-        Ok(self.contract.call(
+        Ok(self.call(
             "mintNFT",
             (U256::from(parent_id), sender, field),
             sender,
-            Options::default()
         ).await?)
     }
 
     pub async fn burn(&self, sender: Address, token_id: u128) -> Result<H256> {
-        Ok(self.contract.call(
+        Ok(self.call(
             "burn",
             (U256::from(token_id),),
             sender,
-            Options::default()
         ).await?)
     }
 
@@ -94,20 +121,17 @@ impl ERC1155Contract {
         Ok(result?)
     }
 
-    pub async fn bid(&self, sender: Address, parent_id: u128, field: Field, amount: f64) -> Result<H256> {
-        let gas = self.contract.estimate_gas(
+    pub async fn bid(&self, sender: Address, parent_id: u128, field: Field, amount: f64, minimum_price: f64) -> Result<H256> {
+        Ok(self.call(
             "bid",
-            (U256::from(parent_id), sender, field.clone(), U256::from((amount * 10_f64.powi(18)) as u128)),
+            (
+                U256::from(parent_id),
+                sender,
+                field.clone(),
+                U256::from((amount * 10_f64.powi(18)) as u128),
+                U256::from((minimum_price * 10_f64.powi(18)) as u128),
+            ),
             sender,
-            Options::default()
-        ).await?;
-        log::info!("bid GAS: {:?}", gas);
-
-        Ok(self.contract.call(
-            "bid",
-            (U256::from(parent_id), sender, field, U256::from((amount * 10_f64.powi(18)) as u128)),
-            sender,
-            Options::default()
         ).await?)
     }
 
@@ -123,29 +147,26 @@ impl ERC1155Contract {
     }
 
     pub async fn approve_bid(&self, sender: Address, bid_id: u128) -> Result<H256> {
-        Ok(self.contract.call(
+        Ok(self.call(
             "approve",
             (U256::from(bid_id),),
             sender,
-            Options::default()
         ).await?)
     }
 
     pub async fn batch_approve_bids(&self, sender: Address, bid_ids: &[u128]) -> Result<H256> {
-        Ok(self.contract.call(
+        Ok(self.call(
             "batchApprove",
             (bid_ids.iter().map(|bid_id| U256::from(*bid_id)).collect::<Vec<U256>>(),),
             sender,
-            Options::default()
         ).await?)
     }
 
     pub async fn delete_bid(&self, sender: Address, bid_id: u128) -> Result<H256> {
-        Ok(self.contract.call(
+        Ok(self.call(
             "deleteBid",
             (U256::from(bid_id),),
             sender,
-            Options::default()
         ).await?)
     }
 }
@@ -155,6 +176,13 @@ impl ERC1155Contract {
 pub struct Wrapped1155FactoryContract {
     contract: Contract<Eip1193>,
     erc1155_address: Address,
+}
+
+#[async_trait]
+impl CallWrapper for Wrapped1155FactoryContract {
+    fn contract(&self) -> &Contract<Eip1193> {
+        &self.contract
+    }
 }
 
 impl Wrapped1155FactoryContract {
@@ -174,13 +202,15 @@ impl Wrapped1155FactoryContract {
     }
 
     pub async fn unwrap(&self, recipient: Address, amount: f64) -> Result<TransactionReceipt>{
-        Ok(self.contract.call_with_confirmations("unwrap", (
-            self.erc1155_address,
-            FUEL,
-            U256::from((amount * 10_f64.powi(18)) as u128),
-            recipient,
-            CALLDATA.to_vec(),
-        ), recipient, Options::default(), 1).await?)
+        Ok(self.call_with_confirmations(
+            "unwrap", (
+                self.erc1155_address,
+                FUEL,
+                U256::from((amount * 10_f64.powi(18)) as u128),
+                recipient,
+                CALLDATA.to_vec(),
+            ), recipient
+        ).await?)
     }
 }
 
