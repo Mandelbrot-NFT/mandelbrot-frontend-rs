@@ -64,6 +64,7 @@ struct Inner {
     children: Arc<Mutex<HashMap<u128, Metadata>>>,
     bids: Arc<Mutex<HashMap<u128, Bid>>>,
     bid_amount: Arc<Mutex<f64>>,
+    bids_minimum_price: Arc<Mutex<f64>>,
     approve_amount_node_ref: NodeRef,
 }
 
@@ -131,6 +132,7 @@ impl Component for Inner {
             children: Arc::new(Mutex::new(HashMap::new())),
             bids: Arc::new(Mutex::new(HashMap::new())),
             bid_amount: Arc::new(Mutex::new(0.0)),
+            bids_minimum_price: Arc::new(Mutex::new(0.0)),
             approve_amount_node_ref: NodeRef::default(),
         };
 
@@ -214,6 +216,15 @@ impl Component for Inner {
             }
         };
 
+        let change_bids_minimum_price = {
+            let bids_minimum_price = self.bids_minimum_price.clone();
+            move |value: String| {
+                if let Ok(value) = value.parse::<f64>() {
+                    *bids_minimum_price.lock().unwrap() = value;
+                }
+            }
+        };
+
         let on_bid_clicked = {
             let this = self.clone();
             let ethereum = ethereum.clone();
@@ -233,7 +244,8 @@ impl Component for Inner {
                                     x_max: params.x_max as f64,
                                     y_max: params.y_max as f64
                                 },
-                                *this.bid_amount.lock().unwrap()
+                                *this.bid_amount.lock().unwrap(),
+                                *this.bids_minimum_price.lock().unwrap(),
                             ).await;
                             log::info!("{:?}", tx);
                         }
@@ -343,8 +355,25 @@ impl Component for Inner {
                         <p><label>{format!("Minimum bid: {}", minimum_price)}</label></p>
                         <p><button onclick={move |_| on_burn_clicked(token_id)}>{ "Burn" }</button></p>
                         <TextInputGroup>
-                            <TextInputGroupMain value={self.bid_amount.lock().unwrap().to_string()} r#type="number" oninput={change_bid_amount}/>
-                            <button onclick={on_bid_clicked}>{ "Bid" }</button>
+                            <p>
+                                <TextInputGroupMain
+                                    placeholder="Bid amount"
+                                    r#type="number"
+                                    oninput={change_bid_amount}
+                                />
+                                <TextInputGroupMain
+                                    placeholder="Minimum bid price"
+                                    r#type="number"
+                                    oninput={change_bids_minimum_price}
+                                />
+                            </p>
+                            <TextInputGroupUtilities>
+                                <Button
+                                    label="Bid"
+                                    variant={ButtonVariant::Primary}
+                                    onclick={on_bid_clicked}
+                                />
+                            </TextInputGroupUtilities>
                         </TextInputGroup>
                     </StackItem>
                     // <StackItem>

@@ -348,6 +348,11 @@
         "internalType": "uint256",
         "name": "amount",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minimumBid",
+        "type": "uint256"
       }
     ],
     "name": "bid",
@@ -445,6 +450,11 @@
             "internalType": "uint256",
             "name": "amount",
             "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "minimumBid",
+            "type": "uint256"
           }
         ],
         "internalType": "struct MandelbrotNFT.BidView[]",
@@ -516,7 +526,7 @@
           },
           {
             "internalType": "uint256",
-            "name": "minimumPrice",
+            "name": "minimumBid",
             "type": "uint256"
           }
         ],
@@ -589,7 +599,7 @@
           },
           {
             "internalType": "uint256",
-            "name": "minimumPrice",
+            "name": "minimumBid",
             "type": "uint256"
           }
         ],
@@ -738,11 +748,11 @@
       },
       {
         "internalType": "uint256",
-        "name": "price",
+        "name": "minimumBid",
         "type": "uint256"
       }
     ],
-    "name": "setMinimumPrice",
+    "name": "setminimumBid",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

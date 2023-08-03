@@ -103,6 +103,7 @@ pub struct Bid {
     pub field: Field,
     pub recipient: Address,
     pub amount: f64,
+    pub minimum_price: f64,
     pub selected: bool,
 }
 
@@ -116,6 +117,7 @@ impl Tokenizable for Bid {
                     field: Field::from_token(tokens[2].clone())?,
                     recipient: Address::from_token(tokens[3].clone())?,
                     amount: U256::from_token(tokens[4].clone())?.as_u128() as f64 / 10_f64.powi(18),
+                    minimum_price: U256::from_token(tokens[5].clone())?.as_u128() as f64 / 10_f64.powi(18),
                     selected: false,
                 })
             }
@@ -130,6 +132,7 @@ impl Tokenizable for Bid {
             self.field.into_token(),
             self.recipient.into_token(),
             U256::from(((self.amount) * 10_f64.powi(18)) as u128).into_token(),
+            U256::from(((self.minimum_price) * 10_f64.powi(18)) as u128).into_token(),
         ])
     }
 }
