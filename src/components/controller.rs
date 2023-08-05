@@ -20,46 +20,21 @@ use crate::evm::{
 
 #[derive(Properties)]
 pub struct ControllerProps {
+    pub handle_error: Callback<eyre::Report>,
+    pub ethereum: UseEthereumHandle,
     pub mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
     #[prop_or(1)]
     pub token_id: u128,
 }
 
 impl PartialEq for ControllerProps {
-    fn eq(&self, _other: &Self) -> bool {
-        true
-    }
-}
-
-#[function_component]
-pub fn Controller(props: &ControllerProps) -> Html {
-    if let Some(ethereum) = use_context::<Option<UseEthereumHandle>>().expect(
-        "No ethereum provider found. You must wrap your components in an <EthereumContextProvider/>",
-    ) {
-        html! {
-            <Inner ethereum={ethereum} mandelbrot={props.mandelbrot.clone()} token_id={props.token_id}/>
-        }
-    } else {
-        html! {}
-    }
-}
-
-
-#[derive(Properties)]
-struct InnerProps {
-    ethereum: UseEthereumHandle,
-    mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
-    token_id: u128,
-}
-
-impl PartialEq for InnerProps {
     fn eq(&self, other: &Self) -> bool {
         self.ethereum == other.ethereum && self.token_id == other.token_id
     }
 }
 
 #[derive(Clone)]
-struct Inner {
+pub struct Controller {
     redraw: Callback<()>,
     address: Arc<Mutex<Option<Address>>>,
     mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
@@ -72,7 +47,7 @@ struct Inner {
     approve_amount_node_ref: NodeRef,
 }
 
-impl Inner {
+impl Controller {
     fn obtain_tokens(&self, parent_id: u128) {
         spawn_local({
             let this = self.clone();
@@ -121,17 +96,16 @@ impl Inner {
     }
 }
 
-impl Component for Inner {
+impl Component for Controller {
     type Message = ();
-    type Properties = InnerProps;
+    type Properties = ControllerProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let ethereum = ctx.props().ethereum.clone();
         let mandelbrot = ctx.props().mandelbrot.clone();
         let token_id = ctx.props().token_id;
-        let transport = Eip1193::new(ethereum.provider.clone());
+        let transport = Eip1193::new(ctx.props().ethereum.provider.clone());
         let web3 = Web3::new(transport);
-        let erc1155_contract = ERC1155Contract::new(&web3);
+        let erc1155_contract = ERC1155Contract::new(&web3, ctx.props().handle_error.clone());
         let nav_history = Arc::new(Mutex::new(Vec::new()));
         {
             let mandelbrot = mandelbrot.clone();
@@ -275,7 +249,7 @@ impl Component for Inner {
                     let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
                     spawn_local(async move {
                         if let Some(token) = this.nav_history.lock().unwrap().last() {
-                            let tx = this.erc1155_contract.bid(
+                            this.erc1155_contract.bid(
                                 address,
                                 token.token_id,
                                 Field {
@@ -287,7 +261,6 @@ impl Component for Inner {
                                 *this.bid_amount.lock().unwrap(),
                                 *this.bids_minimum_price.lock().unwrap(),
                             ).await;
-                            log::info!("{:?}", tx);
                         }
                     });
                 }

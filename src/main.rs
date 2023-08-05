@@ -6,28 +6,13 @@ use std::sync::{Arc, Mutex};
 
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
-use yew_router::prelude::{BrowserRouter, Routable, Switch};
-use yew_ethereum_provider::{
-    AccountLabel, ConnectButton, EthereumContextProvider,
-};
+use yew_ethereum_provider::EthereumContextProvider;
 use wasm_bindgen::JsCast;
 
 use components::{
-    balance::Balance,
-    controller::Controller,
+    blockchain::Blockchain,
     mandelbrot::Mandelbrot,
 };
-
-
-#[derive(Clone, Routable, PartialEq)]
-enum Route {
-    #[at("/")]
-    Main,
-    #[at("/node/:id")]
-    Node { id: u128 },
-    #[at("/*")]
-    Default,
-}
 
 
 #[function_component]
@@ -50,46 +35,19 @@ fn App() -> Html {
         redraw: None,
     }));
 
-    let switch = {
-        let interface = interface.clone();
-        move |route| {
-            match route {
-                Route::Node { id } => html! { <Controller mandelbrot={interface.clone()} token_id={id}/> },
-                _ => html! { <Controller mandelbrot={interface.clone()}/> },
-            }
-        }
-    };
-
     html! {
-        <BrowserRouter>
+        <BackdropViewer>
             <Split>
                 <SplitItem fill={true}>
                     <Mandelbrot size={(*height, *height)} interface={interface.clone()}/>
                 </SplitItem>
                 <SplitItem>
                     <EthereumContextProvider>
-                        <PageSection
-                            r#type={PageSectionType::Default}
-                            variant={PageSectionVariant::Light}
-                            limit_width=true
-                            sticky={[PageSectionSticky::Top]}
-                            fill={PageSectionFill::Fill}
-                        >
-                            <ConnectButton/>
-                            <AccountLabel/>
-                        </PageSection>
-                        <PageSection>
-                            <Balance/>
-                        </PageSection>
-                        <PageSection
-                            variant={PageSectionVariant::Light}
-                        >
-                            <Switch<Route> render={switch} />
-                        </PageSection>
+                        <Blockchain mandelbrot={interface}/>
                     </EthereumContextProvider>
                 </SplitItem>
             </Split>
-        </BrowserRouter>
+        </BackdropViewer>
     }
 }
 

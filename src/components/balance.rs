@@ -16,6 +16,18 @@ use crate::evm::contracts::{
 };
 
 
+
+#[derive(Properties)]
+pub struct BalanceProps {
+    pub handle_error: Callback<eyre::Report>,
+}
+
+impl PartialEq for BalanceProps {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
 async fn get_balance(
     address: Address,
     erc1155_contract: ERC1155Contract,
@@ -25,7 +37,7 @@ async fn get_balance(
 }
 
 #[function_component]
-pub fn Balance() -> Html {
+pub fn Balance(props: &BalanceProps) -> Html {
     let fuel_balance = use_state(|| 0.0);
     let wfuel_balance = use_state(|| 0.0);
     let wrap_amount = use_state(|| 0.0);
@@ -58,8 +70,8 @@ pub fn Balance() -> Html {
     ) {
         let transport = Eip1193::new(ethereum.provider.clone());
         let web3 = Web3::new(transport);
-        let erc1155_contract = ERC1155Contract::new(&web3);
-        let wrapper_contract = Wrapped1155FactoryContract::new(&web3, erc1155_contract.address());
+        let erc1155_contract = ERC1155Contract::new(&web3, props.handle_error.clone());
+        let wrapper_contract = Wrapped1155FactoryContract::new(&web3, erc1155_contract.address(), props.handle_error.clone());
         let erc20_contract = ERC20Contract::new(&web3);
 
         let refresh_balance = {
