@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
-use yew_ethereum_provider::EthereumContextProvider;
+use yew_ethereum_provider::{AccountLabel, ConnectButton, EthereumContextProvider};
 use wasm_bindgen::JsCast;
 
 use components::{
@@ -43,6 +43,16 @@ fn App() -> Html {
                 </SplitItem>
                 <SplitItem>
                     <EthereumContextProvider>
+                        <PageSection
+                            r#type={PageSectionType::Default}
+                            variant={PageSectionVariant::Light}
+                            limit_width=true
+                            sticky={[PageSectionSticky::Top]}
+                            fill={PageSectionFill::Fill}
+                        >
+                            <ConnectButton/>
+                            <AccountLabel/>
+                        </PageSection>
                         <Blockchain mandelbrot={interface}/>
                     </EthereumContextProvider>
                 </SplitItem>

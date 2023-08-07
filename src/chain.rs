@@ -15,7 +15,7 @@ pub fn sepolia_testnet() -> Chain {
     Chain {
         chain_name: String::from("Sepolia test network"),
         chain_id: String::from("0xAA36A7"),
-        rpc_urls: [String::from("https://sepolia.infura.io/v3/")],
+        rpc_urls: [String::from("https://rpc.notadegen.com/sepolia")],
         native_currency: base_currency::eth(),
         block_explorer_urls: Some([String::from("https://sepolia.etherscan.io")]),
     }

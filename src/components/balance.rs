@@ -4,7 +4,7 @@ use yew::prelude::*;
 use yew_ethereum_provider::UseEthereumHandle;
 use wasm_bindgen_futures::spawn_local;
 use web3::{
-    transports::eip_1193::Eip1193,
+    transports::{eip_1193::Eip1193, Either},
     types::Address,
     Web3
 };
@@ -68,7 +68,7 @@ pub fn Balance(props: &BalanceProps) -> Html {
     if let Some(ethereum) = use_context::<Option<UseEthereumHandle>>().expect(
         "No ethereum provider found. You must wrap your components in an <EthereumContextProvider/>",
     ) {
-        let transport = Eip1193::new(ethereum.provider.clone());
+        let transport = Either::Left(Eip1193::new(ethereum.provider.clone()));
         let web3 = Web3::new(transport);
         let erc1155_contract = ERC1155Contract::new(&web3, props.handle_error.clone());
         let wrapper_contract = Wrapped1155FactoryContract::new(&web3, erc1155_contract.address(), props.handle_error.clone());

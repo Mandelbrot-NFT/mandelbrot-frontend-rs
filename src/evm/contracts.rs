@@ -3,7 +3,7 @@ use eyre::{Report, Result};
 use web3::{
     contract::{tokens::Tokenize, Contract, Options},
     types::{Address, H256, U256, TransactionReceipt},
-    transports::eip_1193::Eip1193,
+    transports::{eip_1193::Eip1193, Either, Http},
     Web3
 };
 use yew::Callback;
@@ -17,7 +17,7 @@ const CALLDATA: &[u8] = &[87, 114, 97, 112, 112, 101, 100, 32, 77, 97, 110, 100,
 
 #[async_trait(?Send)]
 trait CallWrapper {
-    fn contract(&self) -> &Contract<Eip1193>;
+    fn contract(&self) -> &Contract<Either<Eip1193, Http>>;
 
     fn handle_error(&self, error: Report);
 
@@ -69,13 +69,13 @@ trait CallWrapper {
 
 #[derive(Clone)]
 pub struct ERC1155Contract {
-    contract: Contract<Eip1193>,
+    contract: Contract<Either<Eip1193, Http>>,
     handle_error: Callback<Report>,
 }
 
 #[async_trait]
 impl CallWrapper for ERC1155Contract {
-    fn contract(&self) -> &Contract<Eip1193> {
+    fn contract(&self) -> &Contract<Either<Eip1193, Http>> {
         &self.contract
     }
 
@@ -85,7 +85,7 @@ impl CallWrapper for ERC1155Contract {
 }
 
 impl ERC1155Contract {
-    pub fn new(web3: &Web3<Eip1193>, handle_error: Callback<Report>) -> Self {
+    pub fn new(web3: &Web3<Either<Eip1193, Http>>, handle_error: Callback<Report>) -> Self {
         Self {
             contract: Contract::from_json(
                 web3.eth(),
@@ -226,14 +226,14 @@ impl ERC1155Contract {
 
 #[derive(Clone)]
 pub struct Wrapped1155FactoryContract {
-    contract: Contract<Eip1193>,
+    contract: Contract<Either<Eip1193, Http>>,
     handle_error: Callback<Report>,
     erc1155_address: Address,
 }
 
 #[async_trait]
 impl CallWrapper for Wrapped1155FactoryContract {
-    fn contract(&self) -> &Contract<Eip1193> {
+    fn contract(&self) -> &Contract<Either<Eip1193, Http>> {
         &self.contract
     }
 
@@ -243,7 +243,7 @@ impl CallWrapper for Wrapped1155FactoryContract {
 }
 
 impl Wrapped1155FactoryContract {
-    pub fn new(web3: &Web3<Eip1193>, erc1155_address: Address, handle_error: Callback<Report>) -> Self {
+    pub fn new(web3: &Web3<Either<Eip1193, Http>>, erc1155_address: Address, handle_error: Callback<Report>) -> Self {
         Self {
             contract: Contract::from_json(
                 web3.eth(),
@@ -275,11 +275,11 @@ impl Wrapped1155FactoryContract {
 
 #[derive(Clone)]
 pub struct ERC20Contract {
-    contract: Contract<Eip1193>,
+    contract: Contract<Either<Eip1193, Http>>,
 }
 
 impl ERC20Contract {
-    pub fn new(web3: &Web3<Eip1193>) -> Self {
+    pub fn new(web3: &Web3<Either<Eip1193, Http>>) -> Self {
         Self {
             contract: Contract::from_json(
                 web3.eth(),

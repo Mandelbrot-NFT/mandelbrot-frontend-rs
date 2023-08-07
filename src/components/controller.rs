@@ -5,11 +5,11 @@ use std::{
 
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
-use yew_ethereum_provider::UseEthereumHandle;
 use wasm_bindgen_futures::spawn_local;
 use web3::{
-    transports::eip_1193::Eip1193,
-    Web3, types::Address
+    transports::{eip_1193::Eip1193, Either, Http},
+    types::Address,
+    Web3,
 };
 
 use crate::evm::{
@@ -21,7 +21,8 @@ use crate::evm::{
 #[derive(Properties)]
 pub struct ControllerProps {
     pub handle_error: Callback<eyre::Report>,
-    pub ethereum: UseEthereumHandle,
+    pub transport: Either<Eip1193, Http>,
+    pub address: Option<Address>,
     pub mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
     #[prop_or(1)]
     pub token_id: u128,
@@ -29,7 +30,7 @@ pub struct ControllerProps {
 
 impl PartialEq for ControllerProps {
     fn eq(&self, other: &Self) -> bool {
-        self.ethereum == other.ethereum && self.token_id == other.token_id
+        self.address == other.address && self.token_id == other.token_id
     }
 }
 
@@ -103,7 +104,7 @@ impl Component for Controller {
     fn create(ctx: &Context<Self>) -> Self {
         let mandelbrot = ctx.props().mandelbrot.clone();
         let token_id = ctx.props().token_id;
-        let transport = Eip1193::new(ctx.props().ethereum.provider.clone());
+        let transport = ctx.props().transport.clone();
         let web3 = Web3::new(transport);
         let erc1155_contract = ERC1155Contract::new(&web3, ctx.props().handle_error.clone());
         let nav_history = Arc::new(Mutex::new(Vec::new()));
@@ -194,9 +195,8 @@ impl Component for Controller {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let ethereum = ctx.props().ethereum.clone();
-
-        *self.address.lock().unwrap() = if let Some(address) = ethereum.address() {
+        let address = ctx.props().address.clone();
+        *self.address.lock().unwrap() = if let Some(address) = address.clone() {
             Some(address.clone())
         } else {
             None
@@ -209,11 +209,10 @@ impl Component for Controller {
 
         let on_burn_clicked = {
             let this = self.clone();
-            let ethereum = ethereum.clone();
+            let address = address.clone();
             move |token_id| {
                 let this = this.clone();
-                if let Some(address) = ethereum.address() {
-                    let address = address.clone();
+                if let Some(address) = address {
                     spawn_local(async move {
                         this.erc1155_contract.burn(address, token_id).await;
                     });
@@ -241,11 +240,10 @@ impl Component for Controller {
 
         let on_bid_clicked = {
             let this = self.clone();
-            let ethereum = ethereum.clone();
+            let address = address.clone();
             move |_| {
                 let this = this.clone();
-                if let Some(address) = ethereum.address() {
-                    let address = address.clone();
+                if let Some(address) = address {
                     let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
                     spawn_local(async move {
                         if let Some(token) = this.nav_history.lock().unwrap().last() {
@@ -312,11 +310,10 @@ impl Component for Controller {
 
         let on_approve_clicked = {
             let this = self.clone();
-            let ethereum = ethereum.clone();
+            let address = address.clone();
             move |_| {
                 let this = this.clone();
-                if let Some(address) = ethereum.address() {
-                    let address = address.clone();
+                if let Some(address) = address {
                     spawn_local(async move {
                         let selected_bids: Vec<u128> = this.bids.lock().unwrap()
                             .values()
@@ -331,11 +328,10 @@ impl Component for Controller {
 
         let on_delete_clicked = {
             let this = self.clone();
-            let ethereum = ethereum.clone();
+            let address = address.clone();
             move |bid_id| {
                 let this = this.clone();
-                if let Some(address) = ethereum.address() {
-                    let address = address.clone();
+                if let Some(address) = address {
                     spawn_local(async move {
                         this.erc1155_contract.delete_bid(address, bid_id).await;
                     });
@@ -367,58 +363,62 @@ impl Component for Controller {
                         <p><label>{format!("Owner: {}", owner)}</label></p>
                         <p><label>{format!("Locked FUEL: {}", locked_fuel)}</label></p>
                         <p><label>{format!("Minimum bid: {}", minimum_price)}</label></p>
-                        <p><button onclick={move |_| on_burn_clicked(token_id)}>{ "Burn" }</button></p>
-                        <TextInputGroup>
-                            <p>
-                                <TextInputGroupMain
-                                    placeholder="Bid amount"
-                                    r#type="number"
-                                    oninput={change_bid_amount}
-                                />
-                                <TextInputGroupMain
-                                    placeholder="Minimum bid price"
-                                    r#type="number"
-                                    oninput={change_bids_minimum_price}
-                                />
-                            </p>
-                            <TextInputGroupUtilities>
-                                <Button
-                                    label="Bid"
-                                    variant={ButtonVariant::Primary}
-                                    onclick={on_bid_clicked}
-                                />
-                            </TextInputGroupUtilities>
-                        </TextInputGroup>
+                        if address.is_some() {
+                            <p><button onclick={move |_| on_burn_clicked(token_id)}>{ "Burn" }</button></p>
+                            <TextInputGroup>
+                                <p>
+                                    <TextInputGroupMain
+                                        placeholder="Bid amount"
+                                        r#type="number"
+                                        oninput={change_bid_amount}
+                                    />
+                                    <TextInputGroupMain
+                                        placeholder="Minimum bid price"
+                                        r#type="number"
+                                        oninput={change_bids_minimum_price}
+                                    />
+                                </p>
+                                <TextInputGroupUtilities>
+                                    <Button
+                                        label="Bid"
+                                        variant={ButtonVariant::Primary}
+                                        onclick={on_bid_clicked}
+                                    />
+                                </TextInputGroupUtilities>
+                            </TextInputGroup>
+                        }
                     </StackItem>
-                    // <StackItem>
-                    //     <button onclick={on_mint_clicked}>{ "Mint" }</button>
-                    // </StackItem>
-                    if bids.len() > 0 {
-                        <StackItem>
-                            <br/>
-                            <p>{ "Bids:" }</p>
-                            {
-                                for bids.iter().map(|bid| {
-                                    let on_bid_toggled = on_bid_toggled.clone();
-                                    let on_delete_clicked = on_delete_clicked.clone();
-                                    let bid_id = bid.bid_id;
-                                    html_nested!{
-                                        <p>
-                                            <Switch
-                                                label={format!("{} {:?}", bid.amount.to_string(), bid.recipient)}
-                                                checked={bid.selected}
-                                                onchange={move |state| on_bid_toggled(bid_id, state)}
-                                            />
-                                            <button onclick={move |_| on_delete_clicked(bid_id)}>{ "Delete" }</button>
-                                        </p>
-                                    }
-                                })
-                            }
-                            <p>
-                                <label ref={self.approve_amount_node_ref.clone()}>{ total_approve_amount }</label>
-                                <button onclick={on_approve_clicked}>{ "Approve" }</button>
-                            </p>
-                        </StackItem>
+                    if address.is_some() {
+                        // <StackItem>
+                        //     <button onclick={on_mint_clicked}>{ "Mint" }</button>
+                        // </StackItem>
+                        if bids.len() > 0 {
+                            <StackItem>
+                                <br/>
+                                <p>{ "Bids:" }</p>
+                                {
+                                    for bids.iter().map(|bid| {
+                                        let on_bid_toggled = on_bid_toggled.clone();
+                                        let on_delete_clicked = on_delete_clicked.clone();
+                                        let bid_id = bid.bid_id;
+                                        html_nested!{
+                                            <p>
+                                                <Switch
+                                                    label={format!("{} {:?}", bid.amount.to_string(), bid.recipient)}
+                                                    checked={bid.selected}
+                                                    onchange={move |state| on_bid_toggled(bid_id, state)}
+                                                />
+                                                <button onclick={move |_| on_delete_clicked(bid_id)}>{ "Delete" }</button>
+                                            </p>
+                                        }
+                                    })
+                                }
+                                <p>
+                                    <label ref={self.approve_amount_node_ref.clone()}>{ total_approve_amount }</label>
+                                    <button onclick={on_approve_clicked}>{ "Approve" }</button>
+                                </p>
+                            </StackItem>
+                        }
                     }
                 </Stack>
             </div>
