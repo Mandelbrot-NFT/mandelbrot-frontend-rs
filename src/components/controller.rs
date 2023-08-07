@@ -49,6 +49,23 @@ pub struct Controller {
 }
 
 impl Controller {
+    fn view_nft(&self, token_id: u128) {
+        let this = self.clone();
+        spawn_local(async move {
+            if let Ok(metadata) = this.erc1155_contract.get_ancestry_metadata(token_id).await {
+                let nav_history = &mut *this.nav_history.lock().unwrap();
+                nav_history.clear();
+                nav_history.extend(metadata.into_iter().rev());
+                if let Some(token) = nav_history.last() {
+                    this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
+                }
+            } else {
+                this.view_nft(1);
+            }
+        });
+        self.obtain_tokens(token_id);
+    }
+
     fn obtain_tokens(&self, parent_id: u128) {
         spawn_local({
             let this = self.clone();
@@ -106,29 +123,13 @@ impl Component for Controller {
         let token_id = ctx.props().token_id;
         let transport = ctx.props().transport.clone();
         let web3 = Web3::new(transport);
-        let erc1155_contract = ERC1155Contract::new(&web3, ctx.props().handle_error.clone());
-        let nav_history = Arc::new(Mutex::new(Vec::new()));
-        {
-            let mandelbrot = mandelbrot.clone();
-            let erc1155_contract = erc1155_contract.clone();
-            let nav_history = nav_history.clone();
-            spawn_local(async move {
-                if let Ok(metadata) = erc1155_contract.get_ancestry_metadata(token_id).await {
-                    let nav_history = &mut *nav_history.lock().unwrap();
-                    nav_history.extend(metadata.into_iter().rev());
-                    if let Some(token) = nav_history.last() {
-                        mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
-                    }
-                }
-            });
-        }
 
         let this = Self {
             redraw: ctx.link().callback(|_| ()),
             address: Arc::new(Mutex::new(None)),
             mandelbrot: mandelbrot.clone(),
-            erc1155_contract,
-            nav_history,
+            erc1155_contract: ERC1155Contract::new(&web3, ctx.props().handle_error.clone()),
+            nav_history: Arc::new(Mutex::new(Vec::new())),
             children: Arc::new(Mutex::new(HashMap::new())),
             bids: Arc::new(Mutex::new(HashMap::new())),
             bid_amount: Arc::new(Mutex::new(0.0)),
@@ -138,14 +139,13 @@ impl Component for Controller {
 
         let on_frame_selected = Callback::from({
             let this = this.clone();
-            let mandelbrot = mandelbrot.clone();
             move |frame: mandelbrot_explorer::Frame| {
                 match frame.color {
                     mandelbrot_explorer::FrameColor::Red |
                     mandelbrot_explorer::FrameColor::Pink |
                     mandelbrot_explorer::FrameColor::Blue |
                     mandelbrot_explorer::FrameColor::LightBlue => {
-                        mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
+                        this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
                         let nav_history = &mut this.nav_history.lock().unwrap();
                         for (token_id, token) in this.children.lock().unwrap().iter() {
                             if *token_id == frame.id {
@@ -190,7 +190,7 @@ impl Component for Controller {
             move |frame| on_frame_selected.emit(frame.clone())
         }));
 
-        this.obtain_tokens(token_id);
+        this.view_nft(token_id);
         this
     }
 
