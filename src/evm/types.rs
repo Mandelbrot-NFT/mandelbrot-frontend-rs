@@ -18,10 +18,10 @@ impl Tokenizable for Field {
         match token {
             Token::Tuple(tokens) => {
                 Ok(Self { 
-                    x_min: U256::from_token(tokens[0].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.0,
-                    y_min: U256::from_token(tokens[1].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.0,
-                    x_max: U256::from_token(tokens[2].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.0,
-                    y_max: U256::from_token(tokens[3].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.0
+                    x_min: U256::from_token(tokens[0].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1,
+                    y_min: U256::from_token(tokens[1].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5,
+                    x_max: U256::from_token(tokens[2].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1,
+                    y_max: U256::from_token(tokens[3].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5
                 })
             }
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
@@ -30,10 +30,10 @@ impl Tokenizable for Field {
 
     fn into_token(self) -> Token {
         Token::Tuple(vec![
-            U256::from(((self.x_min + 2.0) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.y_min + 2.0) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.x_max + 2.0) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.y_max + 2.0) * 10_f64.powi(18)) as u128).into_token(),
+            U256::from(((self.x_min + 2.1) * 10_f64.powi(18)) as u128).into_token(),
+            U256::from(((self.y_min + 1.5) * 10_f64.powi(18)) as u128).into_token(),
+            U256::from(((self.x_max + 2.1) * 10_f64.powi(18)) as u128).into_token(),
+            U256::from(((self.y_max + 1.5) * 10_f64.powi(18)) as u128).into_token(),
         ])
     }
 }
