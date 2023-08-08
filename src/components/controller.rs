@@ -11,10 +11,14 @@ use web3::{
     types::Address,
     Web3,
 };
+use yew_router::{scope_ext::{RouterScopeExt, LocationHandle}, prelude::Navigator};
 
-use crate::evm::{
-    contracts::ERC1155Contract,
-    types::{Bid, Field, Metadata}
+use crate::{
+    components::blockchain::Route,
+    evm::{
+        contracts::ERC1155Contract,
+        types::{Bid, Field, Metadata}
+    }
 };
 
 
@@ -46,10 +50,11 @@ pub struct Controller {
     bid_amount: Arc<Mutex<f64>>,
     bids_minimum_price: Arc<Mutex<f64>>,
     approve_amount_node_ref: NodeRef,
+    listener: Arc<Mutex<Option<LocationHandle>>>,
 }
 
 impl Controller {
-    fn view_nft(&self, token_id: u128) {
+    fn view_nft(&self, token_id: u128, navigator: Option<Navigator>) {
         let this = self.clone();
         spawn_local(async move {
             if let Ok(metadata) = this.erc1155_contract.get_ancestry_metadata(token_id).await {
@@ -60,7 +65,9 @@ impl Controller {
                     this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
                 }
             } else {
-                this.view_nft(1);
+                if let Some(navigator) = navigator {
+                    navigator.replace_with_query(&Route::Node {id: 1}, &HashMap::from([("RUST_LOG", "info")]));
+                }
             }
         });
         self.obtain_tokens(token_id);
@@ -119,8 +126,8 @@ impl Component for Controller {
     type Properties = ControllerProps;
 
     fn create(ctx: &Context<Self>) -> Self {
+        let navigator = ctx.link().navigator().clone();
         let mandelbrot = ctx.props().mandelbrot.clone();
-        let token_id = ctx.props().token_id;
         let transport = ctx.props().transport.clone();
         let web3 = Web3::new(transport);
 
@@ -135,36 +142,24 @@ impl Component for Controller {
             bid_amount: Arc::new(Mutex::new(0.0)),
             bids_minimum_price: Arc::new(Mutex::new(0.0)),
             approve_amount_node_ref: NodeRef::default(),
+            listener: Arc::new(Mutex::new(None)),
         };
 
         let on_frame_selected = Callback::from({
             let this = this.clone();
+            let navigator = navigator.clone();
             move |frame: mandelbrot_explorer::Frame| {
+                let navigator = navigator.clone();
                 match frame.color {
                     mandelbrot_explorer::FrameColor::Red |
                     mandelbrot_explorer::FrameColor::Pink |
                     mandelbrot_explorer::FrameColor::Blue |
                     mandelbrot_explorer::FrameColor::LightBlue => {
                         this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
-                        let nav_history = &mut this.nav_history.lock().unwrap();
-                        for (token_id, token) in this.children.lock().unwrap().iter() {
-                            if *token_id == frame.id {
-                                nav_history.push(token.clone());
-                                break
-                            }
+                        if let Some(navigator) = navigator {
+                            // TODO: remove log or get from current query
+                            let _ = navigator.replace_with_query(&Route::Node {id: frame.id}, &HashMap::from([("RUST_LOG", "info")]));
                         }
-                        for (i, token) in nav_history.iter().enumerate().rev() {
-                            if token.token_id == frame.id {
-                                nav_history.truncate(i + 1);
-                                break
-                            }
-                        }
-
-                        if let Some(node) = this.approve_amount_node_ref.get() {
-                            node.set_text_content(Some(&"0".to_string()));
-                        }
-    
-                        this.obtain_tokens(frame.id);
                     }
                     mandelbrot_explorer::FrameColor::Yellow |
                     mandelbrot_explorer::FrameColor::Lemon => {
@@ -190,11 +185,13 @@ impl Component for Controller {
             move |frame| on_frame_selected.emit(frame.clone())
         }));
 
-        this.view_nft(token_id);
+        this.view_nft(ctx.props().token_id, navigator.clone());
         this
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let navigator = ctx.link().navigator().clone();
+
         let address = ctx.props().address.clone();
         *self.address.lock().unwrap() = if let Some(address) = address.clone() {
             Some(address.clone())
@@ -205,6 +202,21 @@ impl Component for Controller {
         self.update_frames();
         if let Some(redraw) = &self.mandelbrot.lock().unwrap().redraw {
             redraw();
+        }
+
+        let (
+            token_id,
+            owner,
+            locked_fuel,
+            minimum_price
+        ) = if let Some(token) = self.nav_history.lock().unwrap().last() {
+            (token.token_id, token.owner.to_string(), token.locked_fuel.to_string(), token.minimum_price.to_string())
+        } else {
+            (0, "".to_string(), 0.to_string(), 0.to_string())
+        };
+
+        if token_id != ctx.props().token_id {
+            self.view_nft(ctx.props().token_id, navigator.clone())
         }
 
         let on_burn_clicked = {
@@ -337,17 +349,6 @@ impl Component for Controller {
                     });
                 }
             }
-        };
-
-        let (
-            token_id,
-            owner,
-            locked_fuel,
-            minimum_price
-        ) = if let Some(token) = self.nav_history.lock().unwrap().last() {
-            (token.token_id, token.owner.to_string(), token.locked_fuel.to_string(), token.minimum_price.to_string())
-        } else {
-            (0, "".to_string(), 0.to_string(), 0.to_string())
         };
 
         let bids_lock = self.bids.lock().unwrap();

@@ -16,7 +16,7 @@ use crate::{
 
 
 #[derive(Clone, Routable, PartialEq)]
-enum Route {
+pub enum Route {
     #[at("/")]
     Main,
     #[at("/node/:id")]
