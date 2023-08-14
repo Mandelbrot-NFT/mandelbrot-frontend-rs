@@ -19,7 +19,7 @@ use crate::{
 pub enum Route {
     #[at("/")]
     Main,
-    #[at("/node/:id")]
+    #[at("/nodes/:id")]
     Node { id: u128 },
     #[at("/*")]
     Default,
