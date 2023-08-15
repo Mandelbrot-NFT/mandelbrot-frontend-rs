@@ -70,6 +70,9 @@ impl Controller {
                 }
             }
         });
+        if let Some(node) = self.approve_amount_node_ref.get() {
+            node.set_text_content(Some(&"0".to_string()));
+        }
         self.obtain_tokens(token_id);
     }
 
