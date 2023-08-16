@@ -121,9 +121,9 @@ impl Tokenizable for Bid {
             Token::Tuple(tokens) => {
                 Ok(Self { 
                     bid_id: U256::from_token(tokens[0].clone())?.as_u128(),
-                    parent_id: U256::from_token(tokens[1].clone())?.as_u128(),
-                    field: Field::from_token(tokens[2].clone())?,
-                    recipient: Address::from_token(tokens[3].clone())?,
+                    recipient: Address::from_token(tokens[1].clone())?,
+                    parent_id: U256::from_token(tokens[2].clone())?.as_u128(),
+                    field: Field::from_token(tokens[3].clone())?,
                     amount: U256::from_token(tokens[4].clone())?.as_u128() as f64 / 10_f64.powi(18),
                     minimum_price: U256::from_token(tokens[5].clone())?.as_u128() as f64 / 10_f64.powi(18),
                     owned: false,
@@ -137,9 +137,9 @@ impl Tokenizable for Bid {
     fn into_token(self) -> Token {
         Token::Tuple(vec![
             self.bid_id.into_token(),
+            self.recipient.into_token(),
             self.parent_id.into_token(),
             self.field.into_token(),
-            self.recipient.into_token(),
             U256::from(((self.amount) * 10_f64.powi(18)) as u128).into_token(),
             U256::from(((self.minimum_price) * 10_f64.powi(18)) as u128).into_token(),
         ])
