@@ -10,6 +10,7 @@ use web3::{
 };
 
 use crate::evm::contracts::{
+    self,
     ERC1155Contract,
     Wrapped1155FactoryContract,
     ERC20Contract
@@ -19,7 +20,7 @@ use crate::evm::contracts::{
 
 #[derive(Properties)]
 pub struct BalanceProps {
-    pub handle_error: Callback<eyre::Report>,
+    pub handle_error: Callback<contracts::Error>,
 }
 
 impl PartialEq for BalanceProps {

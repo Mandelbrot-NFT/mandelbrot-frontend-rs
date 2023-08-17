@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use eyre::{Report, Result};
+use eyre::Result;
 use web3::{
     contract::{tokens::Tokenize, Contract, Options},
     types::{Address, H256, U256, TransactionReceipt},
@@ -15,11 +15,60 @@ const FUEL: U256 = U256([0, 0, 0, 0]);
 const CALLDATA: &[u8] = &[87, 114, 97, 112, 112, 101, 100, 32, 77, 97, 110, 100, 101, 108, 98, 114, 111, 116, 32, 70, 85, 69, 76, 0, 0, 0, 0, 0, 0, 0, 0, 46, 119, 70, 85, 69, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 18];
 
 
+pub enum Error {
+    TokenNotFound,
+    NoRightsToBurn, // Only the token owner can burn it
+    TokenNotEmpty, // Cannot burn token if it has children
+    BidNotFound,
+    BidTooLow, // Bid must exceed or equal minimum bid price
+    MinimumBidTooLow, // Child's minimum bid has to be at least as much as parent's
+    TooManyChildTokens, // A maximum of MAX_CHILDREN child tokens can be minted
+    NoRightsToApproveBid, // Only the owner of parent token can approve the bid
+    NoRightsToDeleteBid, // Only the bid creator can delete it
+    FieldOutside, // Token has to be within the field of its parent
+    FieldsOverlap, // Sibling fields cannot overlap
+    FieldTooLarge, // Token's field cannot exceed MAXIMUM_FIELD_PORTION % of its parent's
+    Other(String),
+}
+
+impl Error {
+    fn from_code(code: &str, message: &str) -> Self {
+        match code {
+            "0xcbdb7b30" => Self::TokenNotFound,
+            "0x5c7e3cf7" => Self::NoRightsToBurn,
+            "0xc4b840d3" => Self::TokenNotEmpty,
+            "0x3f077648" => Self::BidNotFound,
+            "0xa0d26eb6" => Self::BidTooLow,
+            "0x7b909a70" => Self::MinimumBidTooLow,
+            "0x08bfb2fd" => Self::TooManyChildTokens,
+            "0xaf6f94fc" => Self::NoRightsToApproveBid,
+            "0x98f2d62f" => Self::NoRightsToDeleteBid,
+            "0xb419f128" => Self::FieldOutside,
+            "0x62320032" => Self::FieldsOverlap,
+            "0x82d6f713" => Self::FieldTooLarge,
+            _ => Self::Other(message.into()),
+        }
+    }
+}
+
+
 #[async_trait(?Send)]
 trait CallWrapper {
     fn contract(&self) -> &Contract<Either<Eip1193, Http>>;
 
-    fn handle_error(&self, error: Report);
+    fn handle_error(&self, error: Error);
+
+    fn process_error(&self, error: web3::contract::Error) {
+        if let web3::contract::Error::Api(web3::error::Error::Rpc(rpc_error)) = &error {
+            if let Some(object) = &rpc_error.data {
+                if let Some(object) = object.get("originalError") {
+                    if let (Some(jsonrpc_core::types::Value::String(code)), Some(jsonrpc_core::types::Value::String(message))) = (object.get("data"), object.get("message")) {
+                        self.handle_error(Error::from_code(code, message));
+                    }
+                }
+            }
+        }
+    }
 
     async fn call<T: Clone + Tokenize + std::marker::Send>(&self, method: &str, params: T, sender: Address) -> Option<H256> {
         match self.contract().estimate_gas(method, params.clone(), sender, Options::default()).await {
@@ -27,7 +76,7 @@ trait CallWrapper {
                 log::info!("{} GAS: {:?}", method, gas);
             }
             Err(error) => {
-                self.handle_error(eyre::eyre!(error));
+                self.process_error(error);
                 return None
             }
         }
@@ -37,7 +86,7 @@ trait CallWrapper {
                 Some(tx_hash)
             }
             Err(error) => {
-                self.handle_error(eyre::eyre!(error));
+                self.process_error(error);
                 return None
             }
         }
@@ -49,7 +98,7 @@ trait CallWrapper {
                 log::info!("{} GAS: {:?}", method, gas);
             }
             Err(error) => {
-                self.handle_error(eyre::eyre!(error));
+                self.process_error(error);
                 return None
             }
         }
@@ -59,7 +108,7 @@ trait CallWrapper {
                 Some(receipt)
             }
             Err(error) => {
-                self.handle_error(eyre::eyre!(error));
+                // self.process_error(error);
                 return None
             }
         }
@@ -70,7 +119,7 @@ trait CallWrapper {
 #[derive(Clone)]
 pub struct ERC1155Contract {
     contract: Contract<Either<Eip1193, Http>>,
-    handle_error: Callback<Report>,
+    handle_error: Callback<Error>,
 }
 
 #[async_trait]
@@ -79,13 +128,13 @@ impl CallWrapper for ERC1155Contract {
         &self.contract
     }
 
-    fn handle_error(&self, error: Report) {
+    fn handle_error(&self, error: Error) {
         self.handle_error.emit(error);
     }
 }
 
 impl ERC1155Contract {
-    pub fn new(web3: &Web3<Either<Eip1193, Http>>, handle_error: Callback<Report>) -> Self {
+    pub fn new(web3: &Web3<Either<Eip1193, Http>>, handle_error: Callback<Error>) -> Self {
         Self {
             contract: Contract::from_json(
                 web3.eth(),
@@ -227,7 +276,7 @@ impl ERC1155Contract {
 #[derive(Clone)]
 pub struct Wrapped1155FactoryContract {
     contract: Contract<Either<Eip1193, Http>>,
-    handle_error: Callback<Report>,
+    handle_error: Callback<Error>,
     erc1155_address: Address,
 }
 
@@ -237,13 +286,13 @@ impl CallWrapper for Wrapped1155FactoryContract {
         &self.contract
     }
 
-    fn handle_error(&self, error: Report) {
+    fn handle_error(&self, error: Error) {
         self.handle_error.emit(error);
     }
 }
 
 impl Wrapped1155FactoryContract {
-    pub fn new(web3: &Web3<Either<Eip1193, Http>>, erc1155_address: Address, handle_error: Callback<Report>) -> Self {
+    pub fn new(web3: &Web3<Either<Eip1193, Http>>, erc1155_address: Address, handle_error: Callback<Error>) -> Self {
         Self {
             contract: Contract::from_json(
                 web3.eth(),

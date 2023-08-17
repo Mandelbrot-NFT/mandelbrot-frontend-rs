@@ -16,7 +16,7 @@ use yew_router::{scope_ext::{RouterScopeExt, LocationHandle}, prelude::Navigator
 use crate::{
     components::blockchain::Route,
     evm::{
-        contracts::ERC1155Contract,
+        contracts::{self, ERC1155Contract},
         types::{Bid, Field, Metadata}
     }
 };
@@ -24,7 +24,7 @@ use crate::{
 
 #[derive(Properties)]
 pub struct ControllerProps {
-    pub handle_error: Callback<eyre::Report>,
+    pub handle_error: Callback<contracts::Error>,
     pub transport: Either<Eip1193, Http>,
     pub address: Option<Address>,
     pub mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
@@ -240,6 +240,8 @@ impl Component for Controller {
             move |value: String| {
                 if let Ok(value) = value.parse::<f64>() {
                     *bid_amount.lock().unwrap() = value;
+                } else {
+                    *bid_amount.lock().unwrap() = 0.0;
                 }
             }
         };
@@ -249,6 +251,8 @@ impl Component for Controller {
             move |value: String| {
                 if let Ok(value) = value.parse::<f64>() {
                     *bids_minimum_price.lock().unwrap() = value;
+                } else {
+                    *bids_minimum_price.lock().unwrap() = 0.0;
                 }
             }
         };

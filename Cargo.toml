@@ -12,6 +12,7 @@ ethabi = "18.0.0"
 eyre = "0.6.8"
 hex = "0.4.3"
 hex-literal = "0.4.1"
+jsonrpc-core = "18.0.0"
 log = "0.4.17"
 mandelbrot-explorer = { version = "0.1.0", path = "mandelbrot-explorer-rs" }
 patternfly-yew = "0.5.0-alpha.2"
