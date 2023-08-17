@@ -50,6 +50,7 @@ pub struct Metadata {
     pub locked_fuel: f64,
     pub minimum_price: f64,
     pub owned: bool,
+    pub selected: bool,
 }
 
 impl Tokenizable for Metadata {
@@ -64,6 +65,7 @@ impl Tokenizable for Metadata {
                     locked_fuel: U256::from_token(tokens[4].clone())?.as_u128() as f64 / 10_f64.powi(18),
                     minimum_price: U256::from_token(tokens[5].clone())?.as_u128() as f64 / 10_f64.powi(18),
                     owned: false,
+                    selected: false,
                 })
             }
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
@@ -92,79 +94,19 @@ impl Metadata {
             x_max: self.field.x_max,
             y_min: self.field.y_min,
             y_max: self.field.y_max,
-            color: if self.owned {
-                match color {
-                    mandelbrot_explorer::FrameColor::Red => mandelbrot_explorer::FrameColor::Pink,
-                    _ => mandelbrot_explorer::FrameColor::LightBlue
-                }
-            } else {color},
-        }
-    } 
-}
-
-
-#[derive(Debug)]
-pub struct Bid {
-    pub bid_id: u128,
-    parent_id: u128,
-    pub field: Field,
-    pub recipient: Address,
-    pub amount: f64,
-    pub minimum_price: f64,
-    pub owned: bool,
-    pub selected: bool,
-}
-
-impl Tokenizable for Bid {
-    fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
-        match token {
-            Token::Tuple(tokens) => {
-                Ok(Self { 
-                    bid_id: U256::from_token(tokens[0].clone())?.as_u128(),
-                    recipient: Address::from_token(tokens[1].clone())?,
-                    parent_id: U256::from_token(tokens[2].clone())?.as_u128(),
-                    field: Field::from_token(tokens[3].clone())?,
-                    amount: U256::from_token(tokens[4].clone())?.as_u128() as f64 / 10_f64.powi(18),
-                    minimum_price: U256::from_token(tokens[5].clone())?.as_u128() as f64 / 10_f64.powi(18),
-                    owned: false,
-                    selected: false,
-                })
-            }
-            _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
-        }
-    }
-
-    fn into_token(self) -> Token {
-        Token::Tuple(vec![
-            self.bid_id.into_token(),
-            self.recipient.into_token(),
-            self.parent_id.into_token(),
-            self.field.into_token(),
-            U256::from(((self.amount) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.minimum_price) * 10_f64.powi(18)) as u128).into_token(),
-        ])
-    }
-}
-
-impl web3::contract::tokens::TokenizableItem for Bid {}
-
-impl Bid {
-    pub fn to_frame(&self) -> mandelbrot_explorer::Frame {
-        mandelbrot_explorer::Frame {
-            id: self.bid_id,
-            x_min: self.field.x_min,
-            x_max: self.field.x_max,
-            y_min: self.field.y_min,
-            y_max: self.field.y_max,
             color: if self.selected {
                 mandelbrot_explorer::FrameColor::Green
             } else {
                 if self.owned {
-                    mandelbrot_explorer::FrameColor::Lemon
+                    match color {
+                        mandelbrot_explorer::FrameColor::Red => mandelbrot_explorer::FrameColor::Pink,
+                        mandelbrot_explorer::FrameColor::Yellow => mandelbrot_explorer::FrameColor::Lemon,
+                        _ => mandelbrot_explorer::FrameColor::LightBlue
+                    }
                 } else {
-                    mandelbrot_explorer::FrameColor::Yellow
+                    color
                 }
             },
         }
-    } 
+    }
 }

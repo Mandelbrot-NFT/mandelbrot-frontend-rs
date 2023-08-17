@@ -8,7 +8,7 @@ use web3::{
 };
 use yew::Callback;
 
-use super::types::{Bid, Field, Metadata};
+use super::types::{Field, Metadata};
 
 
 const FUEL: U256 = U256([0, 0, 0, 0]);
@@ -236,8 +236,8 @@ impl ERC1155Contract {
         ).await
     }
 
-    pub async fn get_bids(&self, parent_id: u128) -> Result<Vec<Bid>> {
-        let result: web3::contract::Result<Vec<Bid>> = self.contract.query(
+    pub async fn get_bids(&self, parent_id: u128) -> Result<Vec<Metadata>> {
+        let result: web3::contract::Result<Vec<Metadata>> = self.contract.query(
             "getBids",
             (U256::from(parent_id),),
             None,

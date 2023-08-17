@@ -20,8 +20,8 @@ use crate::{
 pub enum Route {
     #[at("/")]
     Main,
-    #[at("/nodes/:id")]
-    Node { id: u128 },
+    #[at("/tokens/:id")]
+    Token { id: u128 },
     #[at("/*")]
     Default,
 }
@@ -100,7 +100,7 @@ pub fn Blockchain(props: &BlockchainProps) -> Html {
                 token_id: 1,
             };
             match route {
-                Route::Node { id } => { props.token_id = id; },
+                Route::Token { id } => { props.token_id = id; },
                 _ => {},
             }
             html! {

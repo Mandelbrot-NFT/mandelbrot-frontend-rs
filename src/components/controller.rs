@@ -17,7 +17,7 @@ use crate::{
     components::blockchain::Route,
     evm::{
         contracts::{self, ERC1155Contract},
-        types::{Bid, Field, Metadata}
+        types::{Field, Metadata}
     }
 };
 
@@ -46,7 +46,7 @@ pub struct Controller {
     erc1155_contract: ERC1155Contract,
     nav_history: Arc<Mutex<Vec<Metadata>>>,
     children: Arc<Mutex<HashMap<u128, Metadata>>>,
-    bids: Arc<Mutex<HashMap<u128, Bid>>>,
+    bids: Arc<Mutex<HashMap<u128, Metadata>>>,
     bid_amount: Arc<Mutex<f64>>,
     bids_minimum_price: Arc<Mutex<f64>>,
     approve_amount_node_ref: NodeRef,
@@ -56,16 +56,16 @@ impl Controller {
     fn view_nft(&self, token_id: u128, navigator: Option<Navigator>) {
         let this = self.clone();
         spawn_local(async move {
-            if let Ok(metadata) = this.erc1155_contract.get_ancestry_metadata(token_id).await {
+            if let Ok(tokens) = this.erc1155_contract.get_ancestry_metadata(token_id).await {
                 let nav_history = &mut *this.nav_history.lock().unwrap();
                 nav_history.clear();
-                nav_history.extend(metadata.into_iter().rev());
+                nav_history.extend(tokens.into_iter().rev());
                 if let Some(token) = nav_history.last() {
                     this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
                 }
             } else {
                 if let Some(navigator) = navigator {
-                    navigator.replace_with_query(&Route::Node {id: 1}, &HashMap::from([("RUST_LOG", "info")]));
+                    navigator.replace_with_query(&Route::Token {id: 1}, &HashMap::from([("RUST_LOG", "info")]));
                 }
             }
         });
@@ -79,15 +79,15 @@ impl Controller {
         spawn_local({
             let this = self.clone();
             async move {
-                if let Ok(metadata) = this.erc1155_contract.get_children_metadata(parent_id).await {
+                if let Ok(tokens) = this.erc1155_contract.get_children_metadata(parent_id).await {
                     let children = &mut (*this.children.lock().unwrap());
                     children.clear();
-                    children.extend(metadata.into_iter().map(|m| (m.token_id, m)));
+                    children.extend(tokens.into_iter().map(|m| (m.token_id, m)));
                 }
                 if let Ok(bids) = this.erc1155_contract.get_bids(parent_id).await {
                     let bids_ = &mut (*this.bids.lock().unwrap());
                     bids_.clear();
-                    bids_.extend(bids.into_iter().map(|bid| (bid.bid_id, bid)));
+                    bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
                 }
                 this.check_ownership();
                 this.update_frames();
@@ -102,7 +102,7 @@ impl Controller {
                 token.owned = token.owner == address;
             });
             self.bids.lock().unwrap().values_mut().for_each(|bid| {
-                bid.owned = bid.recipient == address;
+                bid.owned = bid.owner == address;
             });
             self.nav_history.lock().unwrap().iter_mut().for_each(|token| {
                 token.owned = token.owner == address;
@@ -115,7 +115,7 @@ impl Controller {
         let frames = &mut mandelbrot.frames;
         frames.clear();
         frames.extend(self.children.lock().unwrap().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
-        frames.extend(self.bids.lock().unwrap().values().map(|token| token.to_frame()));
+        frames.extend(self.bids.lock().unwrap().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)));
         frames.extend(self.nav_history.lock().unwrap().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
         if let Some(redraw) = &mandelbrot.redraw {
             redraw();
@@ -159,7 +159,7 @@ impl Component for Controller {
                         this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
                         if let Some(navigator) = navigator {
                             // TODO: remove log or get from current query
-                            let _ = navigator.replace_with_query(&Route::Node {id: frame.id}, &HashMap::from([("RUST_LOG", "info")]));
+                            let _ = navigator.replace_with_query(&Route::Token {id: frame.id}, &HashMap::from([("RUST_LOG", "info")]));
                         }
                     }
                     mandelbrot_explorer::FrameColor::Yellow |
@@ -316,7 +316,7 @@ impl Component for Controller {
 
                         let total_approve_amount: f64 = bids_lock.values()
                             .filter(|bid| bid.selected)
-                            .map(|bid| bid.amount)
+                            .map(|bid| bid.locked_fuel)
                             .sum();
                         this.approve_amount_node_ref.get().unwrap().set_text_content(Some(&total_approve_amount.to_string()));
                     }
@@ -335,7 +335,7 @@ impl Component for Controller {
                         let selected_bids: Vec<u128> = this.bids.lock().unwrap()
                             .values()
                             .filter(|bid| bid.selected)
-                            .map(|bid| bid.bid_id)
+                            .map(|bid| bid.token_id)
                             .collect();
                         this.erc1155_contract.batch_approve_bids(address, &selected_bids).await;
                     });
@@ -357,9 +357,9 @@ impl Component for Controller {
         };
 
         let bids_lock = self.bids.lock().unwrap();
-        let mut bids: Vec<&Bid> = bids_lock.values().collect();
-        bids.sort_by(|bid_a, bid_b| bid_a.amount.partial_cmp(&bid_b.amount).unwrap());
-        let total_approve_amount: f64 = bids.iter().filter(|bid| bid.selected).map(|bid| bid.amount).sum();
+        let mut bids: Vec<&Metadata> = bids_lock.values().collect();
+        bids.sort_by(|bid_a, bid_b| bid_a.locked_fuel.partial_cmp(&bid_b.locked_fuel).unwrap());
+        let total_approve_amount: f64 = bids.iter().filter(|bid| bid.selected).map(|bid| bid.locked_fuel).sum();
 
         html! {
             <div>
@@ -406,11 +406,11 @@ impl Component for Controller {
                                     for bids.iter().map(|bid| {
                                         let on_bid_toggled = on_bid_toggled.clone();
                                         let on_delete_clicked = on_delete_clicked.clone();
-                                        let bid_id = bid.bid_id;
+                                        let bid_id = bid.token_id;
                                         html_nested!{
                                             <p>
                                                 <Switch
-                                                    label={format!("{} {:?}", bid.amount.to_string(), bid.recipient)}
+                                                    label={format!("{} {:?}", bid.locked_fuel.to_string(), bid.owner)}
                                                     checked={bid.selected}
                                                     onchange={move |state| on_bid_toggled(bid_id, state)}
                                                 />
