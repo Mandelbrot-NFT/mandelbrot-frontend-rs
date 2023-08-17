@@ -11,7 +11,7 @@ use web3::{
     types::Address,
     Web3,
 };
-use yew_router::{scope_ext::{RouterScopeExt, LocationHandle}, prelude::Navigator};
+use yew_router::{scope_ext::RouterScopeExt, prelude::Navigator};
 
 use crate::{
     components::blockchain::Route,
@@ -50,7 +50,6 @@ pub struct Controller {
     bid_amount: Arc<Mutex<f64>>,
     bids_minimum_price: Arc<Mutex<f64>>,
     approve_amount_node_ref: NodeRef,
-    listener: Arc<Mutex<Option<LocationHandle>>>,
 }
 
 impl Controller {
@@ -145,7 +144,6 @@ impl Component for Controller {
             bid_amount: Arc::new(Mutex::new(0.0)),
             bids_minimum_price: Arc::new(Mutex::new(0.0)),
             approve_amount_node_ref: NodeRef::default(),
-            listener: Arc::new(Mutex::new(None)),
         };
 
         let on_frame_selected = Callback::from({
