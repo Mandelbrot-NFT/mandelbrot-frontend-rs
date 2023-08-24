@@ -18,11 +18,11 @@ use components::{
 #[function_component]
 fn App() -> Html {
     let window = web_sys::window().unwrap();
-    let height = use_state(|| (window.inner_height().unwrap().as_f64().unwrap() + 1.0) * 2.0);
+    let height = use_state(|| (window.inner_height().unwrap().as_f64().unwrap() + 1.0) * window.device_pixel_ratio());
     let resize_state = use_state(|| wasm_bindgen::closure::Closure::<dyn FnMut()>::new({
         let window = window.clone();
         let height = height.clone();
-        move || height.set((window.inner_height().unwrap().as_f64().unwrap() + 1.0) * 2.0)
+        move || height.set((window.inner_height().unwrap().as_f64().unwrap() + 1.0) * window.device_pixel_ratio())
     }));
     if window.onresize().is_none() {
         window.set_onresize(Some(resize_state.as_ref().unchecked_ref()));
