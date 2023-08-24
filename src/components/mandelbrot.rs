@@ -31,17 +31,18 @@ impl Component for Mandelbrot {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let size = ctx.props().size.clone();
         let interface = ctx.props().interface.clone();
-        interface.lock().unwrap().sample_location.resize(size.0, size.1);
+        let window = web_sys::window().unwrap();
+        interface.lock().unwrap().sample_location.resize(size.0 * window.device_pixel_ratio(), size.1 * window.device_pixel_ratio());
         let style = format!(
             "width: {}px; height: {}px;",
-            (size.0 / 2.0).max(1.0).to_string(),
-            (size.1 / 2.0).max(1.0).to_string()
+            (size.0).max(1.0).to_string(),
+            (size.1).max(1.0).to_string()
         );
         html! {
             <canvas
                 ref={self.node_ref.clone()}
-                width={size.0.to_string()}
-                height={size.1.to_string()}
+                width={(size.0 * window.device_pixel_ratio()).to_string()}
+                height={(size.1 * window.device_pixel_ratio()).to_string()}
                 style={style}
             />
         }
