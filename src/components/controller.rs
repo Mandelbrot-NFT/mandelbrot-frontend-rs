@@ -358,7 +358,7 @@ impl Component for Controller {
 
         let bids_lock = self.bids.lock().unwrap();
         let mut bids: Vec<&Metadata> = bids_lock.values().collect();
-        bids.sort_by(|bid_a, bid_b| bid_a.locked_fuel.partial_cmp(&bid_b.locked_fuel).unwrap());
+        bids.sort_by(|bid_a, bid_b| bid_b.locked_fuel.partial_cmp(&bid_a.locked_fuel).unwrap());
         let total_approve_amount: f64 = bids.iter().filter(|bid| bid.selected).map(|bid| bid.locked_fuel).sum();
 
         html! {
