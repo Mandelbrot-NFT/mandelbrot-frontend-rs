@@ -127,7 +127,10 @@ impl Component for Controller {
             redraw: ctx.link().callback(|_| ()),
             address: Arc::new(Mutex::new(None)),
             mandelbrot: mandelbrot.clone(),
-            erc1155_contract: ERC1155Contract::new(&web3, ctx.props().handle_error.clone()),
+            erc1155_contract: ERC1155Contract::new(&web3, Arc::new({
+                let handle_error = ctx.props().handle_error.clone();
+                move |error| handle_error.emit(error)
+            })),
             nav_history: Arc::new(Mutex::new(Vec::new())),
             children: Arc::new(Mutex::new(HashMap::new())),
             bids: Arc::new(Mutex::new(HashMap::new())),

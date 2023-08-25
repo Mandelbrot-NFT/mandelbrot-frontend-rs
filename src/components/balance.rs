@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use eyre::Result;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
@@ -71,8 +73,12 @@ pub fn Balance(props: &BalanceProps) -> Html {
     ) {
         let transport = Either::Left(Eip1193::new(ethereum.provider.clone()));
         let web3 = Web3::new(transport);
-        let erc1155_contract = ERC1155Contract::new(&web3, props.handle_error.clone());
-        let wrapper_contract = Wrapped1155FactoryContract::new(&web3, erc1155_contract.address(), props.handle_error.clone());
+        let handle_error = Arc::new({
+            let handle_error = props.handle_error.clone();
+            move |error| handle_error.emit(error)
+        });
+        let erc1155_contract = ERC1155Contract::new(&web3, handle_error.clone());
+        let wrapper_contract = Wrapped1155FactoryContract::new(&web3, erc1155_contract.address(), handle_error);
         let erc20_contract = ERC20Contract::new(&web3);
 
         let refresh_balance = {

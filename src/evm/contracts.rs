@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use eyre::Result;
 use web3::{
@@ -6,7 +8,6 @@ use web3::{
     transports::{eip_1193::Eip1193, Either, Http},
     Web3
 };
-use yew::Callback;
 
 use super::types::{Field, Metadata};
 
@@ -56,14 +57,14 @@ impl Error {
 trait CallWrapper {
     fn contract(&self) -> &Contract<Either<Eip1193, Http>>;
 
-    fn handle_error(&self, error: Error);
+    fn _handle_error(&self, error: Error);
 
     fn process_error(&self, error: web3::contract::Error) {
         if let web3::contract::Error::Api(web3::error::Error::Rpc(rpc_error)) = &error {
             if let Some(object) = &rpc_error.data {
                 if let Some(object) = object.get("originalError") {
                     if let (Some(jsonrpc_core::types::Value::String(code)), Some(jsonrpc_core::types::Value::String(message))) = (object.get("data"), object.get("message")) {
-                        self.handle_error(Error::from_code(code, message));
+                        self._handle_error(Error::from_code(code, message));
                     }
                 }
             }
@@ -119,7 +120,7 @@ trait CallWrapper {
 #[derive(Clone)]
 pub struct ERC1155Contract {
     contract: Contract<Either<Eip1193, Http>>,
-    handle_error: Callback<Error>,
+    handle_error: Arc<dyn Fn(Error)>,
 }
 
 #[async_trait]
@@ -128,13 +129,13 @@ impl CallWrapper for ERC1155Contract {
         &self.contract
     }
 
-    fn handle_error(&self, error: Error) {
-        self.handle_error.emit(error);
+    fn _handle_error(&self, error: Error) {
+        (self.handle_error)(error);
     }
 }
 
 impl ERC1155Contract {
-    pub fn new(web3: &Web3<Either<Eip1193, Http>>, handle_error: Callback<Error>) -> Self {
+    pub fn new(web3: &Web3<Either<Eip1193, Http>>, handle_error: Arc<dyn Fn(Error)>) -> Self {
         Self {
             contract: Contract::from_json(
                 web3.eth(),
@@ -276,7 +277,7 @@ impl ERC1155Contract {
 #[derive(Clone)]
 pub struct Wrapped1155FactoryContract {
     contract: Contract<Either<Eip1193, Http>>,
-    handle_error: Callback<Error>,
+    handle_error: Arc<dyn Fn(Error)>,
     erc1155_address: Address,
 }
 
@@ -286,13 +287,13 @@ impl CallWrapper for Wrapped1155FactoryContract {
         &self.contract
     }
 
-    fn handle_error(&self, error: Error) {
-        self.handle_error.emit(error);
+    fn _handle_error(&self, error: Error) {
+        (self.handle_error)(error);
     }
 }
 
 impl Wrapped1155FactoryContract {
-    pub fn new(web3: &Web3<Either<Eip1193, Http>>, erc1155_address: Address, handle_error: Callback<Error>) -> Self {
+    pub fn new(web3: &Web3<Either<Eip1193, Http>>, erc1155_address: Address, handle_error: Arc<dyn Fn(Error)>) -> Self {
         Self {
             contract: Contract::from_json(
                 web3.eth(),
