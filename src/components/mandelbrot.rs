@@ -35,8 +35,8 @@ impl Component for Mandelbrot {
         interface.lock().unwrap().sample_location.resize(size.0 * window.device_pixel_ratio(), size.1 * window.device_pixel_ratio());
         let style = format!(
             "width: {}px; height: {}px;",
-            (size.0).max(1.0).to_string(),
-            (size.1).max(1.0).to_string()
+            size.0.max(1.0).to_string(),
+            size.1.max(1.0).to_string()
         );
         html! {
             <canvas
