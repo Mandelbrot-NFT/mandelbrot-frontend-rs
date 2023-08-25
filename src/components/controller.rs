@@ -53,47 +53,37 @@ pub struct Controller {
 }
 
 impl Controller {
-    fn view_nft(&self, token_id: u128, navigator: Option<Navigator>) {
+    async fn view_nft(&self, token_id: u128, navigator: Option<Navigator>) {
         let this = self.clone();
-        spawn_local(async move {
-            if let Ok(tokens) = this.erc1155_contract.get_ancestry_metadata(token_id).await {
-                let nav_history = &mut *this.nav_history.lock().unwrap();
-                nav_history.clear();
-                nav_history.extend(tokens.into_iter().rev());
-                if let Some(token) = nav_history.last() {
-                    this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
-                }
-            } else {
-                if let Some(navigator) = navigator {
-                    navigator.replace_with_query(&Route::Token {id: 1}, &HashMap::from([("RUST_LOG", "info")]));
-                }
+        if let Ok(tokens) = this.erc1155_contract.get_ancestry_metadata(token_id).await {
+            let nav_history = &mut *this.nav_history.lock().unwrap();
+            nav_history.clear();
+            nav_history.extend(tokens.into_iter().rev());
+        } else {
+            if let Some(navigator) = navigator {
+                navigator.replace_with_query(&Route::Token {id: 1}, &HashMap::from([("RUST_LOG", "info")]));
             }
-        });
+        }
         if let Some(node) = self.approve_amount_node_ref.get() {
             node.set_text_content(Some(&"0".to_string()));
         }
-        self.obtain_tokens(token_id);
+        self.obtain_tokens(token_id).await;
     }
 
-    fn obtain_tokens(&self, parent_id: u128) {
-        spawn_local({
-            let this = self.clone();
-            async move {
-                if let Ok(tokens) = this.erc1155_contract.get_children_metadata(parent_id).await {
-                    let children = &mut (*this.children.lock().unwrap());
-                    children.clear();
-                    children.extend(tokens.into_iter().map(|m| (m.token_id, m)));
-                }
-                if let Ok(bids) = this.erc1155_contract.get_bids(parent_id).await {
-                    let bids_ = &mut (*this.bids.lock().unwrap());
-                    bids_.clear();
-                    bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
-                }
-                this.check_ownership();
-                this.update_frames();
-                this.redraw.emit(());
-            }
-        });
+    async fn obtain_tokens(&self, parent_id: u128) {
+        if let Ok(tokens) = self.erc1155_contract.get_children_metadata(parent_id).await {
+            let children = &mut (*self.children.lock().unwrap());
+            children.clear();
+            children.extend(tokens.into_iter().map(|m| (m.token_id, m)));
+        }
+        if let Ok(bids) = self.erc1155_contract.get_bids(parent_id).await {
+            let bids_ = &mut (*self.bids.lock().unwrap());
+            bids_.clear();
+            bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
+        }
+        self.check_ownership();
+        self.update_frames();
+        self.redraw.emit(());
     }
 
     fn check_ownership(&self) {
@@ -146,47 +136,74 @@ impl Component for Controller {
             approve_amount_node_ref: NodeRef::default(),
         };
 
-        let on_frame_selected = Callback::from({
+        let on_frame_event = Callback::from({
             let this = this.clone();
             let navigator = navigator.clone();
-            move |frame: mandelbrot_explorer::Frame| {
+            move |frame_event: mandelbrot_explorer::FrameEvent| {
                 let navigator = navigator.clone();
-                match frame.color {
-                    mandelbrot_explorer::FrameColor::Red |
-                    mandelbrot_explorer::FrameColor::Pink |
-                    mandelbrot_explorer::FrameColor::Blue |
-                    mandelbrot_explorer::FrameColor::LightBlue => {
-                        this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
-                        if let Some(navigator) = navigator {
-                            // TODO: remove log or get from current query
-                            let _ = navigator.replace_with_query(&Route::Token {id: frame.id}, &HashMap::from([("RUST_LOG", "info")]));
+                match frame_event {
+                    mandelbrot_explorer::FrameEvent::DoubleClicked(frame) => {
+                        match frame.color {
+                            mandelbrot_explorer::FrameColor::Red |
+                            mandelbrot_explorer::FrameColor::Pink |
+                            mandelbrot_explorer::FrameColor::Blue |
+                            mandelbrot_explorer::FrameColor::LightBlue => {
+                                this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
+                                if let Some(navigator) = navigator {
+                                    // TODO: remove log or get from current query
+                                    let _ = navigator.replace_with_query(&Route::Token {id: frame.id}, &HashMap::from([("RUST_LOG", "info")]));
+                                }
+                            }
+                            mandelbrot_explorer::FrameColor::Yellow |
+                            mandelbrot_explorer::FrameColor::Lemon => {
+                                if let Some(bid) = this.bids.lock().unwrap().get_mut(&frame.id) {
+                                    bid.selected = true;
+                                }
+                                this.update_frames();
+                                this.redraw.emit(());
+                            }
+                            mandelbrot_explorer::FrameColor::Green => {
+                                if let Some(bid) = this.bids.lock().unwrap().get_mut(&frame.id) {
+                                    bid.selected = false;
+                                }
+                                this.update_frames();
+                                this.redraw.emit(());
+                            }
                         }
                     }
-                    mandelbrot_explorer::FrameColor::Yellow |
-                    mandelbrot_explorer::FrameColor::Lemon => {
-                        if let Some(bid) = this.bids.lock().unwrap().get_mut(&frame.id) {
-                            bid.selected = true;
+                    mandelbrot_explorer::FrameEvent::Entered(frame) => {
+                        match frame.color {
+                            mandelbrot_explorer::FrameColor::Red |
+                            mandelbrot_explorer::FrameColor::Pink => {
+                                if let Some(navigator) = navigator {
+                                    // TODO: remove log or get from current query
+                                    let _ = navigator.replace_with_query(&Route::Token {id: frame.id}, &HashMap::from([("RUST_LOG", "info")]));
+                                }
+                            }
+                            _ => {}
                         }
-                        this.update_frames();
-                        this.redraw.emit(());
                     }
-                    mandelbrot_explorer::FrameColor::Green => {
-                        if let Some(bid) = this.bids.lock().unwrap().get_mut(&frame.id) {
-                            bid.selected = false;
-                        }
-                        this.update_frames();
-                        this.redraw.emit(());
-                    }
+                    _ => {}
                 }
             }
         });
 
-        mandelbrot.lock().unwrap().frame_selected_callback = Some(Arc::new({
-            let on_frame_selected = on_frame_selected.clone();
-            move |frame| on_frame_selected.emit(frame.clone())
+        mandelbrot.lock().unwrap().frame_event_callback = Some(Arc::new({
+            let on_frame_event = on_frame_event.clone();
+            move |frame_event| on_frame_event.emit(frame_event)
         }));
 
-        this.view_nft(ctx.props().token_id, navigator.clone());
+        {
+            let this = this.clone();
+            let token_id = ctx.props().token_id;
+            spawn_local(async move {
+                this.view_nft(token_id, navigator.clone()).await;
+                let nav_history = this.nav_history.lock().unwrap();
+                if let Some(token) = nav_history.last() {
+                    this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
+                }
+            });
+        }
         this
     }
 
@@ -217,7 +234,11 @@ impl Component for Controller {
         };
 
         if token_id != ctx.props().token_id {
-            self.view_nft(ctx.props().token_id, navigator.clone())
+            let this = self.clone();
+            let token_id = ctx.props().token_id;
+            spawn_local(async move {
+                this.view_nft(token_id, navigator.clone()).await;
+            });
         }
 
         let on_burn_clicked = {

@@ -31,7 +31,7 @@ fn App() -> Html {
     let interface = Arc::new(Mutex::new(mandelbrot_explorer::Interface {
         sample_location: mandelbrot_explorer::SampleLocation::new(*height, *height),
         frames: Vec::new(),
-        frame_selected_callback: None,
+        frame_event_callback: None,
         redraw: None,
     }));
 
