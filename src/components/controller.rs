@@ -12,9 +12,12 @@ use web3::{
     Web3,
 };
 
-use crate::evm::{
-    contracts::{self, ERC1155Contract},
-    types::{Field, Metadata}
+use crate::{
+    evm::{
+        contracts::{self, ERC1155Contract},
+        types::{Field, Metadata}
+    },
+    components::bids::Bids,
 };
 
 
@@ -272,58 +275,10 @@ pub fn Controller(
     //     }
     // };
 
-    let toggle_bid = {
-        move |bid_id, state_| {
-            state.bids.update(|bids| {
-                if let Some(bid) = bids.get_mut(&bid_id) {
-                    bid.selected = state_;
-                }
-            });
-        }
-    };
-
-    let approve_bids = create_action(cx, {
-        let state = state.clone();
-        move |_| {
-            let state = state.clone();
-            async move {
-                if let Some(address) = state.address.get_untracked() {
-                    let selected_bids: Vec<u128> = state.bids.get_untracked()
-                        .values()
-                        .filter(|bid| bid.selected)
-                        .map(|bid| bid.token_id)
-                        .collect();
-                    state.erc1155_contract.batch_approve_bids(address, &selected_bids).await;
-                }
-            }
-        }
-    });
-
-    let delete_bid = create_action(cx, {
-        let erc1155_contract = state.erc1155_contract.clone();
-        move |bid_id: &u128| {
-            let erc1155_contract = erc1155_contract.clone();
-            let bid_id = bid_id.clone();
-            async move {
-                if let Some(address) = state.address.get_untracked() {
-                    erc1155_contract.delete_bid(address, bid_id).await;
-                }
-            }
-        }
-    });
-
-    let bids = move || {
-        let mut bids: Vec<Metadata> = state.bids.get().values().map(|bid| bid.clone()).collect();
-        bids.sort_by(|bid_a, bid_b| bid_b.locked_fuel.partial_cmp(&bid_a.locked_fuel).unwrap());
-        bids
-    };
-    let total_approve_amount = move || {
-        state.bids.get().values().filter(|bid| bid.selected).map(|bid| bid.locked_fuel).sum::<f64>()
-    };
-
     view! { cx,
         {
             move || if let Some(token) = state.nav_history.get().last() {
+                let erc1155_contract = state.erc1155_contract.clone();
                 let token_id = token.token_id;
                 let minimum_price = token.minimum_price;
                 set_bid_amount(minimum_price);
@@ -348,33 +303,18 @@ pub fn Controller(
                             </Stack>
                             <Button on_click=move |_| create_bid.dispatch(())>"Bid"</Button>
                         </Stack>
-                        <Show when=move || {bids().len() > 0} fallback=|_| {}>
-                            <br/>
-                            <p>"Bids:"</p>
-                            <Box id="content">
-                                <For
-                                    each=move || bids()
-                                    key=|bid| bid.token_id
-                                    view={
-                                        move |cx, bid| view! { cx,
-                                            <p>
-                                                <Toggle
-                                                    state=bid.selected
-                                                    set_state=create_callback(cx, move |state: bool| toggle_bid(bid.token_id, state))
-                                                    variant=ToggleVariant::Stationary
-                                                />
-                                                {format!("{} {:?}", bid.locked_fuel.to_string(), bid.owner)}
-                                                <Button on_click=move |_| delete_bid.dispatch(bid.token_id)>"Delete"</Button>
-                                            </p>
-                                        }
-                                    }
-                                />
-                            </Box>
-                            <p>
-                                {move || total_approve_amount()}
-                                <Button on_click=move |_| approve_bids.dispatch(())>"Approve"</Button>
-                            </p>
-                        </Show>
+                        {
+                            let erc1155_contract = erc1155_contract.clone();
+                            view! { cx,
+                                <Show when=move || {(state.bids)().len() > 0} fallback=|_| {}>
+                                    <Bids
+                                        erc1155_contract=erc1155_contract.clone()
+                                        address
+                                        bids=state.bids
+                                    />
+                                </Show>
+                            }
+                        }
                     </Show>
                 }
             } else { Fragment::new(vec![]) }
