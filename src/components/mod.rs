@@ -1,4 +1,5 @@
 pub mod about;
+pub mod auction;
 pub mod app;
 pub mod balance;
 pub mod bids;

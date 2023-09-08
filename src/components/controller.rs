@@ -15,9 +15,12 @@ use web3::{
 use crate::{
     evm::{
         contracts::{self, ERC1155Contract},
-        types::{Field, Metadata}
+        types::Metadata,
     },
-    components::bids::Bids,
+    components::{
+        auction::Auction,
+        bids::Bids,
+    },
 };
 
 
@@ -77,6 +80,7 @@ pub fn Controller(
         }
     };
 
+    // query tokens and bids
     create_effect(cx, {
         let state = state.clone();
         let token_id = token_id.clone();
@@ -174,6 +178,7 @@ pub fn Controller(
         move |frame_event| on_frame_event(frame_event)
     }));
 
+    // check ownership
     create_effect(cx, move |_| {
         cx.batch(move || {
             state.children.track();
@@ -193,6 +198,7 @@ pub fn Controller(
         });
     });
 
+    // update frames
     create_effect(cx, {
         let state = state.clone();
         move |_| {
@@ -208,10 +214,6 @@ pub fn Controller(
         }
     });
 
-
-    let (bid_amount, set_bid_amount) = create_signal(cx, 0.0);
-    let (bids_minimum_price, set_bids_minimum_price) = create_signal(cx, 0.0);
-
     let burn_token = create_action(cx, {
         let state = state.clone();
         move |token_id: &u128| {
@@ -225,99 +227,69 @@ pub fn Controller(
         }
     });
 
-    let create_bid = create_action(cx, {
-        let state = state.clone();
-        move |_| {
-            let state = state.clone();
-            async move {
-                if let Some(address) = state.address.get_untracked() {
-                    let params = state.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
-                    if let Some(token) = state.nav_history.get_untracked().last() {
-                        state.erc1155_contract.bid(
-                            address,
-                            token.token_id,
-                            Field {
-                                x_min: params.x_min as f64,
-                                y_min: params.y_min as f64,
-                                x_max: params.x_max as f64,
-                                y_max: params.y_max as f64
-                            },
-                            bid_amount.get_untracked(),
-                            bids_minimum_price.get_untracked(),
-                        ).await;
-                    }
-                };
-            }
-        }
-    });
-
-    // let on_mint_clicked = {
-    //     let this = self.clone();
-    //     let ethereum = ethereum.clone();
+    // let create_bid = create_action(cx, {
+    //     let state = state.clone();
     //     move |_| {
-    //         let this = this.clone();
-    //         if let Some(address) = ethereum.address() {
-    //             let address = address.clone();
-    //             let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
-    //             spawn_local(async move {
-    //                 this.erc1155_contract.mint(
-    //                     address,
-    //                     *this.selected_nft_id.lock().unwrap(),
-    //                     Field {
-    //                         x_min: params.x_min as f64,
-    //                         y_min: params.y_min as f64,
-    //                         x_max: params.x_max as f64,
-    //                         y_max: params.y_max as f64
-    //                     }
-    //                 ).await;
-    //             });
+    //         let state = state.clone();
+    //         async move {
+    //             if let Some(address) = state.address.get_untracked() {
+    //                 let params = state.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
+    //                 if let Some(token) = state.nav_history.get_untracked().last() {
+    //                     state.erc1155_contract.bid(
+    //                         address,
+    //                         token.token_id,
+    //                         Field {
+    //                             x_min: params.x_min as f64,
+    //                             y_min: params.y_min as f64,
+    //                             x_max: params.x_max as f64,
+    //                             y_max: params.y_max as f64
+    //                         },
+    //                         bid_amount.get_untracked(),
+    //                         bids_minimum_price.get_untracked(),
+    //                     ).await;
+    //                 }
+    //             };
     //         }
     //     }
-    // };
+    // });
 
-    view! { cx,
-        {
-            move || if let Some(token) = state.nav_history.get().last() {
-                let erc1155_contract = state.erc1155_contract.clone();
-                let token_id = token.token_id;
-                let minimum_price = token.minimum_price;
-                set_bid_amount(minimum_price);
-                set_bids_minimum_price(minimum_price);
-                view! { cx,
-                    <p>{format!("NFT id: {}", token_id)}</p>
-                    <p>{format!("Owner: {}", token.owner)}</p>
-                    <p>{format!("Locked FUEL: {}", token.locked_fuel)}</p>
-                    <p>{format!("Minimum bid: {}", minimum_price)}</p>
-                    <Show when=move || address.get().is_some() fallback=|_| {}>
-                        <Button on_click=move |_| burn_token.dispatch(token_id)>"Burn"</Button>
-                        <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                            <Stack orientation=StackOrientation::Vertical spacing=Size::Em(0.6)>
-                                <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                                    "Bid amount:"
-                                    <NumberInput min=minimum_price get=bid_amount set=set_bid_amount placeholder="Bid amount"/>
-                                </Stack>
-                                <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                                    "Minimum bid price:"
-                                    <NumberInput min=minimum_price get=bids_minimum_price set=set_bids_minimum_price placeholder="Minimum bid price"/>
-                                </Stack>
-                            </Stack>
-                            <Button on_click=move |_| create_bid.dispatch(())>"Bid"</Button>
-                        </Stack>
-                        {
-                            let erc1155_contract = erc1155_contract.clone();
-                            view! { cx,
-                                <Show when=move || {(state.bids)().len() > 0} fallback=|_| {}>
-                                    <Bids
-                                        erc1155_contract=erc1155_contract.clone()
-                                        address
-                                        bids=state.bids
-                                    />
-                                </Show>
-                            }
+    move || {
+        if let Some(token) = state.nav_history.get().last() {
+            let token = token.clone();
+            let erc1155_contract = state.erc1155_contract.clone();
+            let token_id = token.token_id;
+            let minimum_price = token.minimum_price;
+            view! { cx,
+                <p>{format!("NFT id: {}", token_id)}</p>
+                <p>{format!("Owner: {}", token.owner)}</p>
+                <p>{format!("Locked FUEL: {}", token.locked_fuel)}</p>
+                <p>{format!("Minimum bid: {}", minimum_price)}</p>
+                <Show when=move || address.get().is_some() fallback=|_| {}>
+                    <Button on_click=move |_| burn_token.dispatch(token_id)>"Burn"</Button>
+                    {
+                        let token = token.clone();
+                        let erc1155_contract = erc1155_contract.clone();
+                        view! { cx,
+                            <Separator/>
+                            <Auction
+                                erc1155_contract=erc1155_contract.clone()
+                                address
+                                token=Signal::derive(cx, move || token.clone())
+                            />
+                            <Separator/>
+                            <Show when=move || {(state.bids)().len() > 0} fallback=|_| {}>
+                                <Bids
+                                    erc1155_contract=erc1155_contract.clone()
+                                    address
+                                    bids=state.bids
+                                />
+                            </Show>
                         }
-                    </Show>
-                }
-            } else { Fragment::new(vec![]) }
+                    }
+                </Show>
+            }
+        } else {
+            Fragment::new(vec![])
         }
     }
 }
