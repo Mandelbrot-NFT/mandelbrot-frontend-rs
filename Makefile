@@ -2,16 +2,20 @@
 -include .env
 export $(shell sed 's/=.*//' .env)
 
-build:
-	npm install
+dirs:
+	mkdir -p ./mandelbrot-explorer-rs/target
+	mkdir -p ./generated
+
+build: dirs
+	cargo build
 	trunk build
 
-build_render:
+build_render: dirs
 	cargo install trunk wasm-bindgen-cli
-	npm install
+	cargo build --release
 	trunk build --release
 
-run:
+run: dirs
 	trunk serve
 
 run_release:

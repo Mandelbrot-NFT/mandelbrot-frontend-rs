@@ -1,6 +1,7 @@
 [watch]
 ignore = [
     "./mandelbrot-explorer-rs/target",
+    "./generated",
 ]
 
 [serve]

@@ -1,4 +1,4 @@
-use yew_ethereum_provider::{base_currency, Chain};
+use leptos_ethereum_provider::{base_currency, Chain};
 
 
 pub fn ethereum() -> Chain {

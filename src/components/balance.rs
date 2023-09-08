@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
 use eyre::Result;
-use patternfly_yew::prelude::*;
-use yew::prelude::*;
-use yew_ethereum_provider::UseEthereumHandle;
-use wasm_bindgen_futures::spawn_local;
+use leptonic::prelude::*;
+use leptos::*;
 use web3::{
-    transports::{eip_1193::Eip1193, Either},
+    transports::{eip_1193::Eip1193, Either, Http},
     types::Address,
     Web3
 };
@@ -19,18 +17,6 @@ use crate::evm::contracts::{
 };
 
 
-
-#[derive(Properties)]
-pub struct BalanceProps {
-    pub handle_error: Callback<contracts::Error>,
-}
-
-impl PartialEq for BalanceProps {
-    fn eq(&self, _other: &Self) -> bool {
-        true
-    }
-}
-
 async fn get_balance(
     address: Address,
     erc1155_contract: ERC1155Contract,
@@ -39,174 +25,105 @@ async fn get_balance(
     Ok((erc1155_contract.get_fuel_balance(address).await?, erc20_contract.get_balance(address).await?))
 }
 
-#[function_component]
-pub fn Balance(props: &BalanceProps) -> Html {
-    let fuel_balance = use_state(|| 0.0);
-    let wfuel_balance = use_state(|| 0.0);
-    let wrap_amount = use_state(|| 0.0);
-    let wrap_amount_str = use_state(|| "0.0".to_owned());
-    let unwrap_amount = use_state(|| 0.0);
-    let unwrap_amount_str = use_state(|| "0.0".to_owned());
+#[component]
+pub fn Balance(
+    cx: Scope,
+    address: Signal<Option<Address>>,
+) -> impl IntoView {
+    let web3 = expect_context::<Web3<Either<Eip1193, Http>>>(cx);
+    let handle_error = expect_context::<WriteSignal<Option<contracts::Error>>>(cx);
+
+    let (fuel_balance, set_fuel_balance) = create_signal(cx, 0.0);
+    let (wfuel_balance, set_wfuel_balance) = create_signal(cx, 0.0);
+    let (wrap_amount, set_wrap_amount) = create_signal(cx, 0.0);
+    let (unwrap_amount, set_unwrap_amount) = create_signal(cx, 0.0);
 
     let uniswap_link = format!("https://app.uniswap.org/#/swap?inputCurrency=ETH&outputCurrency={}", env!("ERC20_CONTRACT_ADDRESS"));
 
-    let change_wrap_amount = {
-        let wrap_amount = wrap_amount.clone();
-        let wrap_amount_str = wrap_amount_str.clone();
-        move |value: f64| {
-            wrap_amount.set(value);
-            wrap_amount_str.set(format!("{value:.2}"));
-        }
-    };
+    let handle_error = Arc::new(move |error| handle_error.set(Some(error)));
+    let erc1155_contract = ERC1155Contract::new(&web3, handle_error.clone());
+    let wrapper_contract = Wrapped1155FactoryContract::new(&web3, erc1155_contract.address(), handle_error);
+    let erc20_contract = ERC20Contract::new(&web3);
 
-    let change_unwrap_amount = {
-        let unwrap_amount = unwrap_amount.clone();
-        let unwrap_amount_str = unwrap_amount_str.clone();
-        move |value: f64| {
-            unwrap_amount.set(value);
-            unwrap_amount_str.set(format!("{value:.2}"));
-        }
-    };
-
-    if let Some(ethereum) = use_context::<Option<UseEthereumHandle>>().expect(
-        "No ethereum provider found. You must wrap your components in an <EthereumContextProvider/>",
-    ) {
-        let transport = Either::Left(Eip1193::new(ethereum.provider.clone()));
-        let web3 = Web3::new(transport);
-        let handle_error = Arc::new({
-            let handle_error = props.handle_error.clone();
-            move |error| handle_error.emit(error)
-        });
-        let erc1155_contract = ERC1155Contract::new(&web3, handle_error.clone());
-        let wrapper_contract = Wrapped1155FactoryContract::new(&web3, erc1155_contract.address(), handle_error);
-        let erc20_contract = ERC20Contract::new(&web3);
-
-        let refresh_balance = {
-            let ethereum = ethereum.clone();
+    let refresh_balance = create_action(cx, {
+        let erc1155_contract = erc1155_contract.clone();
+        let erc20_contract = erc20_contract.clone();
+        move |_| {
             let erc1155_contract = erc1155_contract.clone();
             let erc20_contract = erc20_contract.clone();
-            let fuel_balance = fuel_balance.clone();
-            let wfuel_balance = wfuel_balance.clone();
-            move || {
-                let fuel_balance = fuel_balance.clone();
-                let wfuel_balance = wfuel_balance.clone();
-                let erc1155_contract = erc1155_contract.clone();
-                let erc20_contract = erc20_contract.clone();
-                if let Some(address) = ethereum.address() {
-                    let address = address.clone();
-                    spawn_local(async move {
-                        if let Ok((fuel_balance_, wfuel_balance_)) = get_balance(address, erc1155_contract, erc20_contract).await {
-                            fuel_balance.set(fuel_balance_);
-                            wfuel_balance.set(wfuel_balance_);
-                        }
-                    });
+            async move {
+                if let Some(address) = address.get_untracked() {
+                    if let Ok((fuel_balance, wfuel_balance)) = get_balance(address, erc1155_contract, erc20_contract).await {
+                        set_fuel_balance(fuel_balance);
+                        set_wfuel_balance(wfuel_balance);
+                    }
                 }
             }
-        };
-        let refresh_balance_onclick = {
-            let refresh_balance = refresh_balance.clone();
-            move |_| refresh_balance()
-        };
+        }
+    });
 
-        let wrap = {
-            let ethereum = ethereum.clone();
+    create_effect(cx, move |_| {
+        if address.get().is_some() {
+            refresh_balance.dispatch(());
+        }
+    });
+
+    let unwrap = create_action(cx, {
+        let wrapper_contract = wrapper_contract.clone();
+        move |_| {
+            let wrapper_contract = wrapper_contract.clone();
+            async move {
+                if let Some(address) = address.get_untracked() {
+                    wrapper_contract.unwrap(address, unwrap_amount.get_untracked()).await;
+                    refresh_balance.dispatch(());
+                }
+            }
+        }
+    });
+
+    let wrap = create_action(cx, {
+        let erc1155_contract = erc1155_contract.clone();
+        let wrapper_contract = wrapper_contract.clone();
+        move |_| {
             let erc1155_contract = erc1155_contract.clone();
             let wrapper_contract = wrapper_contract.clone();
-            let erc20_contract = erc20_contract.clone();
-            let fuel_balance = fuel_balance.clone();
-            let wfuel_balance = wfuel_balance.clone();
-            move |_| {
-                let erc1155_contract = erc1155_contract.clone();
-                let wrapper_contract = wrapper_contract.clone();
-                let erc20_contract = erc20_contract.clone();
-                let fuel_balance = fuel_balance.clone();
-                let wfuel_balance = wfuel_balance.clone();
-                let wrap_amount = wrap_amount.clone();
-                if let Some(address) = ethereum.address() {
-                    let address = address.clone();
-                    spawn_local(async move {
-                        erc1155_contract.transfer_fuel(address, wrapper_contract.address(), *wrap_amount).await;
-                        if let Ok((fuel_balance_, wfuel_balance_)) = get_balance(address, erc1155_contract, erc20_contract).await {
-                            fuel_balance.set(fuel_balance_);
-                            wfuel_balance.set(wfuel_balance_);
-                        }
-                    });
+            async move {
+                if let Some(address) = address.get_untracked() {
+                    erc1155_contract.transfer_fuel(address, wrapper_contract.address(), wrap_amount.get_untracked()).await;
+                    refresh_balance.dispatch(());
                 }
             }
-        };
-
-        let unwrap = {
-            let ethereum = ethereum.clone();
-            let fuel_balance = fuel_balance.clone();
-            let wfuel_balance = wfuel_balance.clone();
-            move |_| {
-                let erc1155_contract = erc1155_contract.clone();
-                let wrapper_contract = wrapper_contract.clone();
-                let erc20_contract = erc20_contract.clone();
-                let fuel_balance = fuel_balance.clone();
-                let wfuel_balance = wfuel_balance.clone();
-                let unwrap_amount = unwrap_amount.clone();
-                if let Some(address) = ethereum.address() {
-                    let address = address.clone();
-                    spawn_local(async move {
-                        wrapper_contract.unwrap(address, *unwrap_amount).await;
-                        if let Ok((fuel_balance_, wfuel_balance_)) = get_balance(address, erc1155_contract, erc20_contract).await {
-                            fuel_balance.set(fuel_balance_);
-                            wfuel_balance.set(wfuel_balance_);
-                        }
-                    });
-                }
-            }
-        };
-
-        refresh_balance();
-
-        html! {
-            <Grid>
-                <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={refresh_balance_onclick}>{ "Refresh balance" }</Button></GridItem>
-                <GridItem cols={[8]} rows={[1]}/>
-                <GridItem cols={[2]} rows={[1]}>
-                    <a href={uniswap_link} target="_blank">
-                        <Button variant={ButtonVariant::Primary}>
-                            { "Buy wFUEL" }
-                        </Button>
-                    </a>
-                </GridItem>
-
-                <GridItem cols={[3]} rows={[1]}><strong>{ "FUEL: " }</strong> {*fuel_balance} </GridItem>
-                <GridItem cols={[6]} rows={[1]}><Slider min=0f64 max={*fuel_balance} onchange={change_wrap_amount}/></GridItem>
-                <GridItem cols={[1]} rows={[1]}>{ (*wrap_amount_str).clone() }</GridItem>
-                <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={wrap}>{ "Wrap" }</Button></GridItem>
-
-                <GridItem cols={[3]} rows={[1]}><strong>{ "wFUEL: " }</strong> {*wfuel_balance} </GridItem>
-                <GridItem cols={[6]} rows={[1]}><Slider min=0f64 max={*wfuel_balance} onchange={change_unwrap_amount}/></GridItem>
-                <GridItem cols={[1]} rows={[1]}>{ (*unwrap_amount_str).clone() }</GridItem>
-                <GridItem cols={[2]} rows={[1]}><Button variant={ButtonVariant::Primary} onclick={unwrap}>{ "Unwrap" }</Button></GridItem>
-            </Grid>
         }
-    } else {
-        html! {
-            <Grid>
-                <GridItem cols={[2]} rows={[1]}/>
-                <GridItem cols={[8]} rows={[1]}/>
-                <GridItem cols={[2]} rows={[1]}>
-                    <a href={uniswap_link} target="_blank">
-                        <Button variant={ButtonVariant::Primary}>
-                            { "Buy wFUEL" }
-                        </Button>
-                    </a>
-                </GridItem>
+    });
 
-                <GridItem cols={[3]} rows={[1]}><strong>{ "FUEL: " }</strong> {*fuel_balance} </GridItem>
-                <GridItem cols={[6]} rows={[1]}><Slider min=0f64 max={*fuel_balance} onchange={change_wrap_amount}/></GridItem>
-                <GridItem cols={[1]} rows={[1]}>{ (*wrap_amount_str).clone() }</GridItem>
-                <GridItem cols={[2]} rows={[1]}/>
-
-                <GridItem cols={[3]} rows={[1]}><strong>{ "wFUEL: " }</strong> {*wfuel_balance} </GridItem>
-                <GridItem cols={[6]} rows={[1]}><Slider min=0f64 max={*wfuel_balance} onchange={change_unwrap_amount}/></GridItem>
-                <GridItem cols={[1]} rows={[1]}>{ (*unwrap_amount_str).clone() }</GridItem>
-                <GridItem cols={[2]} rows={[1]}/>
-            </Grid>
-        }
+    view! { cx,
+        <div>
+            <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
+                <Button on_click=move |_| refresh_balance.dispatch(())>"Refresh balance"</Button>
+                <a href={uniswap_link} target="_blank">
+                    <Button on_click=move |_| ()>"Buy wFUEL"</Button>
+                </a>
+            </Stack>
+            <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
+                <strong>"wFUEL: "</strong>
+                {move || view! { cx,
+                    {format!("{:.2}", wfuel_balance())}
+                    <Slider style="width: 20em" min=0.0 max=wfuel_balance() step=0.01
+                        value=unwrap_amount set_value=set_unwrap_amount
+                        value_display=create_callback(cx, move |v| format!("{v:.2}")) />
+                }}
+                <Button on_click=move |_| unwrap.dispatch(())>"Unwrap"</Button>
+            </Stack>
+            <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
+                <strong>"FUEL: "</strong>
+                {move || view! { cx,
+                    {format!("{:.2}", fuel_balance())}
+                    <Slider style="width: 20em" min=0.0 max=fuel_balance() step=0.01
+                        value=wrap_amount set_value=set_wrap_amount
+                        value_display=create_callback(cx, move |v| format!("{v:.2}")) />
+                }}
+                <Button on_click=move |_| wrap.dispatch(())>"Wrap"</Button>
+            </Stack>
+        </div>
     }
 }

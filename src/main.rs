@@ -2,6 +2,8 @@ mod chain;
 mod components;
 mod evm;
 
+use leptos::*;
+
 use components::app::App;
 
 
@@ -30,5 +32,5 @@ fn main() {
         .and_then(|x| x.parse().ok())
         .unwrap_or(log::Level::Error);
     console_log::init_with_level(level).expect("could not initialize logger");
-    yew::Renderer::<App>::new().render();
+    mount_to_body(|cx| view! { cx,  <App/> })
 }

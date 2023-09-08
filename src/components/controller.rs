@@ -3,455 +3,381 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use patternfly_yew::prelude::*;
-use yew::prelude::*;
-use wasm_bindgen_futures::spawn_local;
+use leptonic::prelude::*;
+use leptos::*;
+use leptos_router::*;
 use web3::{
     transports::{eip_1193::Eip1193, Either, Http},
     types::Address,
     Web3,
 };
-use yew_router::{scope_ext::RouterScopeExt, prelude::Navigator};
 
-use crate::{
-    components::blockchain::Route,
-    evm::{
-        contracts::{self, ERC1155Contract},
-        types::{Field, Metadata}
-    }
+use crate::evm::{
+    contracts::{self, ERC1155Contract},
+    types::{Field, Metadata}
 };
 
 
-#[derive(Properties)]
-pub struct ControllerProps {
-    pub handle_error: Callback<contracts::Error>,
-    pub transport: Either<Eip1193, Http>,
-    pub address: Option<Address>,
-    pub mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
-    #[prop_or(1)]
-    pub token_id: u128,
-}
-
-impl PartialEq for ControllerProps {
-    fn eq(&self, other: &Self) -> bool {
-        self.address == other.address && self.token_id == other.token_id
-    }
-}
-
 #[derive(Clone)]
-pub struct Controller {
-    redraw: Callback<()>,
-    address: Arc<Mutex<Option<Address>>>,
+struct State {
+    address: Signal<Option<Address>>,
     mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
     erc1155_contract: ERC1155Contract,
-    nav_history: Arc<Mutex<Vec<Metadata>>>,
-    children: Arc<Mutex<HashMap<u128, Metadata>>>,
-    bids: Arc<Mutex<HashMap<u128, Metadata>>>,
-    bid_amount: Arc<Mutex<f64>>,
-    bids_minimum_price: Arc<Mutex<f64>>,
-    approve_amount_node_ref: NodeRef,
+    nav_history: RwSignal<Vec<Metadata>>,
+    children: RwSignal<HashMap<u128, Metadata>>,
+    bids: RwSignal<HashMap<u128, Metadata>>,
 }
 
-impl Controller {
-    async fn view_nft(&self, token_id: u128, navigator: Option<Navigator>) {
-        let this = self.clone();
-        if let Ok(tokens) = this.erc1155_contract.get_ancestry_metadata(token_id).await {
-            let nav_history = &mut *this.nav_history.lock().unwrap();
-            nav_history.clear();
-            nav_history.extend(tokens.into_iter().rev());
-        } else {
-            if let Some(navigator) = navigator {
-                navigator.replace_with_query(&Route::Token {id: 1}, &HashMap::from([("RUST_LOG", "info")]));
-            }
-        }
-        if let Some(node) = self.approve_amount_node_ref.get() {
-            node.set_text_content(Some(&"0".to_string()));
-        }
-        self.obtain_tokens(token_id).await;
-    }
 
-    async fn obtain_tokens(&self, parent_id: u128) {
-        if let Ok(tokens) = self.erc1155_contract.get_children_metadata(parent_id).await {
-            let children = &mut (*self.children.lock().unwrap());
-            children.clear();
-            children.extend(tokens.into_iter().map(|m| (m.token_id, m)));
-        }
-        if let Ok(bids) = self.erc1155_contract.get_bids(parent_id).await {
-            let bids_ = &mut (*self.bids.lock().unwrap());
-            bids_.clear();
-            bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
-        }
-        self.check_ownership();
-        self.update_frames();
-        self.redraw.emit(());
-    }
-
-    fn check_ownership(&self) {
-        if let Some(address) = *self.address.lock().unwrap() {
-            self.children.lock().unwrap().values_mut().for_each(|token| {
-                token.owned = token.owner == address;
-            });
-            self.bids.lock().unwrap().values_mut().for_each(|bid| {
-                bid.owned = bid.owner == address;
-            });
-            self.nav_history.lock().unwrap().iter_mut().for_each(|token| {
-                token.owned = token.owner == address;
-            });
-        }
-    }
-
-    fn update_frames(&self) {
-        let mandelbrot = &mut self.mandelbrot.lock().unwrap();
-        let frames = &mut mandelbrot.frames;
-        frames.clear();
-        frames.extend(self.children.lock().unwrap().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
-        frames.extend(self.bids.lock().unwrap().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)));
-        frames.extend(self.nav_history.lock().unwrap().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
-        if let Some(redraw) = &mandelbrot.redraw {
-            redraw();
-        }
-    }
+#[derive(Clone, Params, PartialEq)]
+struct ControllerParams {
+    token_id: Option<u128>
 }
 
-impl Component for Controller {
-    type Message = ();
-    type Properties = ControllerProps;
 
-    fn create(ctx: &Context<Self>) -> Self {
-        let navigator = ctx.link().navigator().clone();
-        let mandelbrot = ctx.props().mandelbrot.clone();
-        let transport = ctx.props().transport.clone();
-        let web3 = Web3::new(transport);
+#[component]
+pub fn Controller(
+    cx: Scope,
+    address: Signal<Option<Address>>,
+) -> impl IntoView {
+    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>(cx);
+    let web3 = expect_context::<Web3<Either<Eip1193, Http>>>(cx);
+    let handle_error = expect_context::<WriteSignal<Option<contracts::Error>>>(cx);
+    let navigate = use_navigate(cx);
 
-        let this = Self {
-            redraw: ctx.link().callback(|_| ()),
-            address: Arc::new(Mutex::new(None)),
-            mandelbrot: mandelbrot.clone(),
-            erc1155_contract: ERC1155Contract::new(&web3, Arc::new({
-                let handle_error = ctx.props().handle_error.clone();
-                move |error| handle_error.emit(error)
-            })),
-            nav_history: Arc::new(Mutex::new(Vec::new())),
-            children: Arc::new(Mutex::new(HashMap::new())),
-            bids: Arc::new(Mutex::new(HashMap::new())),
-            bid_amount: Arc::new(Mutex::new(0.0)),
-            bids_minimum_price: Arc::new(Mutex::new(0.0)),
-            approve_amount_node_ref: NodeRef::default(),
-        };
+    let state = State {
+        address: address.clone(),
+        mandelbrot: mandelbrot.clone(),
+        erc1155_contract: ERC1155Contract::new(&web3, Arc::new({
+            move |error| handle_error.set(Some(error))
+        })),
+        nav_history: create_rw_signal(cx, Vec::new()),
+        children: create_rw_signal(cx, HashMap::new()),
+        bids: create_rw_signal(cx, HashMap::new()),
+    };
 
-        let on_frame_event = Callback::from({
-            let this = this.clone();
-            let navigator = navigator.clone();
-            move |frame_event: mandelbrot_explorer::FrameEvent| {
-                let navigator = navigator.clone();
-                match frame_event {
-                    mandelbrot_explorer::FrameEvent::DoubleClicked(frame) => {
-                        match frame.color {
-                            mandelbrot_explorer::FrameColor::Red |
-                            mandelbrot_explorer::FrameColor::Pink |
-                            mandelbrot_explorer::FrameColor::Blue |
-                            mandelbrot_explorer::FrameColor::LightBlue => {
-                                this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
-                                if let Some(navigator) = navigator {
-                                    // TODO: remove log or get from current query
-                                    let _ = navigator.replace_with_query(&Route::Token {id: frame.id}, &HashMap::from([("RUST_LOG", "info")]));
-                                }
-                            }
-                            mandelbrot_explorer::FrameColor::Yellow |
-                            mandelbrot_explorer::FrameColor::Lemon => {
-                                if let Some(bid) = this.bids.lock().unwrap().get_mut(&frame.id) {
-                                    bid.selected = true;
-                                }
-                                this.update_frames();
-                                this.redraw.emit(());
-                            }
-                            mandelbrot_explorer::FrameColor::Green => {
-                                if let Some(bid) = this.bids.lock().unwrap().get_mut(&frame.id) {
-                                    bid.selected = false;
-                                }
-                                this.update_frames();
-                                this.redraw.emit(());
-                            }
-                        }
-                    }
-                    mandelbrot_explorer::FrameEvent::Entered(frame) => {
-                        match frame.color {
-                            mandelbrot_explorer::FrameColor::Red |
-                            mandelbrot_explorer::FrameColor::Pink => {
-                                if let Some(navigator) = navigator {
-                                    // TODO: remove log or get from current query
-                                    let _ = navigator.replace_with_query(&Route::Token {id: frame.id}, &HashMap::from([("RUST_LOG", "info")]));
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        });
-
-        mandelbrot.lock().unwrap().frame_event_callback = Some(Arc::new({
-            let on_frame_event = on_frame_event.clone();
-            move |frame_event| on_frame_event.emit(frame_event)
-        }));
-
-        {
-            let this = this.clone();
-            let token_id = ctx.props().token_id;
-            spawn_local(async move {
-                this.view_nft(token_id, navigator.clone()).await;
-                let nav_history = this.nav_history.lock().unwrap();
-                if let Some(token) = nav_history.last() {
-                    this.mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
-                }
-            });
-        }
-        this
-    }
-
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let navigator = ctx.link().navigator().clone();
-
-        let address = ctx.props().address.clone();
-        *self.address.lock().unwrap() = if let Some(address) = address.clone() {
-            Some(address.clone())
+    let params = use_params::<ControllerParams>(cx);
+    let token_id = move || {
+        if let Ok(params) = params.get() {
+            params.token_id
         } else {
             None
-        };
-        self.check_ownership();
-        self.update_frames();
-        if let Some(redraw) = &self.mandelbrot.lock().unwrap().redraw {
-            redraw();
         }
+    };
 
-        let (
-            token_id,
-            owner,
-            locked_fuel,
-            minimum_price
-        ) = if let Some(token) = self.nav_history.lock().unwrap().last() {
-            (token.token_id, token.owner.to_string(), token.locked_fuel.to_string(), token.minimum_price.to_string())
+    let query = use_query_map(cx);
+    let preserve_log_level = move |uri| {
+        if let Some(log_level) = query().get("RUST_LOG") {
+            format!("{uri}?RUST_LOG={log_level}")
         } else {
-            (0, "".to_string(), 0.to_string(), 0.to_string())
-        };
+            uri
+        }
+    };
 
-        if token_id != ctx.props().token_id {
-            let this = self.clone();
-            let token_id = ctx.props().token_id;
+    create_effect(cx, {
+        let state = state.clone();
+        let token_id = token_id.clone();
+        move |_| {
+            let state = state.clone();
+            let token_id = token_id().unwrap_or(1);
             spawn_local(async move {
-                this.view_nft(token_id, navigator.clone()).await;
+                if let (Ok(tokens), Ok(children), Ok(bids)) = (
+                    state.erc1155_contract.get_ancestry_metadata(token_id).await,
+                    state.erc1155_contract.get_children_metadata(token_id).await,
+                    state.erc1155_contract.get_bids(token_id).await
+                ) {
+                    cx.batch(|| {
+                        state.nav_history.update(|nav_history| {
+                            nav_history.clear();
+                            nav_history.extend(tokens.into_iter().rev());
+                        });
+                        state.children.update(|children_| {
+                            children_.clear();
+                            children_.extend(children.into_iter().map(|m| (m.token_id, m)));
+                        });
+                        state.bids.update(|bids_| {
+                            bids_.clear();
+                            bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
+                        });
+                    });
+                } else {
+                    use_navigate(cx)(&preserve_log_level("/tokens/1".into()), Default::default());
+                }
             });
         }
+    });
 
-        let on_burn_clicked = {
-            let this = self.clone();
-            let address = address.clone();
-            move |token_id| {
-                let this = this.clone();
-                if let Some(address) = address {
-                    spawn_local(async move {
-                        this.erc1155_contract.burn(address, token_id).await;
-                    });
-                }
+    let first = store_value(cx, true);
+    create_effect(cx, {
+        let state = state.clone();
+        move |_| {
+            if first() {
+                state.nav_history.with(|nav_history| {
+                    if let Some(token) = nav_history.last() {
+                        first.set_value(false);
+                        state.mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
+                    }
+                });
             }
-        };
+        }
+    });
 
-        let change_bid_amount = {
-            let bid_amount = self.bid_amount.clone();
-            move |value: String| {
-                if let Ok(value) = value.parse::<f64>() {
-                    *bid_amount.lock().unwrap() = value;
-                } else {
-                    *bid_amount.lock().unwrap() = 0.0;
-                }
-            }
-        };
-
-        let change_bids_minimum_price = {
-            let bids_minimum_price = self.bids_minimum_price.clone();
-            move |value: String| {
-                if let Ok(value) = value.parse::<f64>() {
-                    *bids_minimum_price.lock().unwrap() = value;
-                } else {
-                    *bids_minimum_price.lock().unwrap() = 0.0;
-                }
-            }
-        };
-
-        let on_bid_clicked = {
-            let this = self.clone();
-            let address = address.clone();
-            move |_| {
-                let this = this.clone();
-                if let Some(address) = address {
-                    let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
-                    spawn_local(async move {
-                        if let Some(token) = this.nav_history.lock().unwrap().last() {
-                            this.erc1155_contract.bid(
-                                address,
-                                token.token_id,
-                                Field {
-                                    x_min: params.x_min as f64,
-                                    y_min: params.y_min as f64,
-                                    x_max: params.x_max as f64,
-                                    y_max: params.y_max as f64
-                                },
-                                *this.bid_amount.lock().unwrap(),
-                                *this.bids_minimum_price.lock().unwrap(),
-                            ).await;
+    let on_frame_event = Arc::new({
+        let state = state.clone();
+        move |frame_event: mandelbrot_explorer::FrameEvent| {
+            match frame_event {
+                mandelbrot_explorer::FrameEvent::DoubleClicked(frame) => {
+                    match frame.color {
+                        mandelbrot_explorer::FrameColor::Red |
+                        mandelbrot_explorer::FrameColor::Pink |
+                        mandelbrot_explorer::FrameColor::Blue |
+                        mandelbrot_explorer::FrameColor::LightBlue => {
+                            state.mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
+                            navigate(&preserve_log_level(format!("/tokens/{}", frame.id)), Default::default());
                         }
-                    });
-                }
-            }
-        };
-
-        // let on_mint_clicked = {
-        //     let this = self.clone();
-        //     let ethereum = ethereum.clone();
-        //     move |_| {
-        //         let this = this.clone();
-        //         if let Some(address) = ethereum.address() {
-        //             let address = address.clone();
-        //             let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
-        //             spawn_local(async move {
-        //                 this.erc1155_contract.mint(
-        //                     address,
-        //                     *this.selected_nft_id.lock().unwrap(),
-        //                     Field {
-        //                         x_min: params.x_min as f64,
-        //                         y_min: params.y_min as f64,
-        //                         x_max: params.x_max as f64,
-        //                         y_max: params.y_max as f64
-        //                     }
-        //                 ).await;
-        //             });
-        //         }
-        //     }
-        // };
-
-        let on_bid_toggled = {
-            let this = self.clone();
-            move |bid_id, state| {
-                {
-                    let mut bids_lock = this.bids.lock().unwrap();
-                    if let Some(bid) = bids_lock.get_mut(&bid_id) {
-                        bid.selected = state;
-
-                        let total_approve_amount: f64 = bids_lock.values()
-                            .filter(|bid| bid.selected)
-                            .map(|bid| bid.locked_fuel)
-                            .sum();
-                        this.approve_amount_node_ref.get().unwrap().set_text_content(Some(&total_approve_amount.to_string()));
+                        mandelbrot_explorer::FrameColor::Yellow |
+                        mandelbrot_explorer::FrameColor::Lemon => {
+                            state.bids.update(|bids| {
+                                if let Some(bid) = bids.get_mut(&frame.id) {
+                                    bid.selected = true;
+                                }
+                            });
+                        }
+                        mandelbrot_explorer::FrameColor::Green => {
+                            state.bids.update(|bids| {
+                                if let Some(bid) = bids.get_mut(&frame.id) {
+                                    bid.selected = false;
+                                }
+                            });
+                        }
                     }
                 }
-                this.update_frames();
-            }
-        };
-
-        let on_approve_clicked = {
-            let this = self.clone();
-            let address = address.clone();
-            move |_| {
-                let this = this.clone();
-                if let Some(address) = address {
-                    spawn_local(async move {
-                        let selected_bids: Vec<u128> = this.bids.lock().unwrap()
-                            .values()
-                            .filter(|bid| bid.selected)
-                            .map(|bid| bid.token_id)
-                            .collect();
-                        this.erc1155_contract.batch_approve_bids(address, &selected_bids).await;
-                    });
-                }
-            }
-        };
-
-        let on_delete_clicked = {
-            let this = self.clone();
-            let address = address.clone();
-            move |bid_id| {
-                let this = this.clone();
-                if let Some(address) = address {
-                    spawn_local(async move {
-                        this.erc1155_contract.delete_bid(address, bid_id).await;
-                    });
-                }
-            }
-        };
-
-        let bids_lock = self.bids.lock().unwrap();
-        let mut bids: Vec<&Metadata> = bids_lock.values().collect();
-        bids.sort_by(|bid_a, bid_b| bid_b.locked_fuel.partial_cmp(&bid_a.locked_fuel).unwrap());
-        let total_approve_amount: f64 = bids.iter().filter(|bid| bid.selected).map(|bid| bid.locked_fuel).sum();
-
-        html! {
-            <div>
-                <Stack>
-                    <StackItem>
-                        <p><label>{format!("NFT id: {}", token_id)}</label></p>
-                        <p><label>{format!("Owner: {}", owner)}</label></p>
-                        <p><label>{format!("Locked FUEL: {}", locked_fuel)}</label></p>
-                        <p><label>{format!("Minimum bid: {}", minimum_price)}</label></p>
-                        if address.is_some() {
-                            <p><button onclick={move |_| on_burn_clicked(token_id)}>{ "Burn" }</button></p>
-                            <TextInputGroup>
-                                <p>
-                                    <TextInputGroupMain
-                                        placeholder="Bid amount"
-                                        r#type="number"
-                                        oninput={change_bid_amount}
-                                    />
-                                    <TextInputGroupMain
-                                        placeholder="Minimum bid price"
-                                        r#type="number"
-                                        oninput={change_bids_minimum_price}
-                                    />
-                                </p>
-                                <TextInputGroupUtilities>
-                                    <Button
-                                        label="Bid"
-                                        variant={ButtonVariant::Primary}
-                                        onclick={on_bid_clicked}
-                                    />
-                                </TextInputGroupUtilities>
-                            </TextInputGroup>
+                mandelbrot_explorer::FrameEvent::Entered(frame) => {
+                    match frame.color {
+                        mandelbrot_explorer::FrameColor::Red |
+                        mandelbrot_explorer::FrameColor::Pink => {
+                            navigate(&preserve_log_level(format!("/tokens/{}", frame.id)), Default::default());
                         }
-                    </StackItem>
-                    if address.is_some() {
-                        // <StackItem>
-                        //     <button onclick={on_mint_clicked}>{ "Mint" }</button>
-                        // </StackItem>
-                        if bids.len() > 0 {
-                            <StackItem>
-                                <br/>
-                                <p>{ "Bids:" }</p>
-                                {
-                                    for bids.iter().map(|bid| {
-                                        let on_bid_toggled = on_bid_toggled.clone();
-                                        let on_delete_clicked = on_delete_clicked.clone();
-                                        let bid_id = bid.token_id;
-                                        html_nested!{
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+    });
+
+    mandelbrot.lock().unwrap().frame_event_callback = Some(Arc::new({
+        let on_frame_event = on_frame_event.clone();
+        move |frame_event| on_frame_event(frame_event)
+    }));
+
+    create_effect(cx, move |_| {
+        cx.batch(move || {
+            state.children.track();
+            state.bids.track();
+            state.nav_history.track();
+            if let Some(address) = state.address.get() {
+                state.children.update(|children|
+                    children.values_mut().for_each(|token| token.owned = token.owner == address)
+                );
+                state.bids.update(|bids|
+                    bids.values_mut().for_each(|bid| bid.owned = bid.owner == address)
+                );
+                state.nav_history.update(|nav_history|
+                    nav_history.iter_mut().for_each(|token| token.owned = token.owner == address)
+                );
+            }
+        });
+    });
+
+    create_effect(cx, {
+        let state = state.clone();
+        move |_| {
+            let mandelbrot = &mut state.mandelbrot.lock().unwrap();
+            let frames = &mut mandelbrot.frames;
+            frames.clear();
+            frames.extend(state.children.get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
+            frames.extend(state.bids.get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)));
+            frames.extend(state.nav_history.get().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
+            if let Some(redraw) = &mandelbrot.redraw {
+                redraw();
+            }
+        }
+    });
+
+
+    let (bid_amount, set_bid_amount) = create_signal(cx, 0.0);
+    let (bids_minimum_price, set_bids_minimum_price) = create_signal(cx, 0.0);
+
+    let burn_token = create_action(cx, {
+        let state = state.clone();
+        move |token_id: &u128| {
+            let state = state.clone();
+            let token_id = *token_id;
+            async move {
+                if let Some(address) = state.address.get_untracked() {
+                    state.erc1155_contract.burn(address, token_id).await;
+                }
+            }
+        }
+    });
+
+    let create_bid = create_action(cx, {
+        let state = state.clone();
+        move |_| {
+            let state = state.clone();
+            async move {
+                if let Some(address) = state.address.get_untracked() {
+                    let params = state.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
+                    if let Some(token) = state.nav_history.get_untracked().last() {
+                        state.erc1155_contract.bid(
+                            address,
+                            token.token_id,
+                            Field {
+                                x_min: params.x_min as f64,
+                                y_min: params.y_min as f64,
+                                x_max: params.x_max as f64,
+                                y_max: params.y_max as f64
+                            },
+                            bid_amount.get_untracked(),
+                            bids_minimum_price.get_untracked(),
+                        ).await;
+                    }
+                };
+            }
+        }
+    });
+
+    // let on_mint_clicked = {
+    //     let this = self.clone();
+    //     let ethereum = ethereum.clone();
+    //     move |_| {
+    //         let this = this.clone();
+    //         if let Some(address) = ethereum.address() {
+    //             let address = address.clone();
+    //             let params = this.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
+    //             spawn_local(async move {
+    //                 this.erc1155_contract.mint(
+    //                     address,
+    //                     *this.selected_nft_id.lock().unwrap(),
+    //                     Field {
+    //                         x_min: params.x_min as f64,
+    //                         y_min: params.y_min as f64,
+    //                         x_max: params.x_max as f64,
+    //                         y_max: params.y_max as f64
+    //                     }
+    //                 ).await;
+    //             });
+    //         }
+    //     }
+    // };
+
+    let toggle_bid = {
+        move |bid_id, state_| {
+            state.bids.update(|bids| {
+                if let Some(bid) = bids.get_mut(&bid_id) {
+                    bid.selected = state_;
+                }
+            });
+        }
+    };
+
+    let approve_bids = create_action(cx, {
+        let state = state.clone();
+        move |_| {
+            let state = state.clone();
+            async move {
+                if let Some(address) = state.address.get_untracked() {
+                    let selected_bids: Vec<u128> = state.bids.get_untracked()
+                        .values()
+                        .filter(|bid| bid.selected)
+                        .map(|bid| bid.token_id)
+                        .collect();
+                    state.erc1155_contract.batch_approve_bids(address, &selected_bids).await;
+                }
+            }
+        }
+    });
+
+    let delete_bid = create_action(cx, {
+        let erc1155_contract = state.erc1155_contract.clone();
+        move |bid_id: &u128| {
+            let erc1155_contract = erc1155_contract.clone();
+            let bid_id = bid_id.clone();
+            async move {
+                if let Some(address) = state.address.get_untracked() {
+                    erc1155_contract.delete_bid(address, bid_id).await;
+                }
+            }
+        }
+    });
+
+    let bids = move || {
+        let mut bids: Vec<Metadata> = state.bids.get().values().map(|bid| bid.clone()).collect();
+        bids.sort_by(|bid_a, bid_b| bid_b.locked_fuel.partial_cmp(&bid_a.locked_fuel).unwrap());
+        bids
+    };
+    let total_approve_amount = move || {
+        state.bids.get().values().filter(|bid| bid.selected).map(|bid| bid.locked_fuel).sum::<f64>()
+    };
+
+    view! { cx,
+        {
+            move || if let Some(token) = state.nav_history.get().last() {
+                let token_id = token.token_id;
+                let minimum_price = token.minimum_price;
+                set_bid_amount(minimum_price);
+                set_bids_minimum_price(minimum_price);
+                view! { cx,
+                    <p>{format!("NFT id: {}", token_id)}</p>
+                    <p>{format!("Owner: {}", token.owner)}</p>
+                    <p>{format!("Locked FUEL: {}", token.locked_fuel)}</p>
+                    <p>{format!("Minimum bid: {}", minimum_price)}</p>
+                    <Show when=move || address.get().is_some() fallback=|_| {}>
+                        <Button on_click=move |_| burn_token.dispatch(token_id)>"Burn"</Button>
+                        <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
+                            <Stack orientation=StackOrientation::Vertical spacing=Size::Em(0.6)>
+                                <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
+                                    "Bid amount:"
+                                    <NumberInput min=minimum_price get=bid_amount set=set_bid_amount placeholder="Bid amount"/>
+                                </Stack>
+                                <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
+                                    "Minimum bid price:"
+                                    <NumberInput min=minimum_price get=bids_minimum_price set=set_bids_minimum_price placeholder="Minimum bid price"/>
+                                </Stack>
+                            </Stack>
+                            <Button on_click=move |_| create_bid.dispatch(())>"Bid"</Button>
+                        </Stack>
+                        <Show when=move || {bids().len() > 0} fallback=|_| {}>
+                            <br/>
+                            <p>"Bids:"</p>
+                            <Box id="content">
+                                <For
+                                    each=move || bids()
+                                    key=|bid| bid.token_id
+                                    view={
+                                        move |cx, bid| view! { cx,
                                             <p>
-                                                <Switch
-                                                    label={format!("{} {:?}", bid.locked_fuel.to_string(), bid.owner)}
-                                                    checked={bid.selected}
-                                                    onchange={move |state| on_bid_toggled(bid_id, state)}
+                                                <Toggle
+                                                    state=bid.selected
+                                                    set_state=create_callback(cx, move |state: bool| toggle_bid(bid.token_id, state))
+                                                    variant=ToggleVariant::Stationary
                                                 />
-                                                <button onclick={move |_| on_delete_clicked(bid_id)}>{ "Delete" }</button>
+                                                {format!("{} {:?}", bid.locked_fuel.to_string(), bid.owner)}
+                                                <Button on_click=move |_| delete_bid.dispatch(bid.token_id)>"Delete"</Button>
                                             </p>
                                         }
-                                    })
-                                }
-                                <p>
-                                    <label ref={self.approve_amount_node_ref.clone()}>{ total_approve_amount }</label>
-                                    <button onclick={on_approve_clicked}>{ "Approve" }</button>
-                                </p>
-                            </StackItem>
-                        }
-                    }
-                </Stack>
-            </div>
+                                    }
+                                />
+                            </Box>
+                            <p>
+                                {move || total_approve_amount()}
+                                <Button on_click=move |_| approve_bids.dispatch(())>"Approve"</Button>
+                            </p>
+                        </Show>
+                    </Show>
+                }
+            } else { Fragment::new(vec![]) }
         }
     }
 }
