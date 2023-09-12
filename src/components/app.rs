@@ -32,6 +32,7 @@ pub fn App(cx: Scope) -> impl IntoView {
         coloring: mandelbrot_explorer::Coloring {
             max_iterations: 1360,
             offset: 0.0,
+            length: 360.0,
         },
         frames: Vec::new(),
         frame_event_callback: None,

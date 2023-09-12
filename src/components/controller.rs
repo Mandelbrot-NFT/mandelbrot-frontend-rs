@@ -253,33 +253,44 @@ pub fn Controller(
     //     }
     // });
 
-    move || {
-        if let Some(token) = state.nav_history.get().last() {
-            let token = token.clone();
-            let erc1155_contract = state.erc1155_contract.clone();
-            let token_id = token.token_id;
-            let minimum_price = token.minimum_price;
+    view! { cx,
+        {
+            let state = state.clone();
+            move || {
+                if let Some(token) = state.nav_history.get().last() {
+                    let token = token.clone();
+                    let token_id = token.token_id;
+                    let minimum_price = token.minimum_price;
+                    view! { cx,
+                        <p>{format!("NFT id: {}", token_id)}</p>
+                        <p>{format!("Owner: {}", token.owner)}</p>
+                        <p>{format!("Locked FUEL: {}", token.locked_fuel)}</p>
+                        <p>{format!("Minimum bid: {}", minimum_price)}</p>
+                        <Show when=move || address.get().is_some() fallback=|_| {}>
+                            <Button on_click=move |_| burn_token.dispatch(token_id)>"Burn"</Button>
+                        </Show>
+                    }
+                } else {
+                    Fragment::new(vec![])
+                }
+            }
+        }
+        {
             view! { cx,
-                <p>{format!("NFT id: {}", token_id)}</p>
-                <p>{format!("Owner: {}", token.owner)}</p>
-                <p>{format!("Locked FUEL: {}", token.locked_fuel)}</p>
-                <p>{format!("Minimum bid: {}", minimum_price)}</p>
                 <Show when=move || address.get().is_some() fallback=|_| {}>
-                    <Button on_click=move |_| burn_token.dispatch(token_id)>"Burn"</Button>
                     {
-                        let token = token.clone();
-                        let erc1155_contract = erc1155_contract.clone();
+                        let state = state.clone();
                         view! { cx,
                             <Separator/>
                             <Auction
-                                erc1155_contract=erc1155_contract.clone()
+                                erc1155_contract=state.erc1155_contract.clone()
                                 address
-                                token=Signal::derive(cx, move || token.clone())
+                                token=Signal::derive(cx, move || state.nav_history.get().last().cloned())
                             />
                             <Separator/>
                             <Show when=move || {(state.bids)().len() > 0} fallback=|_| {}>
                                 <Bids
-                                    erc1155_contract=erc1155_contract.clone()
+                                    erc1155_contract=state.erc1155_contract.clone()
                                     address
                                     bids=state.bids
                                 />
@@ -288,8 +299,6 @@ pub fn Controller(
                     }
                 </Show>
             }
-        } else {
-            Fragment::new(vec![])
         }
     }
 }
