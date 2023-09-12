@@ -18,6 +18,19 @@ pub fn Auction(
     token: Signal<Metadata>,
 ) -> impl IntoView {
     let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>(cx);
+    let (max_iterations, set_max_iterations) = create_signal(cx, 40.0);
+
+    create_effect(cx, {
+        let mandelbrot = mandelbrot.clone();
+        move |_| {
+            let mut mandelbrot = mandelbrot.lock().unwrap();
+            mandelbrot.coloring.max_iterations = (max_iterations() as f64).powi(2) as i32;
+            if let Some(redraw) = &mandelbrot.redraw {
+                redraw();
+            }
+        }
+    });
+
     let (bid_amount, set_bid_amount) = create_signal(cx, 0.0);
     let (bids_minimum_price, set_bids_minimum_price) = create_signal(cx, 0.0);
 
@@ -27,7 +40,7 @@ pub fn Auction(
             let mandelbrot = mandelbrot.clone();
             async move {
                 if let Some(address) = address.get_untracked() {
-                    let params = mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
+                    let params = mandelbrot.lock().unwrap().to_mandlebrot_params();
                     erc1155_contract.bid(
                         address,
                         token.get_untracked().token_id,
@@ -49,6 +62,9 @@ pub fn Auction(
         set_bid_amount(token.get().minimum_price);
         set_bids_minimum_price(token.get().minimum_price);
         view! { cx,
+            <Slider style="width: 35em" min=0.0 max=200.0
+                value=max_iterations set_value=set_max_iterations
+                value_display=create_callback(cx, move |v: f64| format!("{:.0}", v.powi(2))) />
             <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
                 <Stack orientation=StackOrientation::Vertical spacing=Size::Em(0.6)>
                     <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
