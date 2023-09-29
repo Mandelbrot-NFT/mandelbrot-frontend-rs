@@ -122,7 +122,7 @@ pub fn Controller(
                 state.nav_history.with(|nav_history| {
                     if let Some(token) = nav_history.last() {
                         first.set_value(false);
-                        state.mandelbrot.lock().unwrap().sample_location.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
+                        state.mandelbrot.lock().unwrap().sample.move_into_frame(&token.to_frame(mandelbrot_explorer::FrameColor::Blue));
                     }
                 });
             }
@@ -139,7 +139,7 @@ pub fn Controller(
                         mandelbrot_explorer::FrameColor::Pink |
                         mandelbrot_explorer::FrameColor::Blue |
                         mandelbrot_explorer::FrameColor::LightBlue => {
-                            state.mandelbrot.lock().unwrap().sample_location.move_into_frame(&frame);
+                            state.mandelbrot.lock().unwrap().sample.move_into_frame(&frame);
                             navigate(&preserve_log_level(format!("/tokens/{}", frame.id)), Default::default());
                         }
                         mandelbrot_explorer::FrameColor::Yellow |
@@ -233,7 +233,7 @@ pub fn Controller(
     //         let state = state.clone();
     //         async move {
     //             if let Some(address) = state.address.get_untracked() {
-    //                 let params = state.mandelbrot.lock().unwrap().sample_location.to_mandlebrot_params(0);
+    //                 let params = state.mandelbrot.lock().unwrap().sample.to_mandlebrot_params(0);
     //                 if let Some(token) = state.nav_history.get_untracked().last() {
     //                     state.erc1155_contract.bid(
     //                         address,
