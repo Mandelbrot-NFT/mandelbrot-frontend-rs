@@ -15,8 +15,8 @@ pub fn Mandelbrot(
         let window = window.clone();
         let interface = interface.clone();
         move |_| interface.lock().unwrap().sample.resize(
-            size().0 * window.device_pixel_ratio(),
-            size().1 * window.device_pixel_ratio()
+            (size().0 * window.device_pixel_ratio()) as u32,
+            (size().1 * window.device_pixel_ratio()) as u32
         )
     });
     canvas.on_load(cx, |canvas| mandelbrot_explorer::start(Some((*canvas).clone()), Some(interface)));

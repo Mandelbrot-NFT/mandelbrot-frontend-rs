@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use leptonic::prelude::*;
 use leptos::*;
 use leptos_ethereum_provider::{AccountLabel, ConnectButton, EthereumContextProvider};
+use mandelbrot_explorer::ISample;
 use wasm_bindgen::JsCast;
 
 use super::{
@@ -28,7 +29,7 @@ pub fn App(cx: Scope) -> impl IntoView {
     }
 
     let interface = Arc::new(Mutex::new(mandelbrot_explorer::Interface {
-        sample: mandelbrot_explorer::Sample::new(height, height),
+        sample: Box::new(mandelbrot_explorer::Sample::new(height as u32, height as u32)),
         coloring: mandelbrot_explorer::Coloring {
             max_iterations: 1600,
             offset: 0.0,

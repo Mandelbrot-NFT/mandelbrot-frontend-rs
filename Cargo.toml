@@ -20,6 +20,7 @@ web3 = { git = "https://github.com/platonfloria/rust-web3.git", branch="feature/
 leptos-ethereum-provider = { git = "https://github.com/platonfloria/leptos-ethereum-provider.git", version = "0.1.0" }
 leptonic = { git = "https://github.com/lpotthast/leptonic.git", version = "0.2.0" }
 leptos_router = { version = "0.4.10", features = ["csr", "nightly"] }
+num-bigfloat = "1.7.0"
 
 [build-dependencies]
 leptonic-theme = { git = "https://github.com/lpotthast/leptonic.git", version = "0.2.0" }

@@ -1,4 +1,5 @@
 use ethabi::token::Token;
+use num_bigfloat::BigFloat;
 use web3::{
     contract::tokens::Tokenizable,
     types::{Address, U256},
@@ -7,21 +8,22 @@ use web3::{
 
 #[derive(Clone, Debug)]
 pub struct Field {
-    pub x_min: f64,
-    pub y_min: f64,
-    pub x_max: f64,
-    pub y_max: f64,
+    pub x_min: BigFloat,
+    pub y_min: BigFloat,
+    pub x_max: BigFloat,
+    pub y_max: BigFloat,
 }
 
 impl Tokenizable for Field {
     fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
         match token {
             Token::Tuple(tokens) => {
-                Ok(Self { 
-                    x_min: U256::from_token(tokens[0].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1,
-                    y_min: U256::from_token(tokens[1].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5,
-                    x_max: U256::from_token(tokens[2].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1,
-                    y_max: U256::from_token(tokens[3].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5
+                Ok(Self {
+                    // TODO: parse token to bigfloat
+                    x_min: BigFloat::from(U256::from_token(tokens[0].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1),
+                    y_min: BigFloat::from(U256::from_token(tokens[1].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5),
+                    x_max: BigFloat::from(U256::from_token(tokens[2].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1),
+                    y_max: BigFloat::from(U256::from_token(tokens[3].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5),
                 })
             }
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
@@ -30,10 +32,10 @@ impl Tokenizable for Field {
 
     fn into_token(self) -> Token {
         Token::Tuple(vec![
-            U256::from(((self.x_min + 2.1) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.y_min + 1.5) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.x_max + 2.1) * 10_f64.powi(18)) as u128).into_token(),
-            U256::from(((self.y_max + 1.5) * 10_f64.powi(18)) as u128).into_token(),
+            U256::from(((self.x_min + BigFloat::from(2.1)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
+            U256::from(((self.y_min + BigFloat::from(1.5)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
+            U256::from(((self.x_max + BigFloat::from(2.1)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
+            U256::from(((self.y_max + BigFloat::from(1.5)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
         ])
     }
 }
