@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
+use bigdecimal::{BigDecimal, FromPrimitive};
 use ethabi::token::Token;
-use num_bigfloat::BigFloat;
 use web3::{
     contract::tokens::Tokenizable,
     types::{Address, U256},
@@ -8,10 +10,10 @@ use web3::{
 
 #[derive(Clone, Debug)]
 pub struct Field {
-    pub x_min: BigFloat,
-    pub y_min: BigFloat,
-    pub x_max: BigFloat,
-    pub y_max: BigFloat,
+    pub x_min: BigDecimal,
+    pub y_min: BigDecimal,
+    pub x_max: BigDecimal,
+    pub y_max: BigDecimal,
 }
 
 impl Tokenizable for Field {
@@ -19,11 +21,10 @@ impl Tokenizable for Field {
         match token {
             Token::Tuple(tokens) => {
                 Ok(Self {
-                    // TODO: parse token to bigfloat
-                    x_min: BigFloat::from(U256::from_token(tokens[0].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1),
-                    y_min: BigFloat::from(U256::from_token(tokens[1].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5),
-                    x_max: BigFloat::from(U256::from_token(tokens[2].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1),
-                    y_max: BigFloat::from(U256::from_token(tokens[3].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5),
+                    x_min: BigDecimal::from_str(&U256::from_token(tokens[0].clone())?.to_string()).unwrap() / 10_f64.powi(18) - BigDecimal::from_f32(2.1).unwrap(),
+                    y_min: BigDecimal::from_str(&U256::from_token(tokens[1].clone())?.to_string()).unwrap() / 10_f64.powi(18) - BigDecimal::from_f32(1.5).unwrap(),
+                    x_max: BigDecimal::from_str(&U256::from_token(tokens[2].clone())?.to_string()).unwrap() / 10_f64.powi(18) - BigDecimal::from_f32(2.1).unwrap(),
+                    y_max: BigDecimal::from_str(&U256::from_token(tokens[3].clone())?.to_string()).unwrap() / 10_f64.powi(18) - BigDecimal::from_f32(1.5).unwrap(),
                 })
             }
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
@@ -32,10 +33,10 @@ impl Tokenizable for Field {
 
     fn into_token(self) -> Token {
         Token::Tuple(vec![
-            U256::from(((self.x_min + BigFloat::from(2.1)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
-            U256::from(((self.y_min + BigFloat::from(1.5)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
-            U256::from(((self.x_max + BigFloat::from(2.1)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
-            U256::from(((self.y_max + BigFloat::from(1.5)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
+            U256::from_str(&((self.x_min + BigDecimal::from_f32(2.1).unwrap()) * BigDecimal::from_f64(10_f64.powi(18)).unwrap()).to_string()).unwrap().into_token(),
+            U256::from_str(&((self.y_min + BigDecimal::from_f32(1.5).unwrap()) * BigDecimal::from_f64(10_f64.powi(18)).unwrap()).to_string()).unwrap().into_token(),
+            U256::from_str(&((self.x_max + BigDecimal::from_f32(2.1).unwrap()) * BigDecimal::from_f64(10_f64.powi(18)).unwrap()).to_string()).unwrap().into_token(),
+            U256::from_str(&((self.y_max + BigDecimal::from_f32(1.5).unwrap()) * BigDecimal::from_f64(10_f64.powi(18)).unwrap()).to_string()).unwrap().into_token(),
         ])
     }
 }
@@ -95,10 +96,10 @@ impl Metadata {
     pub fn to_frame(&self, color: mandelbrot_explorer::FrameColor) -> mandelbrot_explorer::Frame {
         mandelbrot_explorer::Frame {
             id: self.token_id,
-            x_min: self.field.x_min,
-            x_max: self.field.x_max,
-            y_min: self.field.y_min,
-            y_max: self.field.y_max,
+            x_min: self.field.x_min.clone(),
+            x_max: self.field.x_max.clone(),
+            y_min: self.field.y_min.clone(),
+            y_max: self.field.y_max.clone(),
             color: if self.selected {
                 mandelbrot_explorer::FrameColor::Green
             } else {
