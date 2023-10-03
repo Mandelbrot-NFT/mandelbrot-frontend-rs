@@ -1,9 +1,37 @@
+use std::ops::Deref;
+
 use ethabi::token::Token;
-use num_bigfloat::BigFloat;
+use num_bigfloat::{BigFloat, ZERO};
 use web3::{
     contract::tokens::Tokenizable,
     types::{Address, U256},
 };
+
+
+struct TokenizableBigFloat(BigFloat);
+
+impl Deref for TokenizableBigFloat {
+    type Target = BigFloat;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Tokenizable for TokenizableBigFloat {
+    fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
+        Ok(Self(BigFloat::parse(&U256::from_token(token)?.to_string()).unwrap() / BigFloat::from(10_f64.powi(18))))
+    }
+
+    fn into_token(self) -> Token {
+        let int = (*self * BigFloat::from(10_f64.powi(18))).int().max(&ZERO);
+        let ml = int.get_mantissa_len();
+        let mut buffer = [0; 40];
+        int.get_mantissa_bytes(&mut buffer);
+        let string = buffer[..ml].iter().map(|d| d.to_string()).collect::<Vec<_>>().join("");
+        U256::from_str_radix(&string, 10).unwrap().into_token()
+    }
+}
 
 
 #[derive(Clone, Debug)]
@@ -19,11 +47,10 @@ impl Tokenizable for Field {
         match token {
             Token::Tuple(tokens) => {
                 Ok(Self {
-                    // TODO: parse token to bigfloat
-                    x_min: BigFloat::from(U256::from_token(tokens[0].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1),
-                    y_min: BigFloat::from(U256::from_token(tokens[1].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5),
-                    x_max: BigFloat::from(U256::from_token(tokens[2].clone())?.as_u128() as f64 / 10_f64.powi(18) - 2.1),
-                    y_max: BigFloat::from(U256::from_token(tokens[3].clone())?.as_u128() as f64 / 10_f64.powi(18) - 1.5),
+                    x_min: *TokenizableBigFloat::from_token(tokens[0].clone()).unwrap() - BigFloat::from(2.1),
+                    y_min: *TokenizableBigFloat::from_token(tokens[1].clone()).unwrap() - BigFloat::from(1.5),
+                    x_max: *TokenizableBigFloat::from_token(tokens[2].clone()).unwrap() - BigFloat::from(2.1),
+                    y_max: *TokenizableBigFloat::from_token(tokens[3].clone()).unwrap() - BigFloat::from(1.5),
                 })
             }
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
@@ -32,10 +59,10 @@ impl Tokenizable for Field {
 
     fn into_token(self) -> Token {
         Token::Tuple(vec![
-            U256::from(((self.x_min + BigFloat::from(2.1)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
-            U256::from(((self.y_min + BigFloat::from(1.5)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
-            U256::from(((self.x_max + BigFloat::from(2.1)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
-            U256::from(((self.y_max + BigFloat::from(1.5)) * BigFloat::from(10_f64.powi(18))).to_u128().unwrap()).into_token(),
+            TokenizableBigFloat(self.x_min + BigFloat::from(2.1)).into_token(),
+            TokenizableBigFloat(self.y_min + BigFloat::from(1.5)).into_token(),
+            TokenizableBigFloat(self.x_max + BigFloat::from(2.1)).into_token(),
+            TokenizableBigFloat(self.y_max + BigFloat::from(1.5)).into_token(),
         ])
     }
 }
