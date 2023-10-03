@@ -6,6 +6,7 @@ use std::{
 use leptonic::prelude::*;
 use leptos::*;
 use leptos_router::*;
+use mandelbrot_explorer::ISample;
 use web3::{
     transports::{eip_1193::Eip1193, Either, Http},
     types::Address,

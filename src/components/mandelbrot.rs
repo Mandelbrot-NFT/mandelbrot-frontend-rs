@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use leptos::*;
+use mandelbrot_explorer::ISample;
 
 
 #[component]
