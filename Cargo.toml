@@ -18,10 +18,10 @@ wasm-bindgen = "0.2.87"
 web-sys = { version = "0.3.60", features = ["Screen", "Window"] }
 web3 = { git = "https://github.com/platonfloria/rust-web3.git", branch="feature/transport-either-to-support-wasm", version = "0.20.0", default-features = false, features = ["wasm", "eip-1193"] }
 leptos-ethereum-provider = { git = "https://github.com/platonfloria/leptos-ethereum-provider.git", version = "0.1.0" }
-leptonic = { git = "https://github.com/lpotthast/leptonic.git", version = "0.2.0" }
+leptonic = { git = "https://github.com/lpotthast/leptonic.git", rev = "440a9dee67aef75c4412f6d28b23593b7931dc95" }
 leptos_router = { version = "0.4.10", features = ["csr", "nightly"] }
 num-bigfloat = "1.7.0"
 
 [build-dependencies]
-leptonic-theme = { git = "https://github.com/lpotthast/leptonic.git", version = "0.2.0" }
+leptonic-theme = { git = "https://github.com/lpotthast/leptonic.git", rev = "440a9dee67aef75c4412f6d28b23593b7931dc95" }
 leptos-tiptap-build = "0.2.2"
