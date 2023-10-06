@@ -46,15 +46,15 @@ pub fn Auction(
             let token_id = *token_id;
             async move {
                 if let Some(address) = address.get_untracked() {
-                    let params = mandelbrot.lock().unwrap().to_mandlebrot_params();
+                    let bounds = mandelbrot.lock().unwrap().sample.get_bounds();
                     erc1155_contract.bid(
                         address,
                         token_id,
                         Field {
-                            x_min: BigFloat::from(params.x_min),
-                            y_min: BigFloat::from(params.y_min),
-                            x_max: BigFloat::from(params.x_max),
-                            y_max: BigFloat::from(params.y_max),
+                            x_min: BigFloat::from(bounds.x_min),
+                            y_min: BigFloat::from(bounds.y_min),
+                            x_max: BigFloat::from(bounds.x_max),
+                            y_max: BigFloat::from(bounds.y_max),
                         },
                         bid_amount.get_untracked(),
                         bids_minimum_price.get_untracked(),

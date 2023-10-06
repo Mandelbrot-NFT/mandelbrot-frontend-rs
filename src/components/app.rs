@@ -29,7 +29,7 @@ pub fn App(cx: Scope) -> impl IntoView {
     }
 
     let interface = Arc::new(Mutex::new(mandelbrot_explorer::Interface {
-        sample: Box::new(mandelbrot_explorer::MandelbrotEngine::new(height as u32, height as u32)),
+        sample: Box::new(mandelbrot_explorer::PerturbationEngine::new(height as u32, height as u32)),
         coloring: mandelbrot_explorer::Coloring {
             max_iterations: 1600,
             offset: 0.0,

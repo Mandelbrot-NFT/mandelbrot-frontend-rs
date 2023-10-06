@@ -1,7 +1,6 @@
 use std::sync::{Arc, Mutex};
 
 use leptos::*;
-use mandelbrot_explorer::ISample;
 
 
 #[component]
@@ -20,7 +19,7 @@ pub fn Mandelbrot(
             (size().1 * window.device_pixel_ratio()) as u32
         )
     });
-    canvas.on_load(cx, |canvas| mandelbrot_explorer::start(Some((*canvas).clone()), Some(interface)));
+    canvas.on_load(cx, |canvas| mandelbrot_explorer::start(Some((*canvas).clone()), interface));
 
     view! { cx,
         <canvas

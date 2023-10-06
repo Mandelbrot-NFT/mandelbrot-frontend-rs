@@ -6,7 +6,6 @@ use std::{
 use leptonic::prelude::*;
 use leptos::*;
 use leptos_router::*;
-use mandelbrot_explorer::ISample;
 use web3::{
     transports::{eip_1193::Eip1193, Either, Http},
     types::Address,
@@ -234,16 +233,16 @@ pub fn Controller(
     //         let state = state.clone();
     //         async move {
     //             if let Some(address) = state.address.get_untracked() {
-    //                 let params = state.mandelbrot.lock().unwrap().sample.to_mandlebrot_params(0);
+    //                 let bounds = state.mandelbrot.lock().unwrap().sample.get_bounds();
     //                 if let Some(token) = state.nav_history.get_untracked().last() {
     //                     state.erc1155_contract.bid(
     //                         address,
     //                         token.token_id,
     //                         Field {
-    //                             x_min: params.x_min as f64,
-    //                             y_min: params.y_min as f64,
-    //                             x_max: params.x_max as f64,
-    //                             y_max: params.y_max as f64
+    //                             x_min: bounds.x_min as f64,
+    //                             y_min: bounds.y_min as f64,
+    //                             x_max: bounds.x_max as f64,
+    //                             y_max: bounds.y_max as f64
     //                         },
     //                         bid_amount.get_untracked(),
     //                         bids_minimum_price.get_untracked(),
