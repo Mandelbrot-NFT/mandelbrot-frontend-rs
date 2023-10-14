@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex};
 
 use leptonic::prelude::*;
 use leptos::*;
-use num_bigfloat::BigFloat;
 use web3::types::Address;
 
 use crate::evm::{
@@ -51,10 +50,10 @@ pub fn Auction(
                         address,
                         token_id,
                         Field {
-                            x_min: BigFloat::from(bounds.x_min),
-                            y_min: BigFloat::from(bounds.y_min),
-                            x_max: BigFloat::from(bounds.x_max),
-                            y_max: BigFloat::from(bounds.y_max),
+                            x_min: bounds.x_min,
+                            y_min: bounds.y_min,
+                            x_max: bounds.x_max,
+                            y_max: bounds.y_max,
                         },
                         bid_amount.get_untracked(),
                         bids_minimum_price.get_untracked(),
