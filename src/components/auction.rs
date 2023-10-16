@@ -45,7 +45,7 @@ pub fn Auction(
             let token_id = *token_id;
             async move {
                 if let Some(address) = address.get_untracked() {
-                    let bounds = mandelbrot.lock().unwrap().sample.get_bounds();
+                    let bounds = mandelbrot.lock().unwrap().sample.borrow().get_bounds();
                     erc1155_contract.bid(
                         address,
                         token_id,

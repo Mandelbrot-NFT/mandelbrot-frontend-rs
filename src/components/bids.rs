@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 
 use leptonic::prelude::*;
 use leptos::*;
+use mandelbrot_explorer::FrameColor;
 use web3::types::Address;
 
 use crate::evm::{types::Metadata, contracts::ERC1155Contract};
@@ -14,6 +15,8 @@ pub fn Bids(
     address: Signal<Option<Address>>,
     bids: RwSignal<HashMap<u128, Metadata>>,
 ) -> impl IntoView {
+    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>(cx);
+
     let toggle_bid = {
         move |bid_id, state_| {
             bids.update(|bids| {
@@ -54,6 +57,16 @@ pub fn Bids(
         }
     });
 
+
+    let zoom_bid = {
+        move |bid_id| {
+            if let Some(bid) = bids.get().get(&bid_id) {
+                let frame = bid.to_frame(FrameColor::Blue);
+                mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+            }
+        }
+    };
+
     let sorted_bids = move || {
         let mut bids: Vec<Metadata> = bids.get().values().map(|bid| bid.clone()).collect();
         bids.sort_by(|bid_a, bid_b| bid_b.locked_fuel.partial_cmp(&bid_a.locked_fuel).unwrap());
@@ -73,12 +86,13 @@ pub fn Bids(
                     move |cx, bid| view! { cx,
                         <p>
                             <Toggle
-                                state=bid.selected
+                                state=Signal::derive(cx, move || bid.selected)
                                 set_state=create_callback(cx, move |state: bool| toggle_bid(bid.token_id, state))
                                 variant=ToggleVariant::Stationary
                             />
                             {format!("{} {:?}", bid.locked_fuel.to_string(), bid.owner)}
                             <Button on_click=move |_| delete_bid.dispatch(bid.token_id)>"Delete"</Button>
+                            <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}>"Zoom"</Button>
                         </p>
                     }
                 }

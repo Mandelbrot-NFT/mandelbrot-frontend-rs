@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, rc::Rc, cell::RefCell};
 
 use leptonic::prelude::*;
 use leptos::*;
@@ -28,17 +28,14 @@ pub fn App(cx: Scope) -> impl IntoView {
         window.set_onresize(Some((*resize_state.get_value()).as_ref().unchecked_ref()));
     }
 
-    let interface = Arc::new(Mutex::new(mandelbrot_explorer::Interface {
-        sample: Box::new(mandelbrot_explorer::PerturbationEngine::new(height as u32, height as u32)),
-        coloring: mandelbrot_explorer::Coloring {
+    let interface = Arc::new(Mutex::new(mandelbrot_explorer::Interface::new(
+        Rc::new(RefCell::new(mandelbrot_explorer::PerturbationEngine::new(height as u32, height as u32))),
+        mandelbrot_explorer::Coloring {
             max_iterations: 1600,
             offset: 0.0,
             length: 360.0,
         },
-        frames: Vec::new(),
-        frame_event_callback: None,
-        redraw: None,
-    }));
+    )));
     provide_context(cx, interface);
 
     {

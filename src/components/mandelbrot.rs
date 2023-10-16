@@ -14,7 +14,7 @@ pub fn Mandelbrot(
     create_effect(cx, {
         let window = window.clone();
         let interface = interface.clone();
-        move |_| interface.lock().unwrap().sample.resize(
+        move |_| interface.lock().unwrap().sample.borrow_mut().resize(
             (size().0 * window.device_pixel_ratio()) as u32,
             (size().1 * window.device_pixel_ratio()) as u32
         )

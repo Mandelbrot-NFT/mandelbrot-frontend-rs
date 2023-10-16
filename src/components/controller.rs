@@ -122,7 +122,7 @@ pub fn Controller(
                 state.nav_history.with(|nav_history| {
                     if let Some(token) = nav_history.last() {
                         first.set_value(false);
-                        state.mandelbrot.lock().unwrap().sample.move_into_bounds(&token.to_frame(mandelbrot_explorer::FrameColor::Blue).bounds);
+                        state.mandelbrot.lock().unwrap().move_into_bounds(&token.to_frame(mandelbrot_explorer::FrameColor::Blue).bounds);
                     }
                 });
             }
@@ -139,7 +139,7 @@ pub fn Controller(
                         mandelbrot_explorer::FrameColor::Pink |
                         mandelbrot_explorer::FrameColor::Blue |
                         mandelbrot_explorer::FrameColor::LightBlue => {
-                            state.mandelbrot.lock().unwrap().sample.move_into_bounds(&frame.bounds);
+                            state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds);
                             navigate(&preserve_log_level(format!("/tokens/{}", frame.id)), Default::default());
                         }
                         mandelbrot_explorer::FrameColor::Yellow |

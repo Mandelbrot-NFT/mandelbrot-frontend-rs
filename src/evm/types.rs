@@ -26,7 +26,7 @@ impl Tokenizable for TokenizableBigFloat {
     }
 
     fn into_token(self) -> Token {
-        if let Ok((sign, digits, exponent)) = (&*self * BigFloat::from(BigFloat::from(16f64.powf(63.0)))).convert_to_radix(Radix::Hex) {
+        if let Ok((_, digits, exponent)) = (&*self * BigFloat::from(BigFloat::from(16f64.powf(63.0)))).convert_to_radix(Radix::Hex) {
             let s: String = digits.into_iter().map(|d| format!("{d:x}")).collect();
             U256::from_str_radix(&s[..64.min(exponent as usize)], 16).unwrap()
         } else {
