@@ -42,14 +42,11 @@ struct ControllerParams {
 
 
 #[component]
-pub fn Controller(
-    cx: Scope,
-    address: Signal<Option<Address>>,
-) -> impl IntoView {
-    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>(cx);
-    let web3 = expect_context::<Web3<Either<Eip1193, Http>>>(cx);
-    let handle_error = expect_context::<WriteSignal<Option<contracts::Error>>>(cx);
-    let navigate = use_navigate(cx);
+pub fn Controller(address: Signal<Option<Address>>) -> impl IntoView {
+    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
+    let web3 = expect_context::<Web3<Either<Eip1193, Http>>>();
+    let handle_error = expect_context::<WriteSignal<Option<contracts::Error>>>();
+    let navigate = use_navigate();
 
     let state = State {
         address: address.clone(),
@@ -57,12 +54,12 @@ pub fn Controller(
         erc1155_contract: ERC1155Contract::new(&web3, Arc::new({
             move |error| handle_error.set(Some(error))
         })),
-        nav_history: create_rw_signal(cx, Vec::new()),
-        children: create_rw_signal(cx, HashMap::new()),
-        bids: create_rw_signal(cx, HashMap::new()),
+        nav_history: create_rw_signal(Vec::new()),
+        children: create_rw_signal(HashMap::new()),
+        bids: create_rw_signal(HashMap::new()),
     };
 
-    let params = use_params::<ControllerParams>(cx);
+    let params = use_params::<ControllerParams>();
     let token_id = move || {
         if let Ok(params) = params.get() {
             params.token_id
@@ -71,7 +68,7 @@ pub fn Controller(
         }
     };
 
-    let query = use_query_map(cx);
+    let query = use_query_map();
     let preserve_log_level = move |uri| {
         if let Some(log_level) = query.get_untracked().get("RUST_LOG") {
             format!("{uri}?RUST_LOG={log_level}")
@@ -81,7 +78,7 @@ pub fn Controller(
     };
 
     // query tokens and bids
-    create_effect(cx, {
+    create_effect({
         let state = state.clone();
         let token_id = token_id.clone();
         move |_| {
@@ -93,7 +90,7 @@ pub fn Controller(
                     state.erc1155_contract.get_children_metadata(token_id).await,
                     state.erc1155_contract.get_bids(token_id).await
                 ) {
-                    cx.batch(|| {
+                    batch(|| {
                         state.nav_history.update(|nav_history| {
                             nav_history.clear();
                             nav_history.extend(tokens.into_iter().rev());
@@ -108,17 +105,17 @@ pub fn Controller(
                         });
                     });
                 } else {
-                    use_navigate(cx)(&preserve_log_level("/tokens/1".into()), Default::default());
+                    use_navigate()(&preserve_log_level("/tokens/1".into()), Default::default());
                 }
             });
         }
     });
 
-    let first = store_value(cx, true);
-    create_effect(cx, {
+    let first = store_value(true);
+    create_effect({
         let state = state.clone();
         move |_| {
-            if first() {
+            if first.get_value() {
                 state.nav_history.with(|nav_history| {
                     if let Some(token) = nav_history.last() {
                         first.set_value(false);
@@ -179,8 +176,8 @@ pub fn Controller(
     }));
 
     // check ownership
-    create_effect(cx, move |_| {
-        cx.batch(move || {
+    create_effect(move |_| {
+        batch(move || {
             state.children.track();
             state.bids.track();
             state.nav_history.track();
@@ -199,7 +196,7 @@ pub fn Controller(
     });
 
     // update frames
-    create_effect(cx, {
+    create_effect({
         let state = state.clone();
         move |_| {
             let mandelbrot = &mut state.mandelbrot.lock().unwrap();
@@ -214,7 +211,7 @@ pub fn Controller(
         }
     });
 
-    let burn_token = create_action(cx, {
+    let burn_token = create_action({
         let state = state.clone();
         move |token_id: &u128| {
             let state = state.clone();
@@ -253,7 +250,7 @@ pub fn Controller(
     //     }
     // });
 
-    view! { cx,
+    view! {
         {
             let state = state.clone();
             move || {
@@ -261,12 +258,12 @@ pub fn Controller(
                     let token = token.clone();
                     let token_id = token.token_id;
                     let minimum_price = token.minimum_price;
-                    view! { cx,
+                    view! {
                         <p>{format!("NFT id: {}", token_id)}</p>
                         <p>{format!("Owner: {}", token.owner)}</p>
                         <p>{format!("Locked FUEL: {}", token.locked_fuel)}</p>
                         <p>{format!("Minimum bid: {}", minimum_price)}</p>
-                        <Show when=move || address.get().is_some() fallback=|_| {}>
+                        <Show when=move || address.get().is_some() fallback=|| {}>
                             <Button on_click=move |_| burn_token.dispatch(token_id)>"Burn"</Button>
                         </Show>
                     }
@@ -276,19 +273,19 @@ pub fn Controller(
             }
         }
         {
-            view! { cx,
-                <Show when=move || address.get().is_some() fallback=|_| {}>
+            view! {
+                <Show when=move || address.get().is_some() fallback=|| {}>
                     {
                         let state = state.clone();
-                        view! { cx,
+                        view! {
                             <Separator/>
                             <Auction
                                 erc1155_contract=state.erc1155_contract.clone()
                                 address
-                                token=Signal::derive(cx, move || state.nav_history.get().last().cloned())
+                                token=Signal::derive(move || state.nav_history.get().last().cloned())
                             />
                             <Separator/>
-                            <Show when=move || {(state.bids)().len() > 0} fallback=|_| {}>
+                            <Show when=move || {state.bids.get().len() > 0} fallback=|| {}>
                                 <Bids
                                     erc1155_contract=state.erc1155_contract.clone()
                                     address

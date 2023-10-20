@@ -11,16 +11,16 @@ console_log = "1.0.0"
 ethabi = "18.0.0"
 eyre = "0.6.8"
 jsonrpc-core = "18.0.0"
-leptos = { version = "0.4.10", features = ["csr", "nightly"] }
+leptos = { version = "0.5.1", features = ["csr"] }
 log = "0.4.17"
 mandelbrot-explorer = { version = "0.1.0", path = "mandelbrot-explorer-rs" }
 wasm-bindgen = "0.2.87"
 web-sys = { version = "0.3.60", features = ["Screen", "Window"] }
 web3 = { git = "https://github.com/platonfloria/rust-web3.git", branch="feature/transport-either-to-support-wasm", version = "0.20.0", default-features = false, features = ["wasm", "eip-1193"] }
-leptos-ethereum-provider = { git = "https://github.com/platonfloria/leptos-ethereum-provider.git", version = "0.1.0" }
-leptonic = { git = "https://github.com/lpotthast/leptonic.git", rev = "440a9dee67aef75c4412f6d28b23593b7931dc95" }
-leptos_router = { version = "0.4.10", features = ["csr", "nightly"] }
+leptos-ethereum-provider = { version = "0.1.0", path = "../../opensource/leptos-ethereum-provider" }
+leptonic = { git = "https://github.com/lpotthast/leptonic.git", version = "0.3.0-rc1" }
+leptos_router = { version = "0.5.1", features = ["csr"] }
 
 [build-dependencies]
-leptonic-theme = { git = "https://github.com/lpotthast/leptonic.git", rev = "440a9dee67aef75c4412f6d28b23593b7931dc95" }
 leptos-tiptap-build = "0.2.2"
+leptonic-theme = { git = "https://github.com/lpotthast/leptonic.git", version = "0.3.0-rc1" }

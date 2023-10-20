@@ -32,5 +32,5 @@ fn main() {
         .and_then(|x| x.parse().ok())
         .unwrap_or(log::Level::Error);
     console_log::init_with_level(level).expect("could not initialize logger");
-    mount_to_body(|cx| view! { cx,  <App/> })
+    mount_to_body(|| view! { <App/> })
 }

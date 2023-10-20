@@ -86,6 +86,13 @@ pub struct Metadata {
     pub selected: bool,
 }
 
+impl PartialEq for Metadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.token_id == other.token_id &&
+            self.selected == other.selected
+    }
+}
+
 impl Tokenizable for Metadata {
     fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
         match token {

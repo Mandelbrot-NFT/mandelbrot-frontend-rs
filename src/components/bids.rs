@@ -10,12 +10,11 @@ use crate::evm::{types::Metadata, contracts::ERC1155Contract};
 
 #[component]
 pub fn Bids(
-    cx: Scope,
     erc1155_contract: ERC1155Contract,
     address: Signal<Option<Address>>,
     bids: RwSignal<HashMap<u128, Metadata>>,
 ) -> impl IntoView {
-    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>(cx);
+    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
 
     let toggle_bid = {
         move |bid_id, state_| {
@@ -27,7 +26,7 @@ pub fn Bids(
         }
     };
 
-    let approve_bids = create_action(cx, {
+    let approve_bids = create_action({
         let erc1155_contract = erc1155_contract.clone();
         move |_| {
             let erc1155_contract = erc1155_contract.clone();
@@ -44,7 +43,7 @@ pub fn Bids(
         }
     });
 
-    let delete_bid = create_action(cx, {
+    let delete_bid = create_action({
         let erc1155_contract = erc1155_contract.clone();
         move |bid_id: &u128| {
             let erc1155_contract = erc1155_contract.clone();
@@ -67,27 +66,33 @@ pub fn Bids(
         }
     };
 
-    let sorted_bids = move || {
+    let sorted_bids = create_memo(move |_| {
         let mut bids: Vec<Metadata> = bids.get().values().map(|bid| bid.clone()).collect();
         bids.sort_by(|bid_a, bid_b| bid_b.locked_fuel.partial_cmp(&bid_a.locked_fuel).unwrap());
         bids
-    };
+    });
     let total_approve_amount = move || {
         bids.get().values().filter(|bid| bid.selected).map(|bid| bid.locked_fuel).sum::<f64>()
     };
 
-    view! { cx,
+    view! {
         <p>"Bids:"</p>
         <Box id="content">
             <For
-                each=move || sorted_bids()
+                each=move || sorted_bids.get()
                 key=|bid| bid.token_id
-                view={
-                    move |cx, bid| view! { cx,
+                children={
+                    move |bid| view! {
                         <p>
                             <Toggle
-                                state=Signal::derive(cx, move || bid.selected)
-                                set_state=create_callback(cx, move |state: bool| toggle_bid(bid.token_id, state))
+                                state=Signal::derive(move || {
+                                    if let Some(bid) = sorted_bids.get().iter().find(|bid_| bid_.token_id == bid.token_id) {
+                                        bid.selected
+                                    } else {
+                                        false
+                                    }
+                                })
+                                set_state=move |state: bool| toggle_bid(bid.token_id, state)
                                 variant=ToggleVariant::Stationary
                             />
                             {format!("{} {:?}", bid.locked_fuel.to_string(), bid.owner)}

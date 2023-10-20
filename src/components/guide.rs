@@ -3,8 +3,8 @@ use leptos::*;
 
 
 #[component]
-pub fn Guide(cx: Scope) -> impl IntoView {
-    view! { cx,
+pub fn Guide() -> impl IntoView {
+    view! {
         <Box id="content">
             <h1>{ "Welcome to Mandelbrot NFT!" }</h1>
             <p>{ "This decentralized application allows you to interact with the Mandelbrot NFT ecosystem and create, trade, and

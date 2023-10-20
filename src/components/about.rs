@@ -3,8 +3,8 @@ use leptos::*;
 
 
 #[component]
-pub fn About(cx: Scope) -> impl IntoView {
-    view! { cx,
+pub fn About() -> impl IntoView {
+    view! {
         <iframe
             width="100%"
             src="https://www.youtube.com/embed/OlD2rcm971U"
