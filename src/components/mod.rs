@@ -1,4 +1,5 @@
 pub mod about;
+pub mod account;
 pub mod auction;
 pub mod app;
 pub mod balance;

@@ -2,12 +2,13 @@ use std::{sync::{Arc, Mutex}, rc::Rc, cell::RefCell};
 
 use leptonic::prelude::*;
 use leptos::*;
-use leptos_ethereum_provider::{AccountLabel, ConnectButton, EthereumContextProvider};
+use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider};
 use mandelbrot_explorer::ISample;
 use wasm_bindgen::JsCast;
 
 use super::{
     about::About,
+    account::{Account, AccountButton},
     blockchain::Blockchain,
     guide::Guide,
     mandelbrot::Mandelbrot,
@@ -37,33 +38,46 @@ pub fn App() -> impl IntoView {
         },
     )));
     provide_context(interface);
+    
+    let account_open = create_rw_signal(false);
+    let fuel_balance = create_rw_signal(0.0);
 
-    {
-        let owner = Owner::current();
-        view! {
-            <Root default_theme=LeptonicTheme::default()>
-                <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                    <Mandelbrot
-                        size=Signal::derive(move || (get_height.get(), get_height.get()))
-                    />
-                    <Tabs mount=Mount::Once>
-                        <Tab name="dapp" label="DApp".into_view()>
-                            <EthereumContextProvider>
-                                <ConnectButton/>
-                                <AccountLabel/>
-                                <Separator/>
+    view! {
+        <Root default_theme=LeptonicTheme::default()>
+            <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
+                <Mandelbrot
+                    size=Signal::derive(move || (get_height.get(), get_height.get()))
+                />
+                <EthereumContextProvider>
+                    <Box style="position: relative; border: width: 100%; overflow: auto;">
+                        <AppBar height=Size::Em(3.0) style="z-index: 1; background: var(--brand-color); color: white;">
+                            <H3 style="margin-left: 1em; color: white;">"Mandelbrot NFT"</H3>
+                            <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(1.0) style="margin-right: 1em">
+                                <ConnectButton connected_html=view! {
+                                    <AccountButton
+                                        balance=fuel_balance.read_only()
+                                        on_click=move |_| account_open.update(|account_open| {
+                                            *account_open = !*account_open;
+                                        })
+                                    />
+                                }/>
+                            </Stack>
+                        </AppBar>
+                        <Tabs mount=Mount::Once>
+                            <Tab name="dapp" label="DApp".into_view()>
                                 <Blockchain/>
-                            </EthereumContextProvider>
-                        </Tab>
-                        <Tab name="description" label="Description".into_view()>
-                            <About/>
-                        </Tab>
-                        <Tab name="how_to_use" label="How to Use".into_view()>
-                            <Guide/>
-                        </Tab>
-                    </Tabs>
-                </Stack>
-            </Root>
-        }
+                            </Tab>
+                            <Tab name="description" label="Description".into_view()>
+                                <About/>
+                            </Tab>
+                            <Tab name="how_to_use" label="How to Use".into_view()>
+                                <Guide/>
+                            </Tab>
+                        </Tabs>
+                        <Account fuel_balance open=account_open/>
+                    </Box>
+                </EthereumContextProvider>
+            </Stack>
+        </Root>
     }
 }

@@ -3,18 +3,19 @@ use std::sync::Arc;
 use eyre::Result;
 use leptonic::prelude::*;
 use leptos::*;
+use leptos_ethereum_provider::{EthereumInterface, AccountLabel};
 use web3::{
     transports::{eip_1193::Eip1193, Either, Http},
     types::Address,
     Web3
 };
 
-use crate::evm::contracts::{
+use crate::{evm::contracts::{
     self,
     ERC1155Contract,
     Wrapped1155FactoryContract,
     ERC20Contract
-};
+}, chain::sepolia_testnet};
 
 
 async fn get_balance(
@@ -27,12 +28,29 @@ async fn get_balance(
 
 #[component]
 pub fn Balance(
-    address: Signal<Option<Address>>,
+    fuel_balance: RwSignal<f64>,
 ) -> impl IntoView {
-    let web3 = expect_context::<Web3<Either<Eip1193, Http>>>();
+    let ethereum = expect_context::<Option<EthereumInterface>>();
+    let transport = if let Some(ethereum) = &ethereum {
+        Either::Left(Eip1193::new(ethereum.provider.clone()))
+    } else {
+        Either::Right(Http::new(&sepolia_testnet().rpc_urls[0]).unwrap())
+    };
+    let web3 = Web3::new(transport.clone());
     let handle_error = expect_context::<WriteSignal<Option<contracts::Error>>>();
 
-    let (fuel_balance, set_fuel_balance) = create_signal(0.0);
+    let address = Signal::derive(move || {
+        if let Some(ethereum) = &ethereum {
+            if let Some(address) = ethereum.address().get() {
+                Some(address.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    });
+
     let (wfuel_balance, set_wfuel_balance) = create_signal(0.0);
     let (wrap_amount, set_wrap_amount) = create_signal(0.0);
     let (unwrap_amount, set_unwrap_amount) = create_signal(0.0);
@@ -52,8 +70,8 @@ pub fn Balance(
             let erc20_contract = erc20_contract.clone();
             async move {
                 if let Some(address) = address.get_untracked() {
-                    if let Ok((fuel_balance, wfuel_balance)) = get_balance(address, erc1155_contract, erc20_contract).await {
-                        set_fuel_balance.set(fuel_balance);
+                    if let Ok((fuel_balance_, wfuel_balance)) = get_balance(address, erc1155_contract, erc20_contract).await {
+                        fuel_balance.set(fuel_balance_);
                         set_wfuel_balance.set(wfuel_balance);
                     }
                 }
@@ -97,6 +115,7 @@ pub fn Balance(
 
     view! {
         <div>
+            <AccountLabel/>
             <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
                 <Button on_click=move |_| refresh_balance.dispatch(())>"Refresh balance"</Button>
                 <a href={uniswap_link} target="_blank">

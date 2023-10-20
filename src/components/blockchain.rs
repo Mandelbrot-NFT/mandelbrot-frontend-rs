@@ -10,10 +10,7 @@ use web3::{
 use crate::{
     chain::sepolia_testnet,
     evm::contracts,
-    components::{
-        balance::Balance,
-        controller::Controller,
-    }
+    components::controller::Controller,
 };
 
 
@@ -66,15 +63,6 @@ pub fn Blockchain() -> impl IntoView {
     provide_context(set_error);
 
     view! {
-        <Show
-            when=move || match transport {
-                Either::Left(_) => address.get().is_some(),
-                _ => false
-            }
-            fallback=|| {}
-        >
-            <Balance address/>
-        </Show>
         <Router>
             <Routes>
                 <Route path="/tokens/:token_id" view=move || view! { <Controller address/> }/>
