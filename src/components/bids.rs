@@ -1,22 +1,20 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::collections::HashMap;
 
 use leptonic::prelude::*;
 use leptos::*;
 use mandelbrot_explorer::FrameColor;
 
 use crate::{
-    components::blockchain::Address,
-    evm::{types::Metadata, contracts::ERC1155Contract}
+    evm::{types::Metadata, contracts::ERC1155Contract},
+    state::State,
 };
 
 
 #[component]
 pub fn Bids(
-    erc1155_contract: ERC1155Contract,
     bids: RwSignal<HashMap<u128, Metadata>>,
 ) -> impl IntoView {
-    let address = expect_context::<Address>().0;
-    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
+    let state = use_context::<State>().unwrap();
 
     let toggle_bid = {
         move |bid_id, state_| {
@@ -29,11 +27,11 @@ pub fn Bids(
     };
 
     let approve_bids = create_action({
-        let erc1155_contract = erc1155_contract.clone();
+        let erc1155_contract = state.erc1155_contract.clone();
         move |_| {
             let erc1155_contract = erc1155_contract.clone();
             async move {
-                if let Some(address) = address.get_untracked() {
+                if let Some(address) = state.address.get_untracked() {
                     let selected_bids: Vec<u128> = bids.get_untracked()
                         .values()
                         .filter(|bid| bid.selected)
@@ -46,12 +44,12 @@ pub fn Bids(
     });
 
     let delete_bid = create_action({
-        let erc1155_contract = erc1155_contract.clone();
+        let erc1155_contract = state.erc1155_contract.clone();
         move |bid_id: &u128| {
             let erc1155_contract = erc1155_contract.clone();
             let bid_id = bid_id.clone();
             async move {
-                if let Some(address) = address.get_untracked() {
+                if let Some(address) = state.address.get_untracked() {
                     erc1155_contract.delete_bid(address, bid_id).await;
                 }
             }
@@ -63,7 +61,7 @@ pub fn Bids(
         move |bid_id| {
             if let Some(bid) = bids.get().get(&bid_id) {
                 let frame = bid.to_frame(FrameColor::Blue);
-                mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+                state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
             }
         }
     };

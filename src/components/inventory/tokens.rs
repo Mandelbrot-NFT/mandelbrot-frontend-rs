@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::collections::HashMap;
 
 use leptonic::prelude::*;
 use leptos::*;
@@ -6,26 +6,24 @@ use leptos_router::*;
 use mandelbrot_explorer::FrameColor;
 
 use crate::{
-    components::blockchain::Address,
-    evm::{types::Metadata, contracts::ERC1155Contract}
+    evm::types::Metadata,
+    state::State,
 };
 
 
 #[component]
 pub fn Tokens(
-    erc1155_contract: ERC1155Contract,
     tokens: RwSignal<HashMap<u128, Metadata>>,
 ) -> impl IntoView {
-    let address = expect_context::<Address>().0;
-    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
+    let state = use_context::<State>().unwrap();
 
     let burn_token = create_action({
-        let erc1155_contract = erc1155_contract.clone();
+        let erc1155_contract = state.erc1155_contract.clone();
         move |token_id: &u128| {
             let erc1155_contract = erc1155_contract.clone();
             let token_id = token_id.clone();
             async move {
-                if let Some(address) = address.get_untracked() {
+                if let Some(address) = state.address.get_untracked() {
                     if let Some(_) = erc1155_contract.burn(address, token_id).await {
                         tokens.update(|tokens| {
                             tokens.remove(&token_id);
@@ -49,7 +47,7 @@ pub fn Tokens(
         if let Some(token) = tokens.get().get(&token_id) {
             use_navigate()(&preserve_log_level(format!("/tokens/{}", token_id)), Default::default());
             let frame = token.to_frame(FrameColor::Blue);
-            mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+            state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
         }
     };
 
@@ -60,11 +58,11 @@ pub fn Tokens(
         edited_token.set(Some(token))
     };
     let edit_token_submit = create_action({
-        let erc1155_contract = erc1155_contract.clone();
+        let erc1155_contract = state.erc1155_contract.clone();
         move |_| {
             let erc1155_contract = erc1155_contract.clone();
             async move {
-                if let (Some(address), Some(token)) = (address.get_untracked(), edited_token.get_untracked()) {
+                if let (Some(address), Some(token)) = (state.address.get_untracked(), edited_token.get_untracked()) {
                     erc1155_contract.set_minimum_bid(address, token.token_id, bids_minimum_price.get_untracked()).await;
                 }
                 edited_token.set(None);
@@ -84,10 +82,10 @@ pub fn Tokens(
                             children={
                                 move |token| view! {
                                     <p>
+                                        <Button on_click={let zoom_token = zoom_token.clone(); move |_| zoom_token(token.token_id)}>"Zoom"</Button>
                                         {format!("Token Id: {} Locked FUEL: {}", token.token_id, token.locked_fuel.to_string())}
                                         <Button on_click={let token = token.clone(); move |_| edit_token(token.clone())}>"Edit"</Button>
                                         <Button on_click=move |_| burn_token.dispatch(token.token_id)>"Burn"</Button>
-                                        <Button on_click={let zoom_token = zoom_token.clone(); move |_| zoom_token(token.token_id)}>"Zoom"</Button>
                                     </p>
                                 }
                             }

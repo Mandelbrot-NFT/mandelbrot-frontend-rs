@@ -1,22 +1,15 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
 use leptonic::prelude::*;
 use leptos::*;
 use leptos_router::*;
 
 use crate::{
-    evm::{
-        contracts::{self, ERC1155Contract},
-        types::Metadata,
-    },
     components::{
         auction::Auction,
         bids::Bids,
-        blockchain::{Address, Web3},
     },
+    state::State,
 };
 
 
@@ -34,16 +27,6 @@ pub fn Explorer() -> impl IntoView {
 }
 
 
-#[derive(Clone)]
-struct State {
-    mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
-    erc1155_contract: ERC1155Contract,
-    nav_history: RwSignal<Vec<Metadata>>,
-    children: RwSignal<HashMap<u128, Metadata>>,
-    bids: RwSignal<HashMap<u128, Metadata>>,
-}
-
-
 #[derive(Clone, Params, PartialEq)]
 struct ControllerParams {
     token_id: Option<u128>
@@ -52,21 +35,8 @@ struct ControllerParams {
 
 #[component]
 fn Controller() -> impl IntoView {
-    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
-    let web3 = expect_context::<Web3>().0;
-    let address = expect_context::<Address>().0;
-    let handle_error = expect_context::<WriteSignal<Option<contracts::Error>>>();
+    let state = use_context::<State>().unwrap();
     let navigate = use_navigate();
-
-    let state = State {
-        mandelbrot: mandelbrot.clone(),
-        erc1155_contract: ERC1155Contract::new(&web3, Arc::new({
-            move |error| handle_error.set(Some(error))
-        })),
-        nav_history: create_rw_signal(Vec::new()),
-        children: create_rw_signal(HashMap::new()),
-        bids: create_rw_signal(HashMap::new()),
-    };
 
     let params = use_params::<ControllerParams>();
     let token_id = move || {
@@ -100,15 +70,15 @@ fn Controller() -> impl IntoView {
                     state.erc1155_contract.get_bids(token_id).await
                 ) {
                     batch(|| {
-                        state.nav_history.update(|nav_history| {
+                        state.explorer.nav_history.update(|nav_history| {
                             nav_history.clear();
                             nav_history.extend(tokens.into_iter().rev());
                         });
-                        state.children.update(|children_| {
+                        state.explorer.children.update(|children_| {
                             children_.clear();
                             children_.extend(children.into_iter().map(|m| (m.token_id, m)));
                         });
-                        state.bids.update(|bids_| {
+                        state.explorer.bids.update(|bids_| {
                             bids_.clear();
                             bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
                         });
@@ -125,7 +95,7 @@ fn Controller() -> impl IntoView {
         let state = state.clone();
         move |_| {
             if first.get_value() {
-                state.nav_history.with(|nav_history| {
+                state.explorer.nav_history.with(|nav_history| {
                     if let Some(token) = nav_history.last() {
                         first.set_value(false);
                         state.mandelbrot.lock().unwrap().move_into_bounds(&token.to_frame(mandelbrot_explorer::FrameColor::Blue).bounds);
@@ -150,14 +120,14 @@ fn Controller() -> impl IntoView {
                         }
                         mandelbrot_explorer::FrameColor::Yellow |
                         mandelbrot_explorer::FrameColor::Lemon => {
-                            state.bids.update(|bids| {
+                            state.explorer.bids.update(|bids| {
                                 if let Some(bid) = bids.get_mut(&frame.id) {
                                     bid.selected = true;
                                 }
                             });
                         }
                         mandelbrot_explorer::FrameColor::Green => {
-                            state.bids.update(|bids| {
+                            state.explorer.bids.update(|bids| {
                                 if let Some(bid) = bids.get_mut(&frame.id) {
                                     bid.selected = false;
                                 }
@@ -179,7 +149,7 @@ fn Controller() -> impl IntoView {
         }
     });
 
-    mandelbrot.lock().unwrap().frame_event_callback = Some(Arc::new({
+    state.mandelbrot.lock().unwrap().frame_event_callback = Some(Arc::new({
         let on_frame_event = on_frame_event.clone();
         move |frame_event| on_frame_event(frame_event)
     }));
@@ -187,17 +157,17 @@ fn Controller() -> impl IntoView {
     // check ownership
     create_effect(move |_| {
         batch(move || {
-            state.children.track();
-            state.bids.track();
-            state.nav_history.track();
-            if let Some(address) = address.get() {
-                state.children.update(|children|
+            state.explorer.children.track();
+            state.explorer.bids.track();
+            state.explorer.nav_history.track();
+            if let Some(address) = state.address.get() {
+                state.explorer.children.update(|children|
                     children.values_mut().for_each(|token| token.owned = token.owner == address)
                 );
-                state.bids.update(|bids|
+                state.explorer.bids.update(|bids|
                     bids.values_mut().for_each(|bid| bid.owned = bid.owner == address)
                 );
-                state.nav_history.update(|nav_history|
+                state.explorer.nav_history.update(|nav_history|
                     nav_history.iter_mut().for_each(|token| token.owned = token.owner == address)
                 );
             }
@@ -211,9 +181,9 @@ fn Controller() -> impl IntoView {
             let mandelbrot = &mut state.mandelbrot.lock().unwrap();
             let frames = &mut mandelbrot.frames;
             frames.clear();
-            frames.extend(state.children.get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
-            frames.extend(state.bids.get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)));
-            frames.extend(state.nav_history.get().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
+            frames.extend(state.explorer.children.get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
+            frames.extend(state.explorer.bids.get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)));
+            frames.extend(state.explorer.nav_history.get().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
             if let Some(redraw) = &mandelbrot.redraw {
                 redraw();
             }
@@ -226,7 +196,7 @@ fn Controller() -> impl IntoView {
             let state = state.clone();
             let token_id = *token_id;
             async move {
-                if let Some(address) = address.get_untracked() {
+                if let Some(address) = state.address.get_untracked() {
                     state.erc1155_contract.burn(address, token_id).await;
                 }
             }
@@ -263,7 +233,7 @@ fn Controller() -> impl IntoView {
         {
             let state = state.clone();
             move || {
-                if let Some(token) = state.nav_history.get().last() {
+                if let Some(token) = state.explorer.nav_history.get().last() {
                     let token = token.clone();
                     let token_id = token.token_id;
                     let minimum_price = token.minimum_price;
@@ -272,7 +242,7 @@ fn Controller() -> impl IntoView {
                         <p>{format!("Owner: {}", token.owner)}</p>
                         <p>{format!("Locked FUEL: {}", token.locked_fuel)}</p>
                         <p>{format!("Minimum bid: {}", minimum_price)}</p>
-                        <Show when=move || address.get().is_some() fallback=|| {}>
+                        <Show when=move || state.address.get().is_some() fallback=|| {}>
                             <Button on_click=move |_| burn_token.dispatch(token_id)>"Burn"</Button>
                         </Show>
                     }
@@ -283,20 +253,18 @@ fn Controller() -> impl IntoView {
         }
         {
             view! {
-                <Show when=move || address.get().is_some() fallback=|| {}>
+                <Show when=move || state.address.get().is_some() fallback=|| {}>
                     {
                         let state = state.clone();
                         view! {
                             <Separator/>
                             <Auction
-                                erc1155_contract=state.erc1155_contract.clone()
-                                token=Signal::derive(move || state.nav_history.get().last().cloned())
+                                token=Signal::derive(move || state.explorer.nav_history.get().last().cloned())
                             />
                             <Separator/>
-                            <Show when=move || {state.bids.get().len() > 0} fallback=|| {}>
+                            <Show when=move || {state.explorer.bids.get().len() > 0} fallback=|| {}>
                                 <Bids
-                                    erc1155_contract=state.erc1155_contract.clone()
-                                    bids=state.bids
+                                    bids=state.explorer.bids
                                 />
                             </Show>
                         }

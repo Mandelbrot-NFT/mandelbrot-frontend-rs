@@ -32,7 +32,7 @@ pub fn Account(
     open: RwSignal<bool>,
     fuel_balance: RwSignal<f64>,
 ) -> impl IntoView {
-    let ethereum = expect_context::<Option<EthereumInterface>>();
+    let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
 
     let disconnect = {
         move |_| {

@@ -1,6 +1,7 @@
 mod chain;
 mod components;
 mod evm;
+mod state;
 
 use leptos::*;
 

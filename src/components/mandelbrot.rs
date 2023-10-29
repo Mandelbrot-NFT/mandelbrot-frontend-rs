@@ -4,8 +4,10 @@ use leptos::*;
 
 
 #[component]
-pub fn Mandelbrot(size: Signal<(f64, f64)>) -> impl IntoView {
-    let interface = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
+pub fn Mandelbrot(
+    interface: Arc<Mutex<mandelbrot_explorer::Interface>>,
+    size: Signal<(f64, f64)>,
+) -> impl IntoView {
     let canvas = create_node_ref::<html::Canvas>();
     let window = web_sys::window().unwrap();
     create_effect({

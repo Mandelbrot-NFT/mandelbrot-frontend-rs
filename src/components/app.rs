@@ -9,7 +9,7 @@ use wasm_bindgen::JsCast;
 use super::{
     about::About,
     account::{Account, AccountButton},
-    blockchain::Blockchain,
+    state::StateContextProvider,
     explorer::Explorer,
     guide::Guide,
     inventory::Inventory,
@@ -39,7 +39,6 @@ pub fn App() -> impl IntoView {
             length: 360.0,
         },
     )));
-    provide_context(interface);
     
     let account_open = create_rw_signal(false);
     let fuel_balance = create_rw_signal(0.0);
@@ -48,10 +47,11 @@ pub fn App() -> impl IntoView {
         <Root default_theme=LeptonicTheme::default()>
             <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6) style="align-items: stretch;">
                 <Mandelbrot
+                    interface=interface.clone()
                     size=Signal::derive(move || (get_height.get(), get_height.get()))
                 />
                 <EthereumContextProvider>
-                    <Blockchain>
+                    <StateContextProvider mandelbrot=interface.clone()>
                         <Box style="position: relative; border: width: 100%; overflow: auto;">
                             <AppBar height=Size::Em(3.0) style="z-index: 1; background: var(--brand-color); color: white;">
                                 <H3 style="margin-left: 1em; color: white;">"Mandelbrot NFT"</H3>
@@ -82,7 +82,7 @@ pub fn App() -> impl IntoView {
                             </Tabs>
                             <Account fuel_balance open=account_open/>
                         </Box>
-                    </Blockchain>
+                    </StateContextProvider>
                 </EthereumContextProvider>
             </Stack>
         </Root>

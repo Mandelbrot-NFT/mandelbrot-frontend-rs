@@ -1,30 +1,26 @@
-use std::sync::{Arc, Mutex};
-
 use leptonic::prelude::*;
 use leptos::*;
 
 use crate::{
-    components::blockchain::Address,
     evm::{
         contracts::ERC1155Contract,
         types::{Field, Metadata},
-    }
+    },
+    state::State,
 };
 
 
 #[component]
 pub fn Auction(
-    erc1155_contract: ERC1155Contract,
     token: Signal<Option<Metadata>>,
 ) -> impl IntoView {
-    let address = expect_context::<Address>().0;
-    let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
+    let state = use_context::<State>().unwrap();
     let (max_iterations, set_max_iterations) = create_signal(40.0);
     let (offset, set_offset) = create_signal(0.0);
     let (length, set_length) = create_signal(360.0);
 
     create_effect({
-        let mandelbrot = mandelbrot.clone();
+        let mandelbrot = state.mandelbrot.clone();
         move |_| {
             let mut mandelbrot = mandelbrot.lock().unwrap();
             mandelbrot.coloring.max_iterations = (max_iterations.get() as f64).powi(2) as i32;
@@ -41,11 +37,11 @@ pub fn Auction(
 
     let create_bid = create_action({
         move |token_id| {
-            let erc1155_contract = erc1155_contract.clone();
-            let mandelbrot = mandelbrot.clone();
+            let erc1155_contract = state.erc1155_contract.clone();
+            let mandelbrot = state.mandelbrot.clone();
             let token_id = *token_id;
             async move {
-                if let Some(address) = address.get_untracked() {
+                if let Some(address) = state.address.get_untracked() {
                     let bounds = mandelbrot.lock().unwrap().sample.borrow().get_bounds();
                     erc1155_contract.bid(
                         address,

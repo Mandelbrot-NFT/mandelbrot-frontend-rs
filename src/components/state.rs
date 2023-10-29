@@ -1,3 +1,5 @@
+use std::{sync::{Arc, Mutex}, collections::HashMap};
+
 use leptonic::prelude::*;
 use leptos::*;
 use leptos_ethereum_provider::EthereumInterface;
@@ -5,7 +7,8 @@ use web3::transports::{eip_1193::Eip1193, Either, Http};
 
 use crate::{
     chain::sepolia_testnet,
-    evm::contracts,
+    evm::contracts::{self, ERC1155Contract},
+    state::{State, ExplorerState, InventoryState},
 };
 
 
@@ -13,24 +16,19 @@ use crate::{
 pub struct Web3(pub web3::Web3<Either<Eip1193, Http>>);
 
 
-#[derive(Clone, Debug)]
-pub struct Address(pub Signal<Option<web3::types::Address>>);
-
-
 #[component]
-pub fn Blockchain(children: Children) -> impl IntoView {
-    let ethereum = expect_context::<Option<EthereumInterface>>();
+pub fn StateContextProvider(
+    mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
+    children: Children
+) -> impl IntoView {
+    let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
     let transport = if let Some(ethereum) = &ethereum {
         Either::Left(Eip1193::new(ethereum.provider.clone()))
     } else {
         Either::Right(Http::new(&sepolia_testnet().rpc_urls[0]).unwrap())
     };
     let web3 = web3::Web3::new(transport);
-    provide_context(Web3(web3));
-    let address = Signal::derive(move || {
-        ethereum.clone().and_then(|ethereum| ethereum.address().get())
-    });
-    provide_context(Address(address));
+    provide_context(Web3(web3.clone()));
 
     let (error, set_error) = create_signal(None);
     let error_message = create_memo(move |_| {
@@ -57,6 +55,26 @@ pub fn Blockchain(children: Children) -> impl IntoView {
         })
     });
     provide_context(set_error);
+
+    let state = State {
+        mandelbrot: mandelbrot.clone(),
+        address: Signal::derive(move || {
+            ethereum.clone().and_then(|ethereum| ethereum.address().get())
+        }),
+        erc1155_contract: ERC1155Contract::new(&web3, Arc::new({
+            move |error| set_error.set(Some(error))
+        })),
+        explorer: ExplorerState {
+            nav_history: create_rw_signal(Vec::new()),
+            children: create_rw_signal(HashMap::new()),
+            bids: create_rw_signal(HashMap::new()),
+        },
+        inventory: InventoryState {
+            tokens: create_rw_signal(HashMap::new()),
+            bids: create_rw_signal(HashMap::new()),
+        },
+    };
+    provide_context(state);
 
     view! {
         { children() }
