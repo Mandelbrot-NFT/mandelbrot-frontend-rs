@@ -163,7 +163,8 @@ impl ERC1155Contract {
 
     pub async fn transfer_fuel(&self, from: Address, to: Address, amount: f64) -> Option<TransactionReceipt> {
         self.call_with_confirmations(
-            "safeTransferFrom", (
+            "safeTransferFrom",
+            (
                 from,
                 to,
                 FUEL,
@@ -182,8 +183,8 @@ impl ERC1155Contract {
         ).await
     }
 
-    pub async fn burn(&self, sender: Address, token_id: u128) -> Option<H256> {
-        self.call(
+    pub async fn burn(&self, sender: Address, token_id: u128) -> Option<TransactionReceipt> {
+        self.call_with_confirmations(
             "burn",
             (U256::from(token_id),),
             sender,
@@ -248,6 +249,17 @@ impl ERC1155Contract {
         Ok(result?)
     }
 
+    pub async fn get_owned_items(&self, owner: Address) -> Result<(Vec<Metadata>, Vec<Metadata>)> {
+        let result: web3::contract::Result<(Vec<Metadata>, Vec<Metadata>)> = self.contract.query(
+            "getOwnedItems",
+            (owner,),
+            None,
+            Options::default(),
+            None
+        ).await;
+        Ok(result?)
+    }
+
     pub async fn approve_bid(&self, sender: Address, bid_id: u128) -> Option<H256> {
         self.call(
             "approve",
@@ -264,12 +276,24 @@ impl ERC1155Contract {
         ).await
     }
 
-    pub async fn delete_bid(&self, sender: Address, bid_id: u128) -> Option<H256> {
-        self.call(
+    pub async fn delete_bid(&self, sender: Address, bid_id: u128) -> Option<TransactionReceipt> {
+        self.call_with_confirmations(
             "deleteBid",
             (U256::from(bid_id),),
             sender,
         ).await
+    }
+
+    pub async fn set_minimum_bid(&self, sender: Address, token_id: u128, minimum_bid: f64) -> Option<TransactionReceipt> {
+        self.call_with_confirmations(
+            "setminimumBid", // TODO: fix case typo
+            (
+                U256::from(token_id),
+                U256::from((minimum_bid * 10_f64.powi(18)) as u128),
+            ),
+            sender,
+        ).await
+
     }
 }
 
@@ -311,7 +335,8 @@ impl Wrapped1155FactoryContract {
 
     pub async fn unwrap(&self, recipient: Address, amount: f64) -> Option<TransactionReceipt> {
         self.call_with_confirmations(
-            "unwrap", (
+            "unwrap",
+            (
                 self.erc1155_address,
                 FUEL,
                 U256::from((amount * 10_f64.powi(18)) as u128),

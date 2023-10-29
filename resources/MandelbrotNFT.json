@@ -787,6 +787,148 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "getOwnedItems",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "parentId",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "left",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "bottom",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "right",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "top",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct MandelbrotNFT.Field",
+            "name": "field",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockedFuel",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "minimumBid",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "layer",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct MandelbrotNFT.MetadataView[]",
+        "name": "tokens",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "parentId",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "left",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "bottom",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "right",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "top",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct MandelbrotNFT.Field",
+            "name": "field",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockedFuel",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "minimumBid",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "layer",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct MandelbrotNFT.MetadataView[]",
+        "name": "bids",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "account",
         "type": "address"
       },

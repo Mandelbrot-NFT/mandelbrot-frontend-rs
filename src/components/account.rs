@@ -19,11 +19,7 @@ pub fn AccountButton(
             <button on:click=disconnect class="btn btn-primary connected">
                 <strong>"Balance: "</strong>
                 {
-                    move || view! {
-                        {
-                            format!("{:.2}", balance.get())
-                        }
-                    }
+                    move || format!("{:.2}", balance.get())
                 }
             </button>
         </div>

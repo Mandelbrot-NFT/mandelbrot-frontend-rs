@@ -28,15 +28,7 @@ pub fn Blockchain(children: Children) -> impl IntoView {
     let web3 = web3::Web3::new(transport);
     provide_context(Web3(web3));
     let address = Signal::derive(move || {
-        if let Some(ethereum) = &ethereum {
-            if let Some(address) = ethereum.address().get() {
-                Some(address.clone())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        ethereum.clone().and_then(|ethereum| ethereum.address().get())
     });
     provide_context(Address(address));
 

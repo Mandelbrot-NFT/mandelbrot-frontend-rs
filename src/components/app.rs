@@ -12,6 +12,7 @@ use super::{
     blockchain::Blockchain,
     explorer::Explorer,
     guide::Guide,
+    inventory::Inventory,
     mandelbrot::Mandelbrot,
 };
 
@@ -68,6 +69,9 @@ pub fn App() -> impl IntoView {
                             <Tabs mount=Mount::Once>
                                 <Tab name="dapp" label="Explore".into_view()>
                                     <Explorer/>
+                                </Tab>
+                                <Tab name="inventory" label="Inventory".into_view()>
+                                    <Inventory/>
                                 </Tab>
                                 <Tab name="description" label="Description".into_view()>
                                     <About/>

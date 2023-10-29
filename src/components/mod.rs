@@ -7,4 +7,5 @@ pub mod bids;
 pub mod blockchain;
 pub mod explorer;
 pub mod guide;
+pub mod inventory;
 pub mod mandelbrot;

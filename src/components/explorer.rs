@@ -51,7 +51,7 @@ struct ControllerParams {
 
 
 #[component]
-pub fn Controller() -> impl IntoView {
+fn Controller() -> impl IntoView {
     let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
     let web3 = expect_context::<Web3>().0;
     let address = expect_context::<Address>().0;
