@@ -6,11 +6,6 @@ use std::{
 use leptonic::prelude::*;
 use leptos::*;
 use leptos_router::*;
-use web3::{
-    transports::{eip_1193::Eip1193, Either, Http},
-    types::Address,
-    Web3,
-};
 
 use crate::{
     evm::{
@@ -20,13 +15,27 @@ use crate::{
     components::{
         auction::Auction,
         bids::Bids,
+        blockchain::{Address, Web3},
     },
 };
 
 
+#[component]
+pub fn Explorer() -> impl IntoView {
+    view! {
+        <Router>
+            <Routes>
+                <Route path="/tokens/:token_id" view=move || view! { <Controller/> }/>
+                // <Route path="/" view=move |cx| view! { cx, <Controller address/> }/>
+                <Route path="*" view=move || view! { <Controller/> }/>
+            </Routes>
+        </Router>
+    }
+}
+
+
 #[derive(Clone)]
 struct State {
-    address: Signal<Option<Address>>,
     mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
     erc1155_contract: ERC1155Contract,
     nav_history: RwSignal<Vec<Metadata>>,
@@ -42,14 +51,14 @@ struct ControllerParams {
 
 
 #[component]
-pub fn Controller(address: Signal<Option<Address>>) -> impl IntoView {
+pub fn Controller() -> impl IntoView {
     let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
-    let web3 = expect_context::<Web3<Either<Eip1193, Http>>>();
+    let web3 = expect_context::<Web3>().0;
+    let address = expect_context::<Address>().0;
     let handle_error = expect_context::<WriteSignal<Option<contracts::Error>>>();
     let navigate = use_navigate();
 
     let state = State {
-        address: address.clone(),
         mandelbrot: mandelbrot.clone(),
         erc1155_contract: ERC1155Contract::new(&web3, Arc::new({
             move |error| handle_error.set(Some(error))
@@ -181,7 +190,7 @@ pub fn Controller(address: Signal<Option<Address>>) -> impl IntoView {
             state.children.track();
             state.bids.track();
             state.nav_history.track();
-            if let Some(address) = state.address.get() {
+            if let Some(address) = address.get() {
                 state.children.update(|children|
                     children.values_mut().for_each(|token| token.owned = token.owner == address)
                 );
@@ -217,7 +226,7 @@ pub fn Controller(address: Signal<Option<Address>>) -> impl IntoView {
             let state = state.clone();
             let token_id = *token_id;
             async move {
-                if let Some(address) = state.address.get_untracked() {
+                if let Some(address) = address.get_untracked() {
                     state.erc1155_contract.burn(address, token_id).await;
                 }
             }
@@ -281,14 +290,12 @@ pub fn Controller(address: Signal<Option<Address>>) -> impl IntoView {
                             <Separator/>
                             <Auction
                                 erc1155_contract=state.erc1155_contract.clone()
-                                address
                                 token=Signal::derive(move || state.nav_history.get().last().cloned())
                             />
                             <Separator/>
                             <Show when=move || {state.bids.get().len() > 0} fallback=|| {}>
                                 <Bids
                                     erc1155_contract=state.erc1155_contract.clone()
-                                    address
                                     bids=state.bids
                                 />
                             </Show>

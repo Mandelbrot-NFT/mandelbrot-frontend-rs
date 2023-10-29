@@ -1,29 +1,32 @@
 use leptonic::prelude::*;
 use leptos::*;
-use leptos_router::*;
 use leptos_ethereum_provider::EthereumInterface;
-use web3::{
-    transports::{eip_1193::Eip1193, Either, Http},
-    Web3,
-};
+use web3::transports::{eip_1193::Eip1193, Either, Http};
 
 use crate::{
     chain::sepolia_testnet,
     evm::contracts,
-    components::controller::Controller,
 };
 
 
+#[derive(Clone, Debug)]
+pub struct Web3(pub web3::Web3<Either<Eip1193, Http>>);
+
+
+#[derive(Clone, Debug)]
+pub struct Address(pub Signal<Option<web3::types::Address>>);
+
+
 #[component]
-pub fn Blockchain() -> impl IntoView {
+pub fn Blockchain(children: Children) -> impl IntoView {
     let ethereum = expect_context::<Option<EthereumInterface>>();
     let transport = if let Some(ethereum) = &ethereum {
         Either::Left(Eip1193::new(ethereum.provider.clone()))
     } else {
         Either::Right(Http::new(&sepolia_testnet().rpc_urls[0]).unwrap())
     };
-    let web3 = Web3::new(transport.clone());
-    provide_context(web3.clone());
+    let web3 = web3::Web3::new(transport);
+    provide_context(Web3(web3));
     let address = Signal::derive(move || {
         if let Some(ethereum) = &ethereum {
             if let Some(address) = ethereum.address().get() {
@@ -35,6 +38,7 @@ pub fn Blockchain() -> impl IntoView {
             None
         }
     });
+    provide_context(Address(address));
 
     let (error, set_error) = create_signal(None);
     let error_message = create_memo(move |_| {
@@ -63,13 +67,7 @@ pub fn Blockchain() -> impl IntoView {
     provide_context(set_error);
 
     view! {
-        <Router>
-            <Routes>
-                <Route path="/tokens/:token_id" view=move || view! { <Controller address/> }/>
-                // <Route path="/" view=move |cx| view! { cx, <Controller address/> }/>
-                <Route path="*" view=move || view! { <Controller address/> }/>
-            </Routes>
-        </Router>
+        { children() }
         <Modal show_when=MaybeSignal::derive(move || error_message.get().is_some())>
             <ModalHeader><ModalTitle>"Error"</ModalTitle></ModalHeader>
             <ModalBody>{move || error_message.get().unwrap_or("".into())}</ModalBody>

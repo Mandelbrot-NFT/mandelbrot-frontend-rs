@@ -3,23 +3,21 @@ use std::sync::Arc;
 use eyre::Result;
 use leptonic::prelude::*;
 use leptos::*;
-use leptos_ethereum_provider::{EthereumInterface, AccountLabel};
-use web3::{
-    transports::{eip_1193::Eip1193, Either, Http},
-    types::Address,
-    Web3
-};
+use leptos_ethereum_provider::AccountLabel;
 
-use crate::{evm::contracts::{
-    self,
-    ERC1155Contract,
-    Wrapped1155FactoryContract,
-    ERC20Contract
-}, chain::sepolia_testnet};
+use crate::{
+    evm::contracts::{
+        self,
+        ERC1155Contract,
+        Wrapped1155FactoryContract,
+        ERC20Contract
+    },
+    components::blockchain::{Address, Web3},
+};
 
 
 async fn get_balance(
-    address: Address,
+    address: web3::types::Address,
     erc1155_contract: ERC1155Contract,
     erc20_contract: ERC20Contract,
 ) -> Result<(f64, f64)> {
@@ -30,26 +28,9 @@ async fn get_balance(
 pub fn Balance(
     fuel_balance: RwSignal<f64>,
 ) -> impl IntoView {
-    let ethereum = expect_context::<Option<EthereumInterface>>();
-    let transport = if let Some(ethereum) = &ethereum {
-        Either::Left(Eip1193::new(ethereum.provider.clone()))
-    } else {
-        Either::Right(Http::new(&sepolia_testnet().rpc_urls[0]).unwrap())
-    };
-    let web3 = Web3::new(transport.clone());
+    let web3 = expect_context::<Web3>().0;
+    let address = expect_context::<Address>().0;
     let handle_error = expect_context::<WriteSignal<Option<contracts::Error>>>();
-
-    let address = Signal::derive(move || {
-        if let Some(ethereum) = &ethereum {
-            if let Some(address) = ethereum.address().get() {
-                Some(address.clone())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    });
 
     let (wfuel_balance, set_wfuel_balance) = create_signal(0.0);
     let (wrap_amount, set_wrap_amount) = create_signal(0.0);

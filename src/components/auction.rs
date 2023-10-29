@@ -2,20 +2,22 @@ use std::sync::{Arc, Mutex};
 
 use leptonic::prelude::*;
 use leptos::*;
-use web3::types::Address;
 
-use crate::evm::{
-    contracts::ERC1155Contract,
-    types::{Field, Metadata},
+use crate::{
+    components::blockchain::Address,
+    evm::{
+        contracts::ERC1155Contract,
+        types::{Field, Metadata},
+    }
 };
 
 
 #[component]
 pub fn Auction(
     erc1155_contract: ERC1155Contract,
-    address: Signal<Option<Address>>,
     token: Signal<Option<Metadata>>,
 ) -> impl IntoView {
+    let address = expect_context::<Address>().0;
     let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
     let (max_iterations, set_max_iterations) = create_signal(40.0);
     let (offset, set_offset) = create_signal(0.0);

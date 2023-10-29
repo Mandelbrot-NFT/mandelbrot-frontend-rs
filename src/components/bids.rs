@@ -3,17 +3,19 @@ use std::{collections::HashMap, sync::{Arc, Mutex}};
 use leptonic::prelude::*;
 use leptos::*;
 use mandelbrot_explorer::FrameColor;
-use web3::types::Address;
 
-use crate::evm::{types::Metadata, contracts::ERC1155Contract};
+use crate::{
+    components::blockchain::Address,
+    evm::{types::Metadata, contracts::ERC1155Contract}
+};
 
 
 #[component]
 pub fn Bids(
     erc1155_contract: ERC1155Contract,
-    address: Signal<Option<Address>>,
     bids: RwSignal<HashMap<u128, Metadata>>,
 ) -> impl IntoView {
+    let address = expect_context::<Address>().0;
     let mandelbrot = expect_context::<Arc<Mutex<mandelbrot_explorer::Interface>>>();
 
     let toggle_bid = {
