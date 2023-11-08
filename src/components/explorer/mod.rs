@@ -224,19 +224,18 @@ fn Controller() -> impl IntoView {
                     <Info token=token.clone()/>
                     <Show when=move || state.address.get().is_some() fallback=|| {}>
                         {
-                            let state = state.clone();
                             let token= token.clone();
                             view! {
                                 <Separator/>
                                 <Auction token/>
-                                <Separator/>
-                                <Show when=move || {state.explorer.bids.get().len() > 0} fallback=|| {}>
-                                    <Bids
-                                        bids=state.explorer.bids
-                                    />
-                                </Show>
                             }
                         }
+                    </Show>
+                    <Separator/>
+                    <Show when=move || {state.explorer.bids.get().len() > 0} fallback=|| {}>
+                        <Bids
+                            bids=state.explorer.bids
+                        />
                     </Show>
                 }.into_view()
             } else {
