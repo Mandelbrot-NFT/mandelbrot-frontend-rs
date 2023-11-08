@@ -10,6 +10,7 @@ use crate::{
         bids::Bids,
     },
     state::State,
+    util::preserve_log_level,
 };
 
 
@@ -44,15 +45,6 @@ fn Controller() -> impl IntoView {
             params.token_id
         } else {
             None
-        }
-    };
-
-    let query = use_query_map();
-    let preserve_log_level = move |uri| {
-        if let Some(log_level) = query.get_untracked().get("RUST_LOG") {
-            format!("{uri}?RUST_LOG={log_level}")
-        } else {
-            uri
         }
     };
 

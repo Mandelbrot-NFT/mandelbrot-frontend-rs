@@ -5,7 +5,7 @@ use leptos::*;
 use mandelbrot_explorer::FrameColor;
 
 use crate::{
-    evm::{types::Metadata, contracts::ERC1155Contract},
+    evm::types::Metadata,
     state::State,
 };
 

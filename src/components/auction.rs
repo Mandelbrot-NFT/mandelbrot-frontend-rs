@@ -2,10 +2,7 @@ use leptonic::prelude::*;
 use leptos::*;
 
 use crate::{
-    evm::{
-        contracts::ERC1155Contract,
-        types::{Field, Metadata},
-    },
+    evm::types::{Field, Metadata},
     state::State,
 };
 

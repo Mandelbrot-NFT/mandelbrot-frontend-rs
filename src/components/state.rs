@@ -8,7 +8,7 @@ use web3::transports::{eip_1193::Eip1193, Either, Http};
 use crate::{
     chain::sepolia_testnet,
     evm::contracts::{self, ERC1155Contract},
-    state::{State, ExplorerState, InventoryState},
+    state::{State, ExplorerState, InventoryState, SalesState},
 };
 
 
@@ -73,8 +73,20 @@ pub fn StateContextProvider(
             tokens: create_rw_signal(HashMap::new()),
             bids: create_rw_signal(HashMap::new()),
         },
+        sales: SalesState {
+            bids: create_rw_signal(HashMap::new()),
+        },
     };
-    provide_context(state);
+    provide_context(state.clone());
+
+    create_effect(move |_| {
+        if state.address.get().is_some() {
+            let state = state.clone();
+            spawn_local(async move {
+                state.reload_inventory().await;
+            });
+        }
+    });
 
     view! {
         { children() }

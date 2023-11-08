@@ -8,4 +8,5 @@ pub mod explorer;
 pub mod guide;
 pub mod inventory;
 pub mod mandelbrot;
+pub mod sales;
 pub mod state;

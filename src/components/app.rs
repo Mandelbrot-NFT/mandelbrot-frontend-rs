@@ -14,6 +14,7 @@ use super::{
     guide::Guide,
     inventory::Inventory,
     mandelbrot::Mandelbrot,
+    sales::Sales,
 };
 
 
@@ -72,6 +73,9 @@ pub fn App() -> impl IntoView {
                                 </Tab>
                                 <Tab name="inventory" label="Inventory".into_view()>
                                     <Inventory/>
+                                </Tab>
+                                <Tab name="sales" label="Sales".into_view()>
+                                    <Sales/>
                                 </Tab>
                                 <Tab name="description" label="Description".into_view()>
                                     <About/>

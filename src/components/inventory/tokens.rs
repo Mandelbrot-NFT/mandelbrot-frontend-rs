@@ -8,6 +8,7 @@ use mandelbrot_explorer::FrameColor;
 use crate::{
     evm::types::Metadata,
     state::State,
+    util::preserve_log_level,
 };
 
 
@@ -33,15 +34,6 @@ pub fn Tokens(
             }
         }
     });
-
-    let query = use_query_map();
-    let preserve_log_level = move |uri| {
-        if let Some(log_level) = query.get_untracked().get("RUST_LOG") {
-            format!("{uri}?RUST_LOG={log_level}")
-        } else {
-            uri
-        }
-    };
 
     let zoom_token = move |token_id| {
         if let Some(token) = tokens.get().get(&token_id) {
@@ -79,15 +71,13 @@ pub fn Tokens(
                         <For
                             each=move || tokens.get().into_values()
                             key=|token| token.token_id
-                            children={
-                                move |token| view! {
-                                    <p>
-                                        <Button on_click={let zoom_token = zoom_token.clone(); move |_| zoom_token(token.token_id)}>"Zoom"</Button>
-                                        {format!("Token Id: {} Locked FUEL: {}", token.token_id, token.locked_fuel.to_string())}
-                                        <Button on_click={let token = token.clone(); move |_| edit_token(token.clone())}>"Edit"</Button>
-                                        <Button on_click=move |_| burn_token.dispatch(token.token_id)>"Burn"</Button>
-                                    </p>
-                                }
+                            children=move |token| view! {
+                                <p>
+                                    <Button on_click={let zoom_token = zoom_token.clone(); move |_| zoom_token(token.token_id)}>"Zoom"</Button>
+                                    {format!("Token Id: {} Locked FUEL: {}", token.token_id, token.locked_fuel.to_string())}
+                                    <Button on_click={let token = token.clone(); move |_| edit_token(token.clone())}>"Edit"</Button>
+                                    <Button on_click=move |_| burn_token.dispatch(token.token_id)>"Burn"</Button>
+                                </p>
                             }
                         />
                     </Box>

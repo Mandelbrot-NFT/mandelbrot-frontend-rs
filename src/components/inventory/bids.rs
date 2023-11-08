@@ -50,14 +50,12 @@ pub fn Bids(
                         <For
                             each=move || bids.get().into_values()
                             key=|bid| bid.token_id
-                            children={
-                                move |bid| view! {
-                                    <p>
-                                        <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}>"Zoom"</Button>
-                                        {format!("Bid Id: {} Locked FUEL: {}", bid.token_id, bid.locked_fuel.to_string())}
-                                        <Button on_click=move |_| delete_bid.dispatch(bid.token_id)>"Delete"</Button>
-                                    </p>
-                                }
+                            children=move |bid| view! {
+                                <p>
+                                    <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}>"Zoom"</Button>
+                                    {format!("Bid Id: {} Proposed FUEL: {}", bid.token_id, bid.locked_fuel.to_string())}
+                                    <Button on_click=move |_| delete_bid.dispatch(bid.token_id)>"Delete"</Button>
+                                </p>
                             }
                         />
                     </Box>
