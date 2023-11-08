@@ -11,7 +11,7 @@ pub fn Info(
     view! {
         <p>{format!("NFT id: {}", token.token_id)}</p>
         <p>{format!("Owner: {}", token.owner)}</p>
-        <p>{format!("Locked FUEL: {}", token.locked_fuel)}</p>
+        <p>{format!("Locked OM: {}", token.locked_OM)}</p>
         <p>{format!("Minimum bid: {}", token.minimum_price)}</p>
     }
 }

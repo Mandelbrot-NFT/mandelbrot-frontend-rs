@@ -74,7 +74,7 @@ pub fn Tokens(
                             children=move |token| view! {
                                 <p>
                                     <Button on_click={let zoom_token = zoom_token.clone(); move |_| zoom_token(token.token_id)}>"Zoom"</Button>
-                                    {format!("Token Id: {} Locked FUEL: {}", token.token_id, token.locked_fuel.to_string())}
+                                    {format!("Token Id: {} Locked OM: {}", token.token_id, token.locked_OM.to_string())}
                                     <Button on_click={let token = token.clone(); move |_| edit_token(token.clone())}>"Edit"</Button>
                                     <Button on_click=move |_| burn_token.dispatch(token.token_id)>"Burn"</Button>
                                 </p>

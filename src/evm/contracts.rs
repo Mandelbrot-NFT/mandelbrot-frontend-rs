@@ -12,8 +12,8 @@ use web3::{
 use super::types::{Field, Metadata};
 
 
-const FUEL: U256 = U256([0, 0, 0, 0]);
-const CALLDATA: &[u8] = &[87, 114, 97, 112, 112, 101, 100, 32, 77, 97, 110, 100, 101, 108, 98, 114, 111, 116, 32, 70, 85, 69, 76, 0, 0, 0, 0, 0, 0, 0, 0, 46, 119, 70, 85, 69, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 18];
+const OM: U256 = U256([0, 0, 0, 0]);
+const CALLDATA: &[u8] = &[87, 114, 97, 112, 112, 101, 100, 32, 79, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 119, 79, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 18];
 
 
 pub enum Error {
@@ -150,10 +150,10 @@ impl ERC1155Contract {
         self.contract.address()
     }
 
-    pub async fn get_fuel_balance(&self, address: Address) -> Result<f64> {
+    pub async fn get_OM_balance(&self, address: Address) -> Result<f64> {
         let result: web3::contract::Result<U256> = self.contract.query(
             "balanceOf",
-            (address, FUEL,),
+            (address, OM,),
             None,
             Options::default(),
             None
@@ -161,13 +161,13 @@ impl ERC1155Contract {
         Ok(result?.as_u128() as f64 / 10_f64.powi(18))
     }
 
-    pub async fn transfer_fuel(&self, from: Address, to: Address, amount: f64) -> Option<TransactionReceipt> {
+    pub async fn transfer_OM(&self, from: Address, to: Address, amount: f64) -> Option<TransactionReceipt> {
         self.call_with_confirmations(
             "safeTransferFrom",
             (
                 from,
                 to,
-                FUEL,
+                OM,
                 U256::from((amount * 10_f64.powi(18)) as u128),
                 CALLDATA.to_vec(),
             ),
@@ -286,7 +286,7 @@ impl ERC1155Contract {
 
     pub async fn set_minimum_bid(&self, sender: Address, token_id: u128, minimum_bid: f64) -> Option<TransactionReceipt> {
         self.call_with_confirmations(
-            "setminimumBid", // TODO: fix case typo
+            "setMinimumBid",
             (
                 U256::from(token_id),
                 U256::from((minimum_bid * 10_f64.powi(18)) as u128),
@@ -338,7 +338,7 @@ impl Wrapped1155FactoryContract {
             "unwrap",
             (
                 self.erc1155_address,
-                FUEL,
+                OM,
                 U256::from((amount * 10_f64.powi(18)) as u128),
                 recipient,
                 CALLDATA.to_vec(),

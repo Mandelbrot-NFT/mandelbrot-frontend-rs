@@ -22,18 +22,18 @@ async fn get_balance(
     erc1155_contract: ERC1155Contract,
     erc20_contract: ERC20Contract,
 ) -> Result<(f64, f64)> {
-    Ok((erc1155_contract.get_fuel_balance(address).await?, erc20_contract.get_balance(address).await?))
+    Ok((erc1155_contract.get_OM_balance(address).await?, erc20_contract.get_balance(address).await?))
 }
 
 #[component]
 pub fn Balance(
-    fuel_balance: RwSignal<f64>,
+    OM_balance: RwSignal<f64>,
 ) -> impl IntoView {
     let state = use_context::<State>().unwrap();
     let web3 = use_context::<Web3>().unwrap().0;
     let handle_error = use_context::<WriteSignal<Option<contracts::Error>>>().unwrap();
 
-    let (wfuel_balance, set_wfuel_balance) = create_signal(0.0);
+    let (wOM_balance, set_wOM_balance) = create_signal(0.0);
     let (wrap_amount, set_wrap_amount) = create_signal(0.0);
     let (unwrap_amount, set_unwrap_amount) = create_signal(0.0);
 
@@ -51,9 +51,9 @@ pub fn Balance(
             let erc20_contract = erc20_contract.clone();
             async move {
                 if let Some(address) = state.address.get_untracked() {
-                    if let Ok((fuel_balance_, wfuel_balance)) = get_balance(address, erc1155_contract, erc20_contract).await {
-                        fuel_balance.set(fuel_balance_);
-                        set_wfuel_balance.set(wfuel_balance);
+                    if let Ok((OM_balance_, wOM_balance)) = get_balance(address, erc1155_contract, erc20_contract).await {
+                        OM_balance.set(OM_balance_);
+                        set_wOM_balance.set(wOM_balance);
                     }
                 }
             }
@@ -87,7 +87,7 @@ pub fn Balance(
             let wrapper_contract = wrapper_contract.clone();
             async move {
                 if let Some(address) = state.address.get_untracked() {
-                    erc1155_contract.transfer_fuel(address, wrapper_contract.address(), wrap_amount.get_untracked()).await;
+                    erc1155_contract.transfer_OM(address, wrapper_contract.address(), wrap_amount.get_untracked()).await;
                     refresh_balance.dispatch(());
                 }
             }
@@ -100,24 +100,24 @@ pub fn Balance(
             <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
                 <Button on_click=move |_| refresh_balance.dispatch(())>"Refresh balance"</Button>
                 <a href={uniswap_link} target="_blank">
-                    <Button on_click=move |_| ()>"Buy wFUEL"</Button>
+                    <Button on_click=move |_| ()>"Buy wOM"</Button>
                 </a>
             </Stack>
             <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                <strong>"wFUEL: "</strong>
+                <strong>"wOM: "</strong>
                 {move || view! {
-                    {format!("{:.2}", wfuel_balance.get())}
-                    <Slider style="width: 20em" min=0.0 max=wfuel_balance.get() step=0.01
+                    {format!("{:.2}", wOM_balance.get())}
+                    <Slider style="width: 20em" min=0.0 max=wOM_balance.get() step=0.01
                         value=unwrap_amount set_value=set_unwrap_amount
                         value_display=move |v| format!("{v:.2}") />
                 }}
                 <Button on_click=move |_| unwrap.dispatch(())>"Unwrap"</Button>
             </Stack>
             <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                <strong>"FUEL: "</strong>
+                <strong>"OM: "</strong>
                 {move || view! {
-                    {format!("{:.2}", fuel_balance.get())}
-                    <Slider style="width: 20em" min=0.0 max=fuel_balance.get() step=0.01
+                    {format!("{:.2}", OM_balance.get())}
+                    <Slider style="width: 20em" min=0.0 max=OM_balance.get() step=0.01
                         value=wrap_amount set_value=set_wrap_amount
                         value_display=move |v| format!("{v:.2}") />
                 }}

@@ -27,7 +27,7 @@ pub fn Bids(
 
     let sorted_bids = create_memo(move |_| {
         let mut bids: Vec<Metadata> = bids.get().values().map(|bid| bid.clone()).collect();
-        bids.sort_by(|bid_a, bid_b| bid_b.locked_fuel.partial_cmp(&bid_a.locked_fuel).unwrap());
+        bids.sort_by(|bid_a, bid_b| bid_b.locked_OM.partial_cmp(&bid_a.locked_OM).unwrap());
         bids
     });
 
@@ -40,7 +40,7 @@ pub fn Bids(
                 children={
                     move |bid| view! {
                         <p>
-                            {format!("{} {:?}", bid.locked_fuel.to_string(), bid.owner)}
+                            {format!("{} {:?}", bid.locked_OM.to_string(), bid.owner)}
                             <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}>"Zoom"</Button>
                         </p>
                     }

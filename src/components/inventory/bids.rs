@@ -53,7 +53,7 @@ pub fn Bids(
                             children=move |bid| view! {
                                 <p>
                                     <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}>"Zoom"</Button>
-                                    {format!("Bid Id: {} Proposed FUEL: {}", bid.token_id, bid.locked_fuel.to_string())}
+                                    {format!("Bid Id: {} Proposed OM: {}", bid.token_id, bid.locked_OM.to_string())}
                                     <Button on_click=move |_| delete_bid.dispatch(bid.token_id)>"Delete"</Button>
                                 </p>
                             }

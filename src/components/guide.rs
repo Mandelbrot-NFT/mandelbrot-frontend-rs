@@ -14,7 +14,7 @@ pub fn Guide() -> impl IntoView {
             <h2>{ "Prerequisites:" }</h2>
             <ol>
             <li>{ "You will need a compatible web browser with a web3 wallet extension (such as MetaMask) installed." }</li>
-            <li>{ "Make sure you have some wFUEL tokens in your web3 wallet to pay for minting NFTs." }</li>
+            <li>{ "Make sure you have some wOM tokens in your web3 wallet to pay for minting NFTs." }</li>
             </ol>
             <br/>
             <h2>{ "Getting Started:" }</h2>
@@ -31,15 +31,15 @@ pub fn Guide() -> impl IntoView {
             <li>{ "Follow the prompts from your web3 wallet extension to connect it to the dApp." }</li>
             </ol>
             <br/>
-            <h3>{ "Step 3: Buy wrapper FUEL" }</h3>
+            <h3>{ "Step 3: Buy wrapper OM" }</h3>
             <ol>
-            <li>{ "On the dApp interface, click the 'Buy wFUEL' button." }</li>
-            <li>{ "You will be redirected to the Uniswap pair where you will have an opportunity to buy wFUEL." }</li>
+            <li>{ "On the dApp interface, click the 'Buy wOM' button." }</li>
+            <li>{ "You will be redirected to the Uniswap pair where you will have an opportunity to buy wOM." }</li>
             </ol>
             <br/>
-            <h3>{ "Step 4: Unwrap wrapper FUEL" }</h3>
+            <h3>{ "Step 4: Unwrap wrapper OM" }</h3>
             <ol>
-            <li>{ "On the dApp interface, select the amount of wFUEL that you wish to unwrap and click the 'Unwrap' button." }</li>
+            <li>{ "On the dApp interface, select the amount of wOM that you wish to unwrap and click the 'Unwrap' button." }</li>
             <li>{ "Once the transaction succeeds your balance will be refreshed." }</li>
             </ol>
             <br/>
@@ -53,7 +53,7 @@ pub fn Guide() -> impl IntoView {
             <ol>
             <li>{ "To mint an NFT within the coordinates of an existing NFT, double click on the NFT of interest." }</li>
             <li>{ "On the NFT details page, click the 'Bid' button." }</li>
-            <li>{ "Set the amount of FUEL you are willing to spend on the minting process." }</li>
+            <li>{ "Set the amount of OM you are willing to spend on the minting process." }</li>
             <li>{ "Set the minimum bid amount needed for others to mint NFTs inside of your's." }</li>
             <li>{ "Afterwards submit your bid, it will be represented as a yellow frame." }</li>
             <li>{ "The owner of the parent NFT will review the bids and decide which NFTs get minted." }</li>

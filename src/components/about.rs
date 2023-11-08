@@ -22,15 +22,15 @@ pub fn About() -> impl IntoView {
             <br/>
             <p>{ "Every NFT has the ability to create a fixed number (20 in this case) of child NFTs within its own boundaries. This hierarchical structure allows us to trace back each NFT to the Origin NFT." }</p>
             <br/>
-            <p>{ "Creating a new NFT requires the use of a cryptocurrency token called FUEL. The number of NFTs that can be minted within a parent NFT is limited." }</p>
+            <p>{ "Creating a new NFT requires the use of a cryptocurrency token called OM. The number of NFTs that can be minted within a parent NFT is limited." }</p>
             <br/>
             <p>{ "To determine which NFTs get minted, users submit bids, and the owner of the parent NFT selects the winning bids." }</p>
             <br/>
-            <p>{ "When an NFT is successfully minted, the FUEL used for minting is distributed among all the parent NFTs, and a portion of it is locked within a newly minted NFT." }</p>
+            <p>{ "When an NFT is successfully minted, the OM used for minting is distributed among all the parent NFTs, and a portion of it is locked within a newly minted NFT." }</p>
             <br/>
-            <p>{ "The owner of a parent NFT can set a minimum amount of FUEL that must be used in a mint bid. All child NFTs created within that parent NFT must adhere to this minimum requirement." }</p>
+            <p>{ "The owner of a parent NFT can set a minimum amount of OM that must be used in a mint bid. All child NFTs created within that parent NFT must adhere to this minimum requirement." }</p>
             <br/>
-            <p>{ "Owner of an NFT can burn it, given that it doesn't have any child NFTs in it. When an NFT is burned, FUEL that was locked inside of it is transferred to its owner." }</p>
+            <p>{ "Owner of an NFT can burn it, given that it doesn't have any child NFTs in it. When an NFT is burned, OM that was locked inside of it is transferred to its owner." }</p>
         </Box>
     }
 }

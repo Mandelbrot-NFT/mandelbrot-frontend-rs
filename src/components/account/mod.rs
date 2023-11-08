@@ -32,7 +32,7 @@ pub fn AccountButton(
 #[component]
 pub fn Account(
     open: RwSignal<bool>,
-    fuel_balance: RwSignal<f64>,
+    OM_balance: RwSignal<f64>,
 ) -> impl IntoView {
     let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
 
@@ -47,7 +47,7 @@ pub fn Account(
 
     view! {
         <Drawer side=DrawerSide::Right shown=Signal::derive(move || open.get()) style="padding: 0.5em; height: 19.5em; overflow: scroll; position: absolute; top: 3em; right: 0; background-color: var(--brand-color); border-left: 1px solid gray;">
-            <Balance fuel_balance/>
+            <Balance OM_balance/>
             <button on:click=disconnect class="btn btn-primary connected">
                 "Disconnect"
             </button>

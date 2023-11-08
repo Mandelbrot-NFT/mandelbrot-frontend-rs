@@ -70,7 +70,7 @@ pub fn Sales() -> impl IntoView {
             .collect::<Vec<_>>()
     };
 
-    let total_approve_amount = move || selected_bids().iter().map(|bid| bid.locked_fuel).sum::<f64>();
+    let total_approve_amount = move || selected_bids().iter().map(|bid| bid.locked_OM).sum::<f64>();
 
     let approve_bids = create_action({
         let erc1155_contract = state.erc1155_contract.clone();
@@ -107,7 +107,7 @@ pub fn Sales() -> impl IntoView {
                                             let bids = move || state.sales.bids.get().get(&token.token_id).unwrap_or(&HashMap::new()).clone();
                                             let sorted_bids = move || {
                                                 let mut bids: Vec<Metadata> = bids().values().map(|bid| bid.clone()).collect();
-                                                bids.sort_by(|bid_a, bid_b| bid_b.locked_fuel.partial_cmp(&bid_a.locked_fuel).unwrap());
+                                                bids.sort_by(|bid_a, bid_b| bid_b.locked_OM.partial_cmp(&bid_a.locked_OM).unwrap());
                                                 bids
                                             };
                                             view! {
@@ -121,7 +121,7 @@ pub fn Sales() -> impl IntoView {
                                                                 set_state=move |state: bool| toggle_bid(token.token_id, bid.token_id, state)
                                                                 variant=ToggleVariant::Stationary
                                                             />
-                                                            {format!("{} {:?}", bid.locked_fuel.to_string(), bid.owner)}
+                                                            {format!("{} {:?}", bid.locked_OM.to_string(), bid.owner)}
                                                             <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}>"Zoom"</Button>
                                                         </p>
                                                     }

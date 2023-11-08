@@ -51,7 +51,7 @@ pub fn App() -> impl IntoView {
     )));
     
     let account_open = create_rw_signal(false);
-    let fuel_balance = create_rw_signal(0.0);
+    let OM_balance = create_rw_signal(0.0);
 
     view! {
         <Root default_theme=LeptonicTheme::default()>
@@ -68,7 +68,7 @@ pub fn App() -> impl IntoView {
                                 <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(1.0) style="margin-right: 1em">
                                     <ConnectButton connected_html=view! {
                                         <AccountButton
-                                            balance=fuel_balance.read_only()
+                                            balance=OM_balance.read_only()
                                             on_click=move |_| account_open.update(|account_open| {
                                                 *account_open = !*account_open;
                                             })
@@ -93,7 +93,7 @@ pub fn App() -> impl IntoView {
                                     <Guide/>
                                 </Tab>
                             </Tabs>
-                            <Account fuel_balance open=account_open/>
+                            <Account OM_balance open=account_open/>
                         </Box>
                     </StateContextProvider>
                 </EthereumContextProvider>
