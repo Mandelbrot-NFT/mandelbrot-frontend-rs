@@ -1,3 +1,8 @@
+mod auction;
+mod bids;
+mod info;
+mod visuals;
+
 use std::sync::Arc;
 
 use leptonic::prelude::*;
@@ -5,12 +10,14 @@ use leptos::*;
 use leptos_router::*;
 
 use crate::{
-    components::{
-        auction::Auction,
-        bids::Bids,
-    },
     state::State,
     util::preserve_log_level,
+};
+use {
+    auction::Auction,
+    bids::Bids,
+    info::Info,
+    visuals::Visuals,
 };
 
 
@@ -182,19 +189,6 @@ fn Controller() -> impl IntoView {
         }
     });
 
-    let burn_token = create_action({
-        let state = state.clone();
-        move |token_id: &u128| {
-            let state = state.clone();
-            let token_id = *token_id;
-            async move {
-                if let Some(address) = state.address.get_untracked() {
-                    state.erc1155_contract.burn(address, token_id).await;
-                }
-            }
-        }
-    });
-
     // let create_bid = create_action(cx, {
     //     let state = state.clone();
     //     move |_| {
@@ -222,46 +216,31 @@ fn Controller() -> impl IntoView {
     // });
 
     view! {
+        <Visuals/>
         {
-            let state = state.clone();
-            move || {
-                if let Some(token) = state.explorer.nav_history.get().last() {
-                    let token = token.clone();
-                    let token_id = token.token_id;
-                    let minimum_price = token.minimum_price;
-                    view! {
-                        <p>{format!("NFT id: {}", token_id)}</p>
-                        <p>{format!("Owner: {}", token.owner)}</p>
-                        <p>{format!("Locked FUEL: {}", token.locked_fuel)}</p>
-                        <p>{format!("Minimum bid: {}", minimum_price)}</p>
-                        <Show when=move || state.address.get().is_some() fallback=|| {}>
-                            <Button on_click=move |_| burn_token.dispatch(token_id)>"Burn"</Button>
-                        </Show>
-                    }
-                } else {
-                    Fragment::new(vec![])
-                }
-            }
-        }
-        {
-            view! {
-                <Show when=move || state.address.get().is_some() fallback=|| {}>
-                    {
-                        let state = state.clone();
-                        view! {
-                            <Separator/>
-                            <Auction
-                                token=Signal::derive(move || state.explorer.nav_history.get().last().cloned())
-                            />
-                            <Separator/>
-                            <Show when=move || {state.explorer.bids.get().len() > 0} fallback=|| {}>
-                                <Bids
-                                    bids=state.explorer.bids
-                                />
-                            </Show>
+            move || if let Some(token) = state.explorer.nav_history.get().last().cloned() {
+                let state = state.clone();
+                view! {
+                    <Info token=token.clone()/>
+                    <Show when=move || state.address.get().is_some() fallback=|| {}>
+                        {
+                            let state = state.clone();
+                            let token= token.clone();
+                            view! {
+                                <Separator/>
+                                <Auction token/>
+                                <Separator/>
+                                <Show when=move || {state.explorer.bids.get().len() > 0} fallback=|| {}>
+                                    <Bids
+                                        bids=state.explorer.bids
+                                    />
+                                </Show>
+                            }
                         }
-                    }
-                </Show>
+                    </Show>
+                }.into_view()
+            } else {
+                Default::default()
             }
         }
     }

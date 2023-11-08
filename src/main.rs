@@ -6,7 +6,7 @@ mod util;
 
 use leptos::*;
 
-use components::app::App;
+use components::App;
 use util::parse_url_query_string;
 
 

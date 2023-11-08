@@ -1,8 +1,10 @@
+mod balance;
+
 use leptonic::prelude::*;
 use leptos::*;
 use leptos_ethereum_provider::EthereumInterface;
 
-use super::balance::Balance;
+use balance::Balance;
 
 
 #[component]
