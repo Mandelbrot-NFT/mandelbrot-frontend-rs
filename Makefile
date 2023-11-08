@@ -11,6 +11,7 @@ build: dirs
 	trunk build
 
 build_render: dirs
+	npm install -g sass
 	cargo install trunk wasm-bindgen-cli
 	cargo build --release
 	trunk build --release
