@@ -34,8 +34,9 @@ pub fn Sales() -> impl IntoView {
     };
 
     let zoom_bid = {
-        move |bid_id| {
-            if let Some(bid) = state.inventory.bids.get().get(&bid_id) {
+        move |token_id, bid_id| {
+            let bids = state.sales.bids.get().get(&token_id).unwrap_or(&HashMap::new()).clone();
+            if let Some(bid) = bids.get(&bid_id) {
                 let frame = bid.to_frame(FrameColor::Blue);
                 state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
             }
@@ -122,7 +123,7 @@ pub fn Sales() -> impl IntoView {
                                                                 variant=ToggleVariant::Stationary
                                                             />
                                                             {format!("{} {:?}", bid.locked_OM.to_string(), bid.owner)}
-                                                            <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}>"Zoom"</Button>
+                                                            <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(token.token_id, bid.token_id)}>"Zoom"</Button>
                                                         </p>
                                                     }
                                                 />
