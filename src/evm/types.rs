@@ -19,7 +19,7 @@ impl Deref for TokenizableBigFloat {
     }
 }
 
-impl Tokenizable for TokenizableBigFloat {
+impl TokenizableBigFloat {
     fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
         let s = format!("{:x}", U256::from_token(token)?);
         Ok(Self(BigFloat::parse(&s, Radix::Hex) / BigFloat::from(BigFloat::from(16f64.powf(63.0)))))
