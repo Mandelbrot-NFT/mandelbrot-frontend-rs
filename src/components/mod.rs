@@ -12,6 +12,7 @@ use std::{sync::{Arc, Mutex}, rc::Rc, cell::RefCell};
 use leptonic::prelude::*;
 use leptos::*;
 use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider};
+use leptos_router::Router;
 use mandelbrot_explorer::ISample;
 
 use {
@@ -63,23 +64,25 @@ pub fn App() -> impl IntoView {
                                     }/>
                                 </Stack>
                             </AppBar>
-                            <Tabs mount=Mount::Once>
-                                <Tab name="dapp" label="Explore".into_view()>
-                                    <Explorer/>
-                                </Tab>
-                                <Tab name="inventory" label="Inventory".into_view()>
-                                    <Inventory/>
-                                </Tab>
-                                <Tab name="sales" label="Sales".into_view()>
-                                    <Sales/>
-                                </Tab>
-                                <Tab name="description" label="Description".into_view()>
-                                    <About/>
-                                </Tab>
-                                <Tab name="how_to_use" label="How to Use".into_view()>
-                                    <Guide/>
-                                </Tab>
-                            </Tabs>
+                            <Router>
+                                <Tabs mount=Mount::Once>
+                                    <Tab name="dapp" label="Explore".into_view()>
+                                        <Explorer/>
+                                    </Tab>
+                                    <Tab name="inventory" label="Inventory".into_view()>
+                                        <Inventory/>
+                                    </Tab>
+                                    <Tab name="sales" label="Sales".into_view()>
+                                        <Sales/>
+                                    </Tab>
+                                    <Tab name="description" label="Description".into_view()>
+                                        <About/>
+                                    </Tab>
+                                    <Tab name="how_to_use" label="How to Use".into_view()>
+                                        <Guide/>
+                                    </Tab>
+                                </Tabs>
+                            </Router>
                             <Account OM_balance open=account_open/>
                         </Box>
                     </StateContextProvider>

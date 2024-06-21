@@ -24,13 +24,11 @@ use {
 #[component]
 pub fn Explorer() -> impl IntoView {
     view! {
-        <Router>
-            <Routes>
-                <Route path="/tokens/:token_id" view=move || view! { <Controller/> }/>
-                // <Route path="/" view=move |cx| view! { cx, <Controller address/> }/>
-                <Route path="*" view=move || view! { <Controller/> }/>
-            </Routes>
-        </Router>
+        <Routes>
+            <Route path="/tokens/:token_id" view=move || view! { <Controller/> }/>
+            // <Route path="/" view=move |cx| view! { cx, <Controller address/> }/>
+            <Route path="*" view=move || view! { <Controller/> }/>
+        </Routes>
     }
 }
 

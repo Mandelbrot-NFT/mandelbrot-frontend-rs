@@ -3,25 +3,23 @@ name = "mandelbrot-frontend"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-async-trait = "0.1.72"
+async-trait = "0.1.80"
 console_log = "1.0.0"
 ethabi = "18.0.0"
-eyre = "0.6.8"
-futures = "0.3.29"
+eyre = "0.6.12"
+futures = "0.3.30"
 jsonrpc-core = "18.0.0"
-leptos = { version = "0.5.1", features = ["csr"] }
+leptonic = "0.5.0"
+leptos = { version = "0.6.12", features = ["csr"] }
 leptos-ethereum-provider = { git = "https://github.com/platonfloria/leptos-ethereum-provider.git", version = "0.1.0" }
-leptos_router = { version = "0.5.1", features = ["csr"] }
-leptonic = { git = "https://github.com/lpotthast/leptonic.git", version = "0.3.0", rev = "2b1884267de5b439973c0212167bb0f5c94420c7" }
-log = "0.4.17"
+leptos_router = { version = "0.6.12", features = ["csr"] }
+log = "0.4.21"
 mandelbrot-explorer = { version = "0.1.0", path = "mandelbrot-explorer-rs" }
-wasm-bindgen = "0.2.87"
-web-sys = { version = "0.3.64", features = ["Screen", "Window"] }
-web3 = { git = "https://github.com/platonfloria/rust-web3.git", branch="feature/transport-either-to-support-wasm", version = "0.20.0", default-features = false, features = ["wasm", "eip-1193"] }
+wasm-bindgen = "0.2.92"
+web-sys = { version = "0.3.69", features = ["Screen", "Window"] }
+web3 = { git = "https://github.com/platonfloria/rust-web3.git", branch="feature/transport-either-to-support-wasm", version = "0.20.0", default-features = false, features = ["eip-1193"] }
 
 [build-dependencies]
-leptos-tiptap-build = "0.2.2"
-leptonic-theme = { git = "https://github.com/lpotthast/leptonic.git", version = "0.3.0", rev = "2b1884267de5b439973c0212167bb0f5c94420c7" }
+leptonic-theme = "0.5.0"
+leptos-tiptap-build = "0.2.6"
