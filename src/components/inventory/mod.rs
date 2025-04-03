@@ -1,7 +1,6 @@
 mod bids;
 mod tokens;
 
-use leptonic::prelude::*;
 use leptos::*;
 
 use crate::state::State;
@@ -24,14 +23,19 @@ pub fn Inventory() -> impl IntoView {
     });
 
     view! {
-        <p>"Tokens:"</p>
-        <Tokens
-            tokens=state.inventory.tokens
-        />
-        <p>"Bids:"</p>
-        <Bids
-            bids=state.inventory.bids
-        />
-        <Button on_click=move |_| refresh.dispatch(())>"Refresh"</Button>
+        <div class="space-y-4">
+            <p class="text-lg font-semibold text-gray-700">"Tokens:"</p>
+            <Tokens tokens=state.inventory.tokens />
+    
+            <p class="text-lg font-semibold text-gray-700">"Bids:"</p>
+            <Bids bids=state.inventory.bids />
+    
+            <button
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                on:click=move |_| refresh.dispatch(())
+            >
+                "Refresh"
+            </button>
+        </div>
     }
 }

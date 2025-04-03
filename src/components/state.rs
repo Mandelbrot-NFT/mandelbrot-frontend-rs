@@ -1,6 +1,5 @@
 use std::{sync::{Arc, Mutex}, collections::HashMap};
 
-use leptonic::prelude::*;
 use leptos::*;
 use leptos_ethereum_provider::EthereumInterface;
 use web3::transports::{eip_1193::Eip1193, Either, Http};
@@ -30,7 +29,7 @@ pub fn StateContextProvider(
     let web3 = web3::Web3::new(transport);
     provide_context(Web3(web3.clone()));
 
-    let (error, set_error) = create_signal(None);
+    let error = create_rw_signal(None);
     let error_message = create_memo(move |_| {
         error.with(|error| {
             if let Some(error) = error {
@@ -54,7 +53,7 @@ pub fn StateContextProvider(
             }
         })
     });
-    provide_context(set_error);
+    provide_context(error.write_only());
 
     let state = State {
         mandelbrot: mandelbrot.clone(),
@@ -62,7 +61,7 @@ pub fn StateContextProvider(
             ethereum.clone().and_then(|ethereum| ethereum.address().get())
         }),
         erc1155_contract: ERC1155Contract::new(&web3, Arc::new({
-            move |error| set_error.set(Some(error))
+            move |e| error.set(Some(e))
         })),
         explorer: ExplorerState {
             nav_history: create_rw_signal(Vec::new()),
@@ -90,14 +89,30 @@ pub fn StateContextProvider(
 
     view! {
         { children() }
-        <Modal show_when=MaybeSignal::derive(move || error_message.get().is_some())>
-            <ModalHeader><ModalTitle>"Error"</ModalTitle></ModalHeader>
-            <ModalBody>{move || error_message.get().unwrap_or("".into())}</ModalBody>
-            <ModalFooter>
-                <ButtonWrapper>
-                    <Button on_click=move |_| set_error.set(None) color=ButtonColor::Secondary>"Ok"</Button>
-                </ButtonWrapper>
-            </ModalFooter>
-        </Modal>
+
+        <Show when=move || error_message.get().is_some()>
+            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+                <div class="bg-gray-900 text-white rounded-lg shadow-lg p-6 w-full max-w-md space-y-6">
+                    
+                    <div class="text-xl font-semibold border-b border-gray-700 pb-2">
+                        "Error"
+                    </div>
+
+                    <div class="text-sm text-gray-300">
+                        {move || error_message.get().unwrap_or("".into())}
+                    </div>
+
+                    <div class="flex justify-end pt-4 border-t border-gray-700">
+                        <button
+                            on:click=move |_| error.set(None)
+                            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md text-sm font-medium transition"
+                        >
+                            "Ok"
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </Show>
     }
 }

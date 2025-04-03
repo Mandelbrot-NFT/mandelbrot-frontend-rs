@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use leptonic::prelude::*;
 use leptos::*;
 use mandelbrot_explorer::FrameColor;
 
@@ -46,19 +45,37 @@ pub fn Bids(
             {
                 let zoom_bid = zoom_bid.clone();
                 view! {
-                    <Box id="content">
+                    <div id="content" class="p-4 space-y-4">
                         <For
                             each=move || bids.get().into_values()
                             key=|bid| bid.token_id
                             children=move |bid| view! {
-                                <p>
-                                    <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}>"Zoom"</Button>
-                                    {format!("Bid Id: {} Proposed OM: {}", bid.token_id, bid.locked_OM.to_string())}
-                                    <Button on_click=move |_| delete_bid.dispatch(bid.token_id)>"Delete"</Button>
-                                </p>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-md border border-gray-700 bg-gray-900/50">
+                                    // <!-- Bid Info -->
+                                    <div class="text-sm text-white">
+                                        <div class="font-semibold">"Bid Id: " {bid.token_id}</div>
+                                        <div class="text-accent2">"Proposed OM: " {bid.locked_OM.to_string()}</div>
+                                    </div>
+    
+                                    // <!-- Actions -->
+                                    <div class="flex flex-wrap gap-2">
+                                        <button
+                                            on:click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}
+                                            class="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-medium transition"
+                                        >
+                                            "Zoom"
+                                        </button>
+                                        <button
+                                            on:click=move |_| delete_bid.dispatch(bid.token_id)
+                                            class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded-md text-white text-sm font-medium transition"
+                                        >
+                                            "Delete"
+                                        </button>
+                                    </div>
+                                </div>
                             }
                         />
-                    </Box>
+                    </div>
                 }
             }
         </Show>

@@ -4,12 +4,12 @@ mod explorer;
 mod guide;
 mod inventory;
 mod mandelbrot;
+mod primitive;
 mod sales;
 mod state;
 
 use std::{sync::{Arc, Mutex}, rc::Rc, cell::RefCell};
 
-use leptonic::prelude::*;
 use leptos::*;
 use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider};
 use leptos_router::Router;
@@ -26,6 +26,15 @@ use {
     sales::Sales,
 };
 
+fn tab_class(tab_name: &str, selected_tab: &str) -> String {
+    if tab_name == selected_tab {
+        // Active tab styling
+        "px-4 py-2 font-medium border-b-2 border-blue-600 text-blue-600".to_string()
+    } else {
+        // Inactive tab styling
+        "px-4 py-2 font-medium text-gray-500 hover:text-blue-500 transition-colors".to_string()
+    }
+}
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -40,20 +49,22 @@ pub fn App() -> impl IntoView {
             length: 360.0,
         },
     )));
-    
+
     let account_open = create_rw_signal(false);
     let OM_balance = create_rw_signal(0.0);
 
+    let selected_tab = create_rw_signal("explorer");
+
     view! {
-        <Root default_theme=LeptonicTheme::default()>
-            <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6) style="align-items: stretch;">
-                <Mandelbrot interface=interface.clone()/>
-                <EthereumContextProvider>
-                    <StateContextProvider mandelbrot=interface.clone()>
-                        <Box style="position: relative; border: width: 100%; overflow: auto;">
-                            <AppBar height=Size::Em(3.0) style="z-index: 1; background: var(--brand-color); color: white;">
-                                <H3 style="margin-left: 1em; color: white;">"Mandelbrot NFT"</H3>
-                                <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(1.0) style="margin-right: 1em">
+        <div class="min-h-screen flex flex-col">
+            <EthereumContextProvider>
+                <StateContextProvider mandelbrot=interface.clone()>
+                    <div class="flex flex-row gap-2 items-stretch">
+                        <Mandelbrot interface=interface.clone()/>
+                        <div class="relative w-full border overflow-auto">
+                            <header class="h-12 z-10 bg-brand text-white flex items-center justify-between px-4">
+                                <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
+                                <div class="flex items-center gap-4">
                                     <ConnectButton connected_html=view! {
                                         <AccountButton
                                             balance=OM_balance.read_only()
@@ -61,33 +72,61 @@ pub fn App() -> impl IntoView {
                                                 *account_open = !*account_open;
                                             })
                                         />
-                                    }/>
-                                </Stack>
-                            </AppBar>
+                                    }.into_view()/>
+                                </div>
+                            </header>
+
+                            // Tab buttons
+                            <div class="flex space-x-2 border-b">
+                                {
+                                    vec![
+                                        ("explorer", "Explore"),
+                                        ("inventory", "Inventory"),
+                                        ("sales", "Sales"),
+                                        ("description", "Description"),
+                                        ("how_to_use", "How to Use"),
+                                    ]
+                                        .into_iter()
+                                        .map(|(name, label)| {
+                                            view! {
+                                                <button
+                                                    class=move || tab_class(name, selected_tab.get())
+                                                    on:click=move |_| selected_tab.set(name)
+                                                >
+                                                    {label}
+                                                </button>
+                                            }
+                                        })
+                                        .collect_view()
+                                }
+                            </div>
                             <Router>
-                                <Tabs mount=Mount::Once>
-                                    <Tab name="dapp" label="Explore".into_view()>
-                                        <Explorer/>
-                                    </Tab>
-                                    <Tab name="inventory" label="Inventory".into_view()>
-                                        <Inventory/>
-                                    </Tab>
-                                    <Tab name="sales" label="Sales".into_view()>
-                                        <Sales/>
-                                    </Tab>
-                                    <Tab name="description" label="Description".into_view()>
-                                        <About/>
-                                    </Tab>
-                                    <Tab name="how_to_use" label="How to Use".into_view()>
-                                        <Guide/>
-                                    </Tab>
-                                </Tabs>
+                                <div class="w-full max-w-4xl mx-auto">
+                                    <div class="p-4 space-y-4">
+                                        <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
+                                            <Explorer />
+                                        </div>
+                                        <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
+                                            <Inventory />
+                                        </div>
+                                        <div class=move || if selected_tab.get() == "sales" { "block" } else { "hidden" }>
+                                            <Sales />
+                                        </div>
+                                        <div class=move || if selected_tab.get() == "description" { "block" } else { "hidden" }>
+                                            <About />
+                                        </div>
+                                        <div class=move || if selected_tab.get() == "how_to_use" { "block" } else { "hidden" }>
+                                            <Guide />
+                                        </div>
+                                    </div>
+                                </div>
                             </Router>
-                            <Account OM_balance open=account_open/>
-                        </Box>
-                    </StateContextProvider>
-                </EthereumContextProvider>
-            </Stack>
-        </Root>
+
+                        </div>
+                    </div>
+                    <Account OM_balance open=account_open/>
+                </StateContextProvider>
+            </EthereumContextProvider>
+        </div>
     }
 }

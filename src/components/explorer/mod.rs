@@ -5,7 +5,6 @@ mod visuals;
 
 use std::sync::Arc;
 
-use leptonic::prelude::*;
 use leptos::*;
 use leptos_router::*;
 
@@ -214,31 +213,40 @@ fn Controller() -> impl IntoView {
     // });
 
     view! {
-        <Visuals/>
-        {
-            move || if let Some(token) = state.explorer.nav_history.get().last().cloned() {
-                let state = state.clone();
-                view! {
-                    <Info token=token.clone()/>
-                    <Show when=move || state.address.get().is_some() fallback=|| {}>
-                        {
-                            let token= token.clone();
-                            view! {
-                                <Separator/>
-                                <Auction token/>
+        <div class="flex flex-col">
+            <Visuals />
+    
+            {
+                move || if let Some(token) = state.explorer.nav_history.get().last().cloned() {
+                    let state = state.clone();
+                    view! {
+                        <div class="bg-gray-800 text-white rounded-md shadow p-4">
+                            <Info token=token.clone() />
+                        </div>
+    
+                        <Show when=move || state.address.get().is_some() fallback=|| {} >
+                            {
+                                let token = token.clone();
+                                view! {
+                                    <div class="border-t border-gray-700 my-4" />
+                                    <div class="bg-gray-800 text-white rounded-md shadow p-4">
+                                        <Auction token />
+                                    </div>
+                                }
                             }
-                        }
-                    </Show>
-                    <Separator/>
-                    <Show when=move || {state.explorer.bids.get().len() > 0} fallback=|| {}>
-                        <Bids
-                            bids=state.explorer.bids
-                        />
-                    </Show>
-                }.into_view()
-            } else {
-                Default::default()
+                        </Show>
+    
+                        <div class="border-t border-gray-700 my-4" />
+                        <Show when=move || {state.explorer.bids.get().len() > 0} fallback=|| {} >
+                            <div class="bg-gray-800 text-white rounded-md shadow p-4">
+                                <Bids bids=state.explorer.bids />
+                            </div>
+                        </Show>
+                    }.into_view()
+                } else {
+                    Default::default()
+                }
             }
-        }
+        </div>
     }
 }

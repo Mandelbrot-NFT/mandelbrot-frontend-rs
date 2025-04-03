@@ -21,17 +21,28 @@ impl Deref for TokenizableBigFloat {
 
 impl TokenizableBigFloat {
     fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
-        let s = format!("{:x}", U256::from_token(token)?);
-        Ok(Self(BigFloat::parse(&s, Radix::Hex) / BigFloat::from(BigFloat::from(16f64.powf(63.0)))))
+        let hex = format!("{:x}", U256::from_token(token)?);
+        Ok(Self(BigFloat::parse(&hex, Radix::Hex) / BigFloat::from(BigFloat::from(16f64.powf(63.0)))))
     }
 
     fn into_token(self) -> Token {
-        if let Ok((_, digits, exponent)) = (&*self * BigFloat::from(BigFloat::from(16f64.powf(63.0)))).convert_to_radix(Radix::Hex) {
-            let s: String = digits.into_iter().map(|d| format!("{d:x}")).collect();
-            U256::from_str_radix(&s[..64.min(exponent as usize)], 16).unwrap()
-        } else {
-            // This coordinate is invalid, so we return it, in case of an error, to be handled upstream
-            U256::from(3) * U256::from(10).pow(U256::from(76))
+        match (&*self * BigFloat::from(BigFloat::from(16f64.powf(63.0)))).convert_to_radix(Radix::Hex) {
+            Ok((sign, digits, exponent)) if sign.is_positive() => {
+                let exponent = exponent as usize;
+                let mut nibbles = [0u8; 64];
+                if exponent != 0 {
+                    nibbles[64 - exponent..64 - exponent + digits.len()].copy_from_slice(&digits);
+                }
+                let mut bytes = [0u8; 32];
+                for i in 0..32 {
+                    bytes[i] = (nibbles[2 * i] << 4) | (nibbles[2 * i + 1] & 0x0F);
+                }
+                U256::from_big_endian(&bytes)
+            }
+            _ => {
+                // This coordinate is invalid, so we return it, in case of an error, to be handled upstream
+                U256::MAX
+            }
         }.into_token()
     }
 }

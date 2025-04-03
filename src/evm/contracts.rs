@@ -61,12 +61,8 @@ trait CallWrapper {
 
     fn process_error(&self, error: web3::contract::Error) {
         if let web3::contract::Error::Api(web3::error::Error::Rpc(rpc_error)) = &error {
-            if let Some(object) = &rpc_error.data {
-                if let Some(object) = object.get("originalError") {
-                    if let (Some(jsonrpc_core::types::Value::String(code)), Some(jsonrpc_core::types::Value::String(message))) = (object.get("data"), object.get("message")) {
-                        self._handle_error(Error::from_code(code, message));
-                    }
-                }
+            if let Some(jsonrpc_core::types::Value::String(code)) = &rpc_error.data {
+                self._handle_error(Error::from_code(code, &rpc_error.message));
             }
         }
     }

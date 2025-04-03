@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use leptonic::prelude::*;
 use leptos::*;
 use mandelbrot_explorer::FrameColor;
 
@@ -32,20 +31,31 @@ pub fn Bids(
     });
 
     view! {
-        <p>"Bids:"</p>
-        <Box id="content">
-            <For
-                each=move || sorted_bids.get()
-                key=|bid| bid.token_id
-                children={
-                    move |bid| view! {
-                        <p>
-                            {format!("{} {:?}", bid.locked_OM.to_string(), bid.owner)}
-                            <Button on_click={let zoom_bid = zoom_bid.clone(); move |_| zoom_bid(bid.token_id)}>"Zoom"</Button>
-                        </p>
+        <div class="space-y-4">
+            <p class="text-lg font-semibold text-white">"Bids:"</p>
+    
+            <div id="content" class="p-4 bg-gray-900 rounded-md space-y-2">
+                <For
+                    each=move || sorted_bids.get()
+                    key=|bid| bid.token_id
+                    children=move |bid| {
+                        let zoom_bid = zoom_bid.clone();
+                        view! {
+                            <div class="flex items-center justify-between bg-gray-800 text-white rounded px-4 py-2">
+                                <span class="text-sm font-mono">
+                                    {format!("{} {:?}", bid.locked_OM.to_string(), bid.owner)}
+                                </span>
+                                <button
+                                    on:click=move |_| zoom_bid(bid.token_id)
+                                    class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-md transition"
+                                >
+                                    "Zoom"
+                                </button>
+                            </div>
+                        }
                     }
-                }
-            />
-        </Box>
+                />
+            </div>
+        </div>
     }
 }

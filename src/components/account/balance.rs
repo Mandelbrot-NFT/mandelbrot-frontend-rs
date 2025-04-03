@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use eyre::Result;
-use leptonic::prelude::*;
 use leptos::*;
-use leptos_ethereum_provider::AccountLabel;
 
 use crate::{
-    components::state::Web3,
+    components::{
+        primitive::Slider,
+        state::Web3
+    },
     evm::contracts::{
         self,
         ERC1155Contract,
@@ -25,6 +26,7 @@ async fn get_balance(
     Ok((erc1155_contract.get_OM_balance(address).await?, erc20_contract.get_balance(address).await?))
 }
 
+
 #[component]
 pub fn Balance(
     OM_balance: RwSignal<f64>,
@@ -33,9 +35,9 @@ pub fn Balance(
     let web3 = use_context::<Web3>().unwrap().0;
     let handle_error = use_context::<WriteSignal<Option<contracts::Error>>>().unwrap();
 
-    let (wOM_balance, set_wOM_balance) = create_signal(0.0);
-    let (wrap_amount, set_wrap_amount) = create_signal(0.0);
-    let (unwrap_amount, set_unwrap_amount) = create_signal(0.0);
+    let wOM_balance = create_rw_signal(0.0);
+    let wrap_amount = create_rw_signal(0.0);
+    let unwrap_amount = create_rw_signal(0.0);
 
     let uniswap_link = format!("https://app.uniswap.org/#/swap?inputCurrency=ETH&outputCurrency={}", env!("ERC20_CONTRACT_ADDRESS"));
 
@@ -51,9 +53,9 @@ pub fn Balance(
             let erc20_contract = erc20_contract.clone();
             async move {
                 if let Some(address) = state.address.get_untracked() {
-                    if let Ok((OM_balance_, wOM_balance)) = get_balance(address, erc1155_contract, erc20_contract).await {
+                    if let Ok((OM_balance_, wOM_balance_)) = get_balance(address, erc1155_contract, erc20_contract).await {
                         OM_balance.set(OM_balance_);
-                        set_wOM_balance.set(wOM_balance);
+                        wOM_balance.set(wOM_balance_);
                     }
                 }
             }
@@ -95,34 +97,73 @@ pub fn Balance(
     });
 
     view! {
-        <div>
-            <AccountLabel/>
-            <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                <Button on_click=move |_| refresh_balance.dispatch(())>"Refresh balance"</Button>
+        <div class="grid gap-6 p-4 text-white w-full max-w-[400px]">
+            // Refresh balance and Buy wOM Buttons
+            <div class="grid grid-cols-2 gap-4">
+                <button
+                    on:click=move |_| refresh_balance.dispatch(())
+                    class="py-2 bg-gray-700 hover:bg-gray-600 rounded-md font-semibold transition"
+                >
+                    "Refresh balance"
+                </button>
                 <a href={uniswap_link} target="_blank">
-                    <Button on_click=move |_| ()>"Buy wOM"</Button>
+                    <button class="py-2 bg-purple-700 hover:bg-purple-600 rounded-md font-semibold transition">
+                        "Buy wOM"
+                    </button>
                 </a>
-            </Stack>
-            <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                <strong>"wOM: "</strong>
-                {move || view! {
-                    {format!("{:.2}", wOM_balance.get())}
-                    <Slider style="width: 20em" min=0.0 max=wOM_balance.get() step=0.01
-                        value=unwrap_amount set_value=set_unwrap_amount
-                        value_display=move |v| format!("{v:.2}") />
-                }}
-                <Button on_click=move |_| unwrap.dispatch(())>"Unwrap"</Button>
-            </Stack>
-            <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                <strong>"OM: "</strong>
-                {move || view! {
-                    {format!("{:.2}", OM_balance.get())}
-                    <Slider style="width: 20em" min=0.0 max=OM_balance.get() step=0.01
-                        value=wrap_amount set_value=set_wrap_amount
-                        value_display=move |v| format!("{v:.2}") />
-                }}
-                <Button on_click=move |_| wrap.dispatch(())>"Wrap"</Button>
-            </Stack>
+            </div>
+    
+            // wOM Balance Slider and Unwrap Button
+            <div class="grid grid-cols-[60px_1fr_min-content] gap-4 items-center min-w-0">
+                <label class="text-sm font-semibold text-highlight text-right">"wOM:"</label>
+    
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-[50px] text-right text-sm font-mono text-accent1">
+                        {move || format!("{:.2}", wOM_balance.get())}
+                    </span>
+                    <Slider
+                        max=move || wOM_balance.get()
+                        value=unwrap_amount
+                        class="w-full h-2 bg-gray-400 rounded-full focus:outline-none focus:ring-2 focus:ring-accent1"
+                    />
+                    <span class="w-[50px] text-left text-sm font-mono text-accent2">
+                        {move || format!("{:.2}", unwrap_amount.get())}
+                    </span>
+                </div>
+    
+                <button
+                    on:click=move |_| unwrap.dispatch(())
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-semibold transition"
+                >
+                    "Unwrap"
+                </button>
+            </div>
+    
+            // OM Balance Slider and Wrap Button
+            <div class="grid grid-cols-[60px_1fr_min-content] gap-4 items-center min-w-0">
+                <label class="text-sm font-semibold text-highlight text-right">"OM:"</label>
+    
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-[50px] text-right text-sm font-mono text-accent1">
+                        {move || format!("{:.2}", OM_balance.get())}
+                    </span>
+                    <Slider
+                        max=move || OM_balance.get()
+                        value=wrap_amount
+                        class="w-full h-2 bg-gray-400 rounded-full focus:outline-none focus:ring-2 focus:ring-accent1"
+                    />
+                    <span class="w-[50px] text-left text-sm font-mono text-accent2">
+                        {move || format!("{:.2}", wrap_amount.get())}
+                    </span>
+                </div>
+    
+                <button
+                    on:click=move |_| wrap.dispatch(())
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-semibold transition"
+                >
+                    "Wrap"
+                </button>
+            </div>
         </div>
     }
 }

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use leptonic::prelude::*;
 use leptos::*;
 use leptos_router::*;
 use mandelbrot_explorer::FrameColor;
@@ -44,9 +43,9 @@ pub fn Tokens(
     };
 
     let edited_token = create_rw_signal(None);
-    let (bids_minimum_price, set_bids_minimum_price) = create_signal(0.0);
+    let bids_minimum_price = create_rw_signal(0.0);
     let edit_token = move |token: Metadata| {
-        set_bids_minimum_price.set(token.minimum_price);
+        bids_minimum_price.set(token.minimum_price);
         edited_token.set(Some(token))
     };
     let edit_token_submit = create_action({
@@ -67,50 +66,94 @@ pub fn Tokens(
             {
                 let zoom_token = zoom_token.clone();
                 view! {
-                    <Box id="content">
+                    <div id="content" class="p-4 space-y-4">
                         <For
                             each=move || tokens.get().into_values()
                             key=|token| token.token_id
                             children=move |token| view! {
-                                <p>
-                                    <Button on_click={let zoom_token = zoom_token.clone(); move |_| zoom_token(token.token_id)}>"Zoom"</Button>
-                                    {format!("Token Id: {} Locked OM: {}", token.token_id, token.locked_OM.to_string())}
-                                    <Button on_click={let token = token.clone(); move |_| edit_token(token.clone())}>"Edit"</Button>
-                                    <Button on_click=move |_| burn_token.dispatch(token.token_id)>"Burn"</Button>
-                                </p>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-md border border-gray-700 bg-gray-900/50">
+                                    <div class="text-sm text-white">
+                                        <div class="font-semibold">"Token Id: " {token.token_id}</div>
+                                        <div class="text-accent2">"Locked OM: " {token.locked_OM.to_string()}</div>
+                                    </div>
+    
+                                    <div class="flex flex-wrap gap-2">
+                                        <button
+                                            on:click={let zoom_token = zoom_token.clone(); move |_| zoom_token(token.token_id)}
+                                            class="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-medium transition"
+                                        >
+                                            "Zoom"
+                                        </button>
+                                        <button
+                                            on:click={let token = token.clone(); move |_| edit_token(token.clone())}
+                                            class="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 rounded-md text-white text-sm font-medium transition"
+                                        >
+                                            "Edit"
+                                        </button>
+                                        <button
+                                            on:click=move |_| burn_token.dispatch(token.token_id)
+                                            class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded-md text-white text-sm font-medium transition"
+                                        >
+                                            "Burn"
+                                        </button>
+                                    </div>
+                                </div>
                             }
                         />
-                    </Box>
+                    </div>
                 }
             }
         </Show>
-
-        <Modal show_when=MaybeSignal::derive(move || edited_token.get().is_some())>
-            <ModalHeader><ModalTitle>
-                "Token Id "{move || edited_token.get().map_or("".into(), |token| token.token_id.to_string())}
-            </ModalTitle></ModalHeader>
-            <ModalBody>
-                {
-                    move || {
-                        if let Some(token) = edited_token.get() {
-                            view! {
-                                <Stack orientation=StackOrientation::Horizontal spacing=Size::Em(0.6)>
-                                    "Minimum bid price:"
-                                    <NumberInput min=token.minimum_price get=bids_minimum_price set=set_bids_minimum_price/>
-                                </Stack>
+    
+        // <!-- Modal -->
+        <Show when=move || edited_token.get().is_some()>
+            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div class="bg-gray-900 text-white p-6 rounded-lg shadow-lg w-full max-w-md space-y-6">
+                    <div class="text-xl font-bold">
+                        "Token Id " {move || edited_token.get().map_or("".into(), |token| token.token_id.to_string())}
+                    </div>
+    
+                    {
+                        move || {
+                            if let Some(token) = edited_token.get() {
+                                view! {
+                                    <div class="flex flex-col gap-2">
+                                        <label class="text-sm text-gray-300">"Minimum bid price:"</label>
+                                        <input
+                                            type="number"
+                                            min={token.minimum_price}
+                                            class="bg-gray-800 text-white p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-accent1"
+                                            prop:value={bids_minimum_price.get()}
+                                            on:input=move |ev| {
+                                                if let Ok(value) = event_target_value(&ev).parse::<f64>() {
+                                                    bids_minimum_price.set(value);
+                                                }
+                                            }
+                                        />
+                                    </div>
+                                }.into_view()
+                            } else {
+                                view! {}.into_view()
                             }
-                        } else {
-                            view! {}.into_view()
                         }
                     }
-                }
-            </ModalBody>
-            <ModalFooter>
-                <ButtonWrapper>
-                    <Button on_click=move |_| edit_token_submit.dispatch(()) color=ButtonColor::Primary>"Save"</Button>
-                    <Button on_click=move |_| edited_token.set(None) color=ButtonColor::Secondary>"Cancel"</Button>
-                </ButtonWrapper>
-            </ModalFooter>
-        </Modal>
+    
+                    <div class="flex justify-end gap-4 pt-2 border-t border-gray-700">
+                        <button
+                            on:click=move |_| edit_token_submit.dispatch(())
+                            class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-md text-white font-semibold transition"
+                        >
+                            "Save"
+                        </button>
+                        <button
+                            on:click=move |_| edited_token.set(None)
+                            class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-md text-white font-semibold transition"
+                        >
+                            "Cancel"
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Show>
     }
 }

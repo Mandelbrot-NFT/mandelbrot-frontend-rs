@@ -4,7 +4,6 @@ export $(shell sed 's/=.*//' .env)
 
 dirs:
 	mkdir -p ./mandelbrot-explorer-rs/target
-	mkdir -p ./generated
 
 build: dirs
 	cargo build
