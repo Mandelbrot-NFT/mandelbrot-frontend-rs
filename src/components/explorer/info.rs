@@ -2,12 +2,8 @@ use leptos::prelude::*;
 
 use crate::evm::types::Metadata;
 
-
 #[component]
-pub fn Info(
-    token: Metadata,
-) -> impl IntoView {
-
+pub fn Info(token: Metadata) -> impl IntoView {
     view! {
         <p>{format!("NFT id: {}", token.token_id)}</p>
         <p>{format!("Owner: {}", token.owner)}</p>

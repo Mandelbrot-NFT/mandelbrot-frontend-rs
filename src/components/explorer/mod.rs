@@ -6,20 +6,19 @@ mod visuals;
 use std::sync::Arc;
 
 use leptos::{prelude::*, task::spawn_local};
-use leptos_router::{components::{Route, Routes}, hooks::{use_navigate, use_params, use_query_map}, params::Params, path};
+use leptos_router::{
+    components::{Route, Routes},
+    hooks::{use_navigate, use_params, use_query_map},
+    params::Params,
+    path,
+};
 use send_wrapper::SendWrapper;
 
 use crate::{
     state::{ExplorerStateStoreFields, SalesStateStoreFields, State},
     util::preserve_log_level,
 };
-use {
-    auction::Auction,
-    bids::Bids,
-    info::Info,
-    visuals::Visuals,
-};
-
+use {auction::Auction, bids::Bids, info::Info, visuals::Visuals};
 
 #[component]
 pub fn Explorer() -> impl IntoView {
@@ -32,12 +31,10 @@ pub fn Explorer() -> impl IntoView {
     }
 }
 
-
 #[derive(Clone, Params, PartialEq)]
 struct ControllerParams {
-    token_id: Option<u128>
+    token_id: Option<u128>,
 }
-
 
 #[component]
 fn Controller() -> impl IntoView {
@@ -46,13 +43,7 @@ fn Controller() -> impl IntoView {
     let query_map = use_query_map();
 
     let params = use_params::<ControllerParams>();
-    let token_id = move || {
-        if let Ok(params) = params.get() {
-            params.token_id
-        } else {
-            None
-        }
-    };
+    let token_id = move || params.get().ok().and_then(|params| params.token_id);
 
     // query tokens and bids
     Effect::new({
@@ -67,7 +58,7 @@ fn Controller() -> impl IntoView {
                 if let (Ok(tokens), Ok(children), Ok(bids)) = (
                     state.erc1155_contract.get_ancestry_metadata(token_id).await,
                     state.erc1155_contract.get_children_metadata(token_id).await,
-                    state.erc1155_contract.get_bids(token_id).await
+                    state.erc1155_contract.get_bids(token_id).await,
                 ) {
                     state.explorer.nav_history().update(|nav_history| {
                         nav_history.clear();
@@ -96,7 +87,11 @@ fn Controller() -> impl IntoView {
                 state.explorer.nav_history().with(|nav_history| {
                     if let Some(token) = nav_history.last() {
                         first.set_value(false);
-                        state.mandelbrot.lock().unwrap().move_into_bounds(&token.to_frame(mandelbrot_explorer::FrameColor::Blue).bounds);
+                        state
+                            .mandelbrot
+                            .lock()
+                            .unwrap()
+                            .move_into_bounds(&token.to_frame(mandelbrot_explorer::FrameColor::Blue).bounds);
                     }
                 });
             }
@@ -125,37 +120,35 @@ fn Controller() -> impl IntoView {
 
     let on_frame_event = Arc::new({
         let state = state.clone();
-        move |frame_event: mandelbrot_explorer::FrameEvent| {
-            match frame_event {
-                mandelbrot_explorer::FrameEvent::DoubleClicked(frame) => {
-                    match frame.color {
-                        mandelbrot_explorer::FrameColor::Red |
-                        mandelbrot_explorer::FrameColor::Pink |
-                        mandelbrot_explorer::FrameColor::Blue |
-                        mandelbrot_explorer::FrameColor::LightBlue => {
-                            state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds);
-                            navigate(&preserve_log_level(format!("/tokens/{}", frame.id), query_map), Default::default());
-                        }
-                        mandelbrot_explorer::FrameColor::Yellow |
-                        mandelbrot_explorer::FrameColor::Lemon => {
-                            select_bid(frame.id, true);
-                        }
-                        mandelbrot_explorer::FrameColor::Green => {
-                            select_bid(frame.id, false);
-                        }
-                    }
+        move |frame_event: mandelbrot_explorer::FrameEvent| match frame_event {
+            mandelbrot_explorer::FrameEvent::DoubleClicked(frame) => match frame.color {
+                mandelbrot_explorer::FrameColor::Red
+                | mandelbrot_explorer::FrameColor::Pink
+                | mandelbrot_explorer::FrameColor::Blue
+                | mandelbrot_explorer::FrameColor::LightBlue => {
+                    state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds);
+                    navigate(
+                        &preserve_log_level(format!("/tokens/{}", frame.id), query_map),
+                        Default::default(),
+                    );
                 }
-                mandelbrot_explorer::FrameEvent::Entered(frame) => {
-                    match frame.color {
-                        mandelbrot_explorer::FrameColor::Red |
-                        mandelbrot_explorer::FrameColor::Pink => {
-                            navigate(&preserve_log_level(format!("/tokens/{}", frame.id), query_map), Default::default());
-                        }
-                        _ => {}
-                    }
+                mandelbrot_explorer::FrameColor::Yellow | mandelbrot_explorer::FrameColor::Lemon => {
+                    select_bid(frame.id, true);
+                }
+                mandelbrot_explorer::FrameColor::Green => {
+                    select_bid(frame.id, false);
+                }
+            },
+            mandelbrot_explorer::FrameEvent::Entered(frame) => match frame.color {
+                mandelbrot_explorer::FrameColor::Red | mandelbrot_explorer::FrameColor::Pink => {
+                    navigate(
+                        &preserve_log_level(format!("/tokens/{}", frame.id), query_map),
+                        Default::default(),
+                    );
                 }
                 _ => {}
-            }
+            },
+            _ => {}
         }
     });
 
@@ -169,15 +162,20 @@ fn Controller() -> impl IntoView {
         let state = state.clone();
         move |_| {
             if let Some(address) = state.address.get() {
-                state.explorer.children().update(|children|
-                    children.values_mut().for_each(|token| token.owned = token.owner == address)
-                );
-                state.explorer.bids().update(|bids|
-                    bids.values_mut().for_each(|bid| bid.owned = bid.owner == address)
-                );
-                state.explorer.nav_history().update(|nav_history|
-                    nav_history.iter_mut().for_each(|token| token.owned = token.owner == address)
-                );
+                state.explorer.children().update(|children| {
+                    children
+                        .values_mut()
+                        .for_each(|token| token.owned = token.owner == address)
+                });
+                state
+                    .explorer
+                    .bids()
+                    .update(|bids| bids.values_mut().for_each(|bid| bid.owned = bid.owner == address));
+                state.explorer.nav_history().update(|nav_history| {
+                    nav_history
+                        .iter_mut()
+                        .for_each(|token| token.owned = token.owner == address)
+                });
             }
         }
     });
@@ -189,9 +187,31 @@ fn Controller() -> impl IntoView {
             let mandelbrot = &mut state.mandelbrot.lock().unwrap();
             let frames = &mut mandelbrot.frames;
             frames.clear();
-            frames.extend(state.explorer.children().get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
-            frames.extend(state.explorer.bids().get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)));
-            frames.extend(state.explorer.nav_history().get().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
+            frames.extend(
+                state
+                    .explorer
+                    .children()
+                    .get()
+                    .values()
+                    .map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)),
+            );
+            frames.extend(
+                state
+                    .explorer
+                    .bids()
+                    .get()
+                    .values()
+                    .map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)),
+            );
+            frames.extend(
+                state
+                    .explorer
+                    .nav_history()
+                    .get()
+                    .iter()
+                    .rev()
+                    .map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)),
+            );
             if let Some(redraw) = &mandelbrot.redraw {
                 redraw();
             }
@@ -227,7 +247,7 @@ fn Controller() -> impl IntoView {
     view! {
         <div class="flex flex-col">
             <Visuals/>
-    
+
             {
                 move || state.explorer.nav_history().get().last().cloned().map(|token| {
                     let state = state.clone();
@@ -235,7 +255,7 @@ fn Controller() -> impl IntoView {
                         <div class="bg-gray-800 text-white rounded-md shadow p-4">
                             <Info token=token.clone() />
                         </div>
-    
+
                         <Show when={let state = state.clone(); move || state.address.get().is_some()} fallback=|| {} >
                             {
                                 let token = token.clone();
@@ -247,7 +267,7 @@ fn Controller() -> impl IntoView {
                                 }
                             }
                         </Show>
-    
+
                         <div class="border-t border-gray-700 my-4" />
                         <Show when={let state = state.clone(); move || state.explorer.bids().get().len() > 0} fallback=|| {} >
                             <div class="bg-gray-800 text-white rounded-md shadow p-4">

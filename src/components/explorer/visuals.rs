@@ -3,7 +3,6 @@ use send_wrapper::SendWrapper;
 
 use crate::{components::primitive::Slider, state::State};
 
-
 #[component]
 pub fn Visuals() -> impl IntoView {
     let state = use_context::<SendWrapper<State>>().unwrap();
@@ -26,7 +25,7 @@ pub fn Visuals() -> impl IntoView {
 
     view! {
         <div class="flex flex-col text-white max-w-xl">
-    
+
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
                     <label class="text-sm font-medium text-gray-300">"Max iterations"</label>
@@ -40,7 +39,7 @@ pub fn Visuals() -> impl IntoView {
                     class="w-full bg-gray-300 rounded-full focus:outline-none"
                 />
             </div>
-    
+
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
                     <label class="text-sm font-medium text-gray-300">"Color offset"</label>
@@ -54,7 +53,7 @@ pub fn Visuals() -> impl IntoView {
                     class="w-full bg-gray-300 rounded-full focus:outline-none"
                 />
             </div>
-    
+
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
                     <label class="text-sm font-medium text-gray-300">"Palette length"</label>
@@ -68,7 +67,7 @@ pub fn Visuals() -> impl IntoView {
                     class="w-full bg-gray-300 rounded-full focus:outline-none"
                 />
             </div>
-    
+
         </div>
     }
 }

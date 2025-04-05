@@ -59,13 +59,7 @@ impl State {
             .bids()
             .get_untracked()
             .iter()
-            .filter_map(|(&bid_id, &Metadata {selected, ..})| {
-                if selected {
-                    Some(bid_id)
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(&bid_id, &Metadata { selected, .. })| selected.then(|| bid_id))
             .collect::<Vec<_>>();
 
         let bids = futures::future::join_all(

@@ -37,7 +37,10 @@ where
         let state = state.clone();
         move |token_id| {
             if let Some(token) = tokens.get().get(&token_id) {
-                navigate(&preserve_log_level(format!("/tokens/{}", token_id), query_map), Default::default());
+                navigate(
+                    &preserve_log_level(format!("/tokens/{}", token_id), query_map),
+                    Default::default(),
+                );
                 let frame = token.to_frame(FrameColor::Blue);
                 state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
             }

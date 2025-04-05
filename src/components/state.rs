@@ -35,44 +35,41 @@ pub fn StateContextProvider(
     let error = RwSignal::new(None);
     let error_message = Memo::new(move |_| {
         error.with(|error| {
-            if let Some(error) = error {
-                Some(match error {
-                    contracts::Error::TokenNotFound => "Unable to find an NFT with this Id".into(),
-                    contracts::Error::NoRightsToBurn => "You don't have the necessary rights to burn this NFT".into(),
-                    contracts::Error::TokenNotEmpty => {
-                        "It is not allowed to burn an NFT if it has minted NFTs inside".into()
-                    }
-                    contracts::Error::BidNotFound => "Unable to find a bid with this Id".into(),
-                    contracts::Error::BidTooLow => "Your bid is too low".into(),
-                    contracts::Error::MinimumBidTooLow => {
-                        "Minimum bid for the NFT that you wish to mint is too low".into()
-                    }
-                    contracts::Error::TooManyChildTokens => "This NFT cannot contain any more NFTs".into(),
-                    contracts::Error::NoRightsToApproveBid => {
-                        "You don't have the necessary rights to approve these bids".into()
-                    }
-                    contracts::Error::NoRightsToDeleteBid => {
-                        "You don't have the necessary rights to delete this bid".into()
-                    }
-                    contracts::Error::FieldOutside => {
-                        "NFT that you are trying to mint has to be within the bounds of parent NFT".into()
-                    }
-                    contracts::Error::FieldsOverlap => {
-                        "NFT that you are trying to mint overlaps with another NFT".into()
-                    }
-                    contracts::Error::FieldTooLarge => "NFT that you are trying to mint is too large".into(),
-                    contracts::Error::Other(message) => message.clone(),
-                })
-            } else {
-                None
-            }
+            error.as_ref().map(|error| match error {
+                contracts::Error::TokenNotFound => "Unable to find an NFT with this Id".into(),
+                contracts::Error::NoRightsToBurn => "You don't have the necessary rights to burn this NFT".into(),
+                contracts::Error::TokenNotEmpty => {
+                    "It is not allowed to burn an NFT if it has minted NFTs inside".into()
+                }
+                contracts::Error::BidNotFound => "Unable to find a bid with this Id".into(),
+                contracts::Error::BidTooLow => "Your bid is too low".into(),
+                contracts::Error::MinimumBidTooLow => "Minimum bid for the NFT that you wish to mint is too low".into(),
+                contracts::Error::TooManyChildTokens => "This NFT cannot contain any more NFTs".into(),
+                contracts::Error::NoRightsToApproveBid => {
+                    "You don't have the necessary rights to approve these bids".into()
+                }
+                contracts::Error::NoRightsToDeleteBid => {
+                    "You don't have the necessary rights to delete this bid".into()
+                }
+                contracts::Error::FieldOutside => {
+                    "NFT that you are trying to mint has to be within the bounds of parent NFT".into()
+                }
+                contracts::Error::FieldsOverlap => "NFT that you are trying to mint overlaps with another NFT".into(),
+                contracts::Error::FieldTooLarge => "NFT that you are trying to mint is too large".into(),
+                contracts::Error::Other(message) => message.clone(),
+            })
         })
     });
     provide_context(error.write_only());
 
     let state = State {
         mandelbrot: mandelbrot.take(),
-        address: Signal::derive(move || ethereum.clone().and_then(|ethereum| ethereum.address().get())),
+        address: Signal::derive(move || {
+            ethereum
+                .clone()
+                .and_then(|ethereum| ethereum.connected().then(|| ethereum.address().get()))
+                .flatten()
+        }),
         erc1155_contract: ERC1155Contract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
         explorer: Store::new(ExplorerState {
             nav_history: Vec::new(),

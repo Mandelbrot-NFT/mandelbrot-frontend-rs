@@ -15,7 +15,7 @@ use std::{
 };
 
 use leptos::prelude::*;
-use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider};
+use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider, EthereumInterface};
 use leptos_router::components::Router;
 use mandelbrot_explorer::ISample;
 
@@ -41,6 +41,64 @@ fn tab_class(tab_name: &str, selected_tab: &str) -> String {
 }
 
 #[component]
+pub fn Content() -> impl IntoView {
+    let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
+    let selected_tab = RwSignal::new("explorer");
+
+    ethereum.map(|ethereum| {
+        view! {
+            <div class="flex space-x-2 border-b">
+                {
+                    move || {
+                        vec![
+                            ("explorer", "Explore", true),
+                            ("inventory", "Inventory", ethereum.connected()),
+                            ("sales", "Sales", ethereum.connected()),
+                            ("description", "Description", true),
+                            ("how_to_use", "How to Use", true),
+                        ]
+                            .into_iter()
+                            .filter_map(|(name, label, show)| {
+                                show.then(|| view! {
+                                    <button
+                                        class=move || tab_class(name, selected_tab.get())
+                                        on:click=move |_| selected_tab.set(name)
+                                    >
+                                        {label}
+                                    </button>
+                                })
+                            })
+                            .collect_view()
+                    }
+                }
+            </div>
+
+            <Router>
+                <div class="w-full max-w-4xl mx-auto">
+                    <div class="p-4 space-y-4">
+                        <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
+                            <Explorer />
+                        </div>
+                        <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
+                            <Inventory />
+                        </div>
+                        <div class=move || if selected_tab.get() == "sales" { "block" } else { "hidden" }>
+                            <Sales />
+                        </div>
+                        <div class=move || if selected_tab.get() == "description" { "block" } else { "hidden" }>
+                            <About />
+                        </div>
+                        <div class=move || if selected_tab.get() == "how_to_use" { "block" } else { "hidden" }>
+                            <Guide />
+                        </div>
+                    </div>
+                </div>
+            </Router>
+        }
+    })
+}
+
+#[component]
 pub fn App() -> impl IntoView {
     let window = web_sys::window().unwrap();
     let height = window.inner_height().unwrap().as_f64().unwrap() + 1.0;
@@ -59,8 +117,6 @@ pub fn App() -> impl IntoView {
 
     let account_open = RwSignal::new(false);
     let OM_balance = RwSignal::new(0.0);
-
-    let selected_tab = RwSignal::new("explorer");
 
     view! {
         <div class="min-h-screen flex flex-col">
@@ -82,53 +138,7 @@ pub fn App() -> impl IntoView {
                                     }/>
                                 </div>
                             </header>
-
-                            // Tab buttons
-                            <div class="flex space-x-2 border-b">
-                                {
-                                    vec![
-                                        ("explorer", "Explore"),
-                                        ("inventory", "Inventory"),
-                                        ("sales", "Sales"),
-                                        ("description", "Description"),
-                                        ("how_to_use", "How to Use"),
-                                    ]
-                                        .into_iter()
-                                        .map(|(name, label)| {
-                                            view! {
-                                                <button
-                                                    class=move || tab_class(name, selected_tab.get())
-                                                    on:click=move |_| selected_tab.set(name)
-                                                >
-                                                    {label}
-                                                </button>
-                                            }
-                                        })
-                                        .collect_view()
-                                }
-                            </div>
-                            <Router>
-                                <div class="w-full max-w-4xl mx-auto">
-                                    <div class="p-4 space-y-4">
-                                        <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
-                                            <Explorer />
-                                        </div>
-                                        <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
-                                            <Inventory />
-                                        </div>
-                                        <div class=move || if selected_tab.get() == "sales" { "block" } else { "hidden" }>
-                                            <Sales />
-                                        </div>
-                                        <div class=move || if selected_tab.get() == "description" { "block" } else { "hidden" }>
-                                            <About />
-                                        </div>
-                                        <div class=move || if selected_tab.get() == "how_to_use" { "block" } else { "hidden" }>
-                                            <Guide />
-                                        </div>
-                                    </div>
-                                </div>
-                            </Router>
-
+                            <Content/>
                         </div>
                     </div>
                     <Account OM_balance open=account_open/>

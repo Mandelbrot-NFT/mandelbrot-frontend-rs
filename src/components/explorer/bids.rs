@@ -4,11 +4,7 @@ use leptos::prelude::*;
 use mandelbrot_explorer::FrameColor;
 use send_wrapper::SendWrapper;
 
-use crate::{
-    evm::types::Metadata,
-    state::State,
-};
-
+use crate::{evm::types::Metadata, state::State};
 
 #[component]
 pub fn Bids<T>(bids: T) -> impl IntoView
@@ -35,7 +31,7 @@ where
     view! {
         <div class="space-y-4">
             <p class="text-lg font-semibold text-white">"Bids:"</p>
-    
+
             <div id="content" class="p-4 bg-gray-900 rounded-md space-y-2">
                 <For
                     each=move || sorted_bids.get()

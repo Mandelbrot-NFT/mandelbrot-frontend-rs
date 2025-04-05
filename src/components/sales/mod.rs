@@ -30,7 +30,10 @@ pub fn Sales() -> impl IntoView {
         let state = state.clone();
         move |token_id| {
             if let Some(token) = state.inventory.tokens().get().get(&token_id) {
-                navigate(&preserve_log_level(format!("/tokens/{}", token_id), query_map), Default::default());
+                navigate(
+                    &preserve_log_level(format!("/tokens/{}", token_id), query_map),
+                    Default::default(),
+                );
                 let frame = token.to_frame(FrameColor::Blue);
                 state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
             }
@@ -81,13 +84,7 @@ pub fn Sales() -> impl IntoView {
                 .get()
                 .values()
                 .flat_map(|bids| bids.values())
-                .filter_map(|bid| {
-                    if bid.selected {
-                        Some(bid.clone())
-                    } else {
-                        None
-                    }
-                })
+                .filter_map(|bid| bid.selected.then(|| bid.clone()))
                 .collect::<Vec<_>>()
         }
     });
