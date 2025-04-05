@@ -5,11 +5,12 @@ mod visuals;
 
 use std::sync::Arc;
 
-use leptos::*;
-use leptos_router::*;
+use leptos::{prelude::*, task::spawn_local};
+use leptos_router::{components::{Route, Routes}, hooks::{use_navigate, use_params, use_query_map}, params::Params, path};
+use send_wrapper::SendWrapper;
 
 use crate::{
-    state::State,
+    state::{ExplorerStateStoreFields, SalesStateStoreFields, State},
     util::preserve_log_level,
 };
 use {
@@ -23,10 +24,10 @@ use {
 #[component]
 pub fn Explorer() -> impl IntoView {
     view! {
-        <Routes>
-            <Route path="/tokens/:token_id" view=move || view! { <Controller/> }/>
+        <Routes fallback=|| "Not found.">
+            <Route path=path!("/tokens/:token_id") view=Controller/>
             // <Route path="/" view=move |cx| view! { cx, <Controller address/> }/>
-            <Route path="*" view=move || view! { <Controller/> }/>
+            <Route path=path!("*") view=Controller/>
         </Routes>
     }
 }
@@ -40,8 +41,9 @@ struct ControllerParams {
 
 #[component]
 fn Controller() -> impl IntoView {
-    let state = use_context::<State>().unwrap();
+    let state = use_context::<SendWrapper<State>>().unwrap();
     let navigate = use_navigate();
+    let query_map = use_query_map();
 
     let params = use_params::<ControllerParams>();
     let token_id = move || {
@@ -53,11 +55,13 @@ fn Controller() -> impl IntoView {
     };
 
     // query tokens and bids
-    create_effect({
+    Effect::new({
         let state = state.clone();
+        let navigate = navigate.clone();
         let token_id = token_id.clone();
         move |_| {
             let state = state.clone();
+            let navigate = navigate.clone();
             let token_id = token_id().unwrap_or(1);
             spawn_local(async move {
                 if let (Ok(tokens), Ok(children), Ok(bids)) = (
@@ -65,33 +69,31 @@ fn Controller() -> impl IntoView {
                     state.erc1155_contract.get_children_metadata(token_id).await,
                     state.erc1155_contract.get_bids(token_id).await
                 ) {
-                    batch(|| {
-                        state.explorer.nav_history.update(|nav_history| {
-                            nav_history.clear();
-                            nav_history.extend(tokens.into_iter().rev());
-                        });
-                        state.explorer.children.update(|children_| {
-                            children_.clear();
-                            children_.extend(children.into_iter().map(|m| (m.token_id, m)));
-                        });
-                        state.explorer.bids.update(|bids_| {
-                            bids_.clear();
-                            bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
-                        });
+                    state.explorer.nav_history().update(|nav_history| {
+                        nav_history.clear();
+                        nav_history.extend(tokens.into_iter().rev());
+                    });
+                    state.explorer.children().update(|children_| {
+                        children_.clear();
+                        children_.extend(children.into_iter().map(|m| (m.token_id, m)));
+                    });
+                    state.explorer.bids().update(|bids_| {
+                        bids_.clear();
+                        bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
                     });
                 } else {
-                    use_navigate()(&preserve_log_level("/tokens/1".into()), Default::default());
+                    navigate(&preserve_log_level("/tokens/1".into(), query_map), Default::default());
                 }
             });
         }
     });
 
-    let first = store_value(true);
-    create_effect({
+    let first = StoredValue::new(true);
+    Effect::new({
         let state = state.clone();
         move |_| {
             if first.get_value() {
-                state.explorer.nav_history.with(|nav_history| {
+                state.explorer.nav_history().with(|nav_history| {
                     if let Some(token) = nav_history.last() {
                         first.set_value(false);
                         state.mandelbrot.lock().unwrap().move_into_bounds(&token.to_frame(mandelbrot_explorer::FrameColor::Blue).bounds);
@@ -100,6 +102,26 @@ fn Controller() -> impl IntoView {
             }
         }
     });
+
+    let select_bid = {
+        let state = state.clone();
+        move |bid_id, selected| {
+            state.explorer.bids().update(|bids| {
+                if let Some(bid) = bids.get_mut(&bid_id) {
+                    bid.selected = selected;
+                }
+            });
+            state.sales.bids().update(|bids| {
+                for token_bids in bids.values_mut() {
+                    for bid in token_bids.values_mut() {
+                        if bid.token_id == bid_id {
+                            bid.selected = selected;
+                        }
+                    }
+                }
+            });
+        }
+    };
 
     let on_frame_event = Arc::new({
         let state = state.clone();
@@ -112,22 +134,14 @@ fn Controller() -> impl IntoView {
                         mandelbrot_explorer::FrameColor::Blue |
                         mandelbrot_explorer::FrameColor::LightBlue => {
                             state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds);
-                            navigate(&preserve_log_level(format!("/tokens/{}", frame.id)), Default::default());
+                            navigate(&preserve_log_level(format!("/tokens/{}", frame.id), query_map), Default::default());
                         }
                         mandelbrot_explorer::FrameColor::Yellow |
                         mandelbrot_explorer::FrameColor::Lemon => {
-                            state.explorer.bids.update(|bids| {
-                                if let Some(bid) = bids.get_mut(&frame.id) {
-                                    bid.selected = true;
-                                }
-                            });
+                            select_bid(frame.id, true);
                         }
                         mandelbrot_explorer::FrameColor::Green => {
-                            state.explorer.bids.update(|bids| {
-                                if let Some(bid) = bids.get_mut(&frame.id) {
-                                    bid.selected = false;
-                                }
-                            });
+                            select_bid(frame.id, false);
                         }
                     }
                 }
@@ -135,7 +149,7 @@ fn Controller() -> impl IntoView {
                     match frame.color {
                         mandelbrot_explorer::FrameColor::Red |
                         mandelbrot_explorer::FrameColor::Pink => {
-                            navigate(&preserve_log_level(format!("/tokens/{}", frame.id)), Default::default());
+                            navigate(&preserve_log_level(format!("/tokens/{}", frame.id), query_map), Default::default());
                         }
                         _ => {}
                     }
@@ -151,35 +165,33 @@ fn Controller() -> impl IntoView {
     }));
 
     // check ownership
-    create_effect(move |_| {
-        batch(move || {
-            state.explorer.children.track();
-            state.explorer.bids.track();
-            state.explorer.nav_history.track();
+    Effect::new({
+        let state = state.clone();
+        move |_| {
             if let Some(address) = state.address.get() {
-                state.explorer.children.update(|children|
+                state.explorer.children().update(|children|
                     children.values_mut().for_each(|token| token.owned = token.owner == address)
                 );
-                state.explorer.bids.update(|bids|
+                state.explorer.bids().update(|bids|
                     bids.values_mut().for_each(|bid| bid.owned = bid.owner == address)
                 );
-                state.explorer.nav_history.update(|nav_history|
+                state.explorer.nav_history().update(|nav_history|
                     nav_history.iter_mut().for_each(|token| token.owned = token.owner == address)
                 );
             }
-        });
+        }
     });
 
     // update frames
-    create_effect({
+    Effect::new({
         let state = state.clone();
         move |_| {
             let mandelbrot = &mut state.mandelbrot.lock().unwrap();
             let frames = &mut mandelbrot.frames;
             frames.clear();
-            frames.extend(state.explorer.children.get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
-            frames.extend(state.explorer.bids.get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)));
-            frames.extend(state.explorer.nav_history.get().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
+            frames.extend(state.explorer.children().get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)));
+            frames.extend(state.explorer.bids().get().values().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)));
+            frames.extend(state.explorer.nav_history().get().iter().rev().map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Blue)));
             if let Some(redraw) = &mandelbrot.redraw {
                 redraw();
             }
@@ -214,17 +226,17 @@ fn Controller() -> impl IntoView {
 
     view! {
         <div class="flex flex-col">
-            <Visuals />
+            <Visuals/>
     
             {
-                move || if let Some(token) = state.explorer.nav_history.get().last().cloned() {
+                move || state.explorer.nav_history().get().last().cloned().map(|token| {
                     let state = state.clone();
                     view! {
                         <div class="bg-gray-800 text-white rounded-md shadow p-4">
                             <Info token=token.clone() />
                         </div>
     
-                        <Show when=move || state.address.get().is_some() fallback=|| {} >
+                        <Show when={let state = state.clone(); move || state.address.get().is_some()} fallback=|| {} >
                             {
                                 let token = token.clone();
                                 view! {
@@ -237,15 +249,13 @@ fn Controller() -> impl IntoView {
                         </Show>
     
                         <div class="border-t border-gray-700 my-4" />
-                        <Show when=move || {state.explorer.bids.get().len() > 0} fallback=|| {} >
+                        <Show when={let state = state.clone(); move || state.explorer.bids().get().len() > 0} fallback=|| {} >
                             <div class="bg-gray-800 text-white rounded-md shadow p-4">
-                                <Bids bids=state.explorer.bids />
+                                <Bids bids=state.explorer.bids() />
                             </div>
                         </Show>
-                    }.into_view()
-                } else {
-                    Default::default()
-                }
+                    }.into_any()
+                })
             }
         </div>
     }

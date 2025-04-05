@@ -1,30 +1,29 @@
 use std::collections::HashMap;
 
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
+use leptos_router::hooks::{use_navigate, use_query_map};
 use mandelbrot_explorer::FrameColor;
+use send_wrapper::SendWrapper;
 
-use crate::{
-    evm::types::Metadata,
-    state::State,
-    util::preserve_log_level,
-};
-
+use crate::{evm::types::Metadata, state::State, util::preserve_log_level};
 
 #[component]
-pub fn Tokens(
-    tokens: RwSignal<HashMap<u128, Metadata>>,
-) -> impl IntoView {
-    let state = use_context::<State>().unwrap();
+pub fn Tokens<T>(tokens: T) -> impl IntoView
+where
+    T: Get<Value = HashMap<u128, Metadata>> + Update<Value = HashMap<u128, Metadata>> + Copy + Send + Sync + 'static,
+{
+    let state = use_context::<SendWrapper<State>>().unwrap();
+    let navigate = use_navigate();
+    let query_map = use_query_map();
 
-    let burn_token = create_action({
-        let erc1155_contract = state.erc1155_contract.clone();
+    let burn_token = Action::new_local({
+        let state = state.clone();
         move |token_id: &u128| {
-            let erc1155_contract = erc1155_contract.clone();
+            let state = state.clone();
             let token_id = token_id.clone();
             async move {
                 if let Some(address) = state.address.get_untracked() {
-                    if let Some(_) = erc1155_contract.burn(address, token_id).await {
+                    if let Some(_) = state.erc1155_contract.burn(address, token_id).await {
                         tokens.update(|tokens| {
                             tokens.remove(&token_id);
                         });
@@ -34,27 +33,33 @@ pub fn Tokens(
         }
     });
 
-    let zoom_token = move |token_id| {
-        if let Some(token) = tokens.get().get(&token_id) {
-            use_navigate()(&preserve_log_level(format!("/tokens/{}", token_id)), Default::default());
-            let frame = token.to_frame(FrameColor::Blue);
-            state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+    let zoom_token = {
+        let state = state.clone();
+        move |token_id| {
+            if let Some(token) = tokens.get().get(&token_id) {
+                navigate(&preserve_log_level(format!("/tokens/{}", token_id), query_map), Default::default());
+                let frame = token.to_frame(FrameColor::Blue);
+                state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+            }
         }
     };
 
-    let edited_token = create_rw_signal(None);
-    let bids_minimum_price = create_rw_signal(0.0);
+    let edited_token = RwSignal::new(None);
+    let bids_minimum_price = RwSignal::new(0.0);
     let edit_token = move |token: Metadata| {
         bids_minimum_price.set(token.minimum_price);
         edited_token.set(Some(token))
     };
-    let edit_token_submit = create_action({
-        let erc1155_contract = state.erc1155_contract.clone();
+    let edit_token_submit = Action::new_local({
+        let state = state.clone();
         move |_| {
-            let erc1155_contract = erc1155_contract.clone();
+            let state = state.clone();
             async move {
                 if let (Some(address), Some(token)) = (state.address.get_untracked(), edited_token.get_untracked()) {
-                    erc1155_contract.set_minimum_bid(address, token.token_id, bids_minimum_price.get_untracked()).await;
+                    state
+                        .erc1155_contract
+                        .set_minimum_bid(address, token.token_id, bids_minimum_price.get_untracked())
+                        .await;
                 }
                 edited_token.set(None);
             }
@@ -76,7 +81,7 @@ pub fn Tokens(
                                         <div class="font-semibold">"Token Id: " {token.token_id}</div>
                                         <div class="text-accent2">"Locked OM: " {token.locked_OM.to_string()}</div>
                                     </div>
-    
+
                                     <div class="flex flex-wrap gap-2">
                                         <button
                                             on:click={let zoom_token = zoom_token.clone(); move |_| zoom_token(token.token_id)}
@@ -91,7 +96,7 @@ pub fn Tokens(
                                             "Edit"
                                         </button>
                                         <button
-                                            on:click=move |_| burn_token.dispatch(token.token_id)
+                                            on:click=move |_| { burn_token.dispatch(token.token_id); }
                                             class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded-md text-white text-sm font-medium transition"
                                         >
                                             "Burn"
@@ -104,7 +109,7 @@ pub fn Tokens(
                 }
             }
         </Show>
-    
+
         // <!-- Modal -->
         <Show when=move || edited_token.get().is_some()>
             <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -112,10 +117,10 @@ pub fn Tokens(
                     <div class="text-xl font-bold">
                         "Token Id " {move || edited_token.get().map_or("".into(), |token| token.token_id.to_string())}
                     </div>
-    
+
                     {
                         move || {
-                            if let Some(token) = edited_token.get() {
+                            edited_token.get().map(|token| {
                                 view! {
                                     <div class="flex flex-col gap-2">
                                         <label class="text-sm text-gray-300">"Minimum bid price:"</label>
@@ -131,16 +136,14 @@ pub fn Tokens(
                                             }
                                         />
                                     </div>
-                                }.into_view()
-                            } else {
-                                view! {}.into_view()
-                            }
+                                }
+                            })
                         }
                     }
-    
+
                     <div class="flex justify-end gap-4 pt-2 border-t border-gray-700">
                         <button
-                            on:click=move |_| edit_token_submit.dispatch(())
+                            on:click=move |_| { edit_token_submit.dispatch(()); }
                             class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-md text-white font-semibold transition"
                         >
                             "Save"

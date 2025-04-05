@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
-use leptos::*;
+use leptos::prelude::*;
 use mandelbrot_explorer::FrameColor;
+use send_wrapper::SendWrapper;
 
 use crate::{
     evm::types::Metadata,
@@ -10,10 +11,11 @@ use crate::{
 
 
 #[component]
-pub fn Bids(
-    bids: RwSignal<HashMap<u128, Metadata>>,
-) -> impl IntoView {
-    let state = use_context::<State>().unwrap();
+pub fn Bids<T>(bids: T) -> impl IntoView
+where
+    T: Get<Value = HashMap<u128, Metadata>> + Update<Value = HashMap<u128, Metadata>> + Copy + Send + Sync + 'static,
+{
+    let state = use_context::<SendWrapper<State>>().unwrap();
 
     let zoom_bid = {
         move |bid_id| {
@@ -24,7 +26,7 @@ pub fn Bids(
         }
     };
 
-    let sorted_bids = create_memo(move |_| {
+    let sorted_bids = Memo::new(move |_| {
         let mut bids: Vec<Metadata> = bids.get().values().map(|bid| bid.clone()).collect();
         bids.sort_by(|bid_a, bid_b| bid_b.locked_OM.partial_cmp(&bid_a.locked_OM).unwrap());
         bids

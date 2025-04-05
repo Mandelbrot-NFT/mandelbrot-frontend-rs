@@ -1,16 +1,17 @@
-use leptos::*;
+use leptos::prelude::*;
+use send_wrapper::SendWrapper;
 
 use crate::{components::primitive::Slider, state::State};
 
 
 #[component]
 pub fn Visuals() -> impl IntoView {
-    let state = use_context::<State>().unwrap();
-    let max_iterations = create_rw_signal(40.0);
-    let offset = create_rw_signal(0.0);
-    let length = create_rw_signal(360.0);
+    let state = use_context::<SendWrapper<State>>().unwrap();
+    let max_iterations = RwSignal::new(40.0);
+    let offset = RwSignal::new(0.0);
+    let length = RwSignal::new(360.0);
 
-    create_effect({
+    Effect::new({
         let mandelbrot = state.mandelbrot.clone();
         move |_| {
             let mut mandelbrot = mandelbrot.lock().unwrap();
@@ -34,7 +35,7 @@ pub fn Visuals() -> impl IntoView {
                     </span>
                 </div>
                 <Slider
-                    max=|| 200.0
+                    max=200.0
                     value=max_iterations
                     class="w-full bg-gray-300 rounded-full focus:outline-none"
                 />
@@ -48,7 +49,7 @@ pub fn Visuals() -> impl IntoView {
                     </span>
                 </div>
                 <Slider
-                    max=|| 1.0
+                    max=1.0
                     value=offset
                     class="w-full bg-gray-300 rounded-full focus:outline-none"
                 />
@@ -62,7 +63,7 @@ pub fn Visuals() -> impl IntoView {
                     </span>
                 </div>
                 <Slider
-                    max=|| 10000.0
+                    max=10000.0
                     value=length
                     class="w-full bg-gray-300 rounded-full focus:outline-none"
                 />

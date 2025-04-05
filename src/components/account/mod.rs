@@ -1,19 +1,13 @@
 mod balance;
 
-use leptos::*;
+use leptos::prelude::*;
 use leptos_ethereum_provider::{AccountLabel, EthereumInterface};
 
 use balance::Balance;
 
-
 #[component]
-pub fn AccountButton(
-    balance: ReadSignal<f64>,
-    #[prop(into)] on_click: Callback<()>,
-) -> impl IntoView {
-    let disconnect = {
-        move |_| on_click.call(())
-    };
+pub fn AccountButton(balance: ReadSignal<f64>, #[prop(into)] on_click: Callback<()>) -> impl IntoView {
+    let disconnect = { move |_| on_click.run(()) };
 
     view! {
         <div>
@@ -27,12 +21,8 @@ pub fn AccountButton(
     }
 }
 
-
 #[component]
-pub fn Account(
-    open: RwSignal<bool>,
-    OM_balance: RwSignal<f64>,
-) -> impl IntoView {
+pub fn Account(open: RwSignal<bool>, OM_balance: RwSignal<f64>) -> impl IntoView {
     let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
 
     let disconnect = {
@@ -56,9 +46,9 @@ pub fn Account(
                 <div class="text-sm font-mono text-center text-gray-400 break-all truncate max-w-full">
                     <AccountLabel/>
                 </div>
-    
+
                 <Balance OM_balance/>
-    
+
                 <div class="flex justify-center">
                     <button on:click=disconnect class="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-semibold transition">
                         "Disconnect"

@@ -4,11 +4,10 @@ mod evm;
 mod state;
 mod util;
 
-use leptos::*;
+use leptos::prelude::*;
 
 use components::App;
 use util::parse_url_query_string;
-
 
 fn main() {
     let query_string = web_sys::window().unwrap().location().search().unwrap();

@@ -8,7 +8,6 @@ use web3::{
 
 use mandelbrot_explorer::{BigFloat, Radix};
 
-
 struct TokenizableBigFloat(BigFloat);
 
 impl Deref for TokenizableBigFloat {
@@ -22,7 +21,9 @@ impl Deref for TokenizableBigFloat {
 impl TokenizableBigFloat {
     fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
         let hex = format!("{:x}", U256::from_token(token)?);
-        Ok(Self(BigFloat::parse(&hex, Radix::Hex) / BigFloat::from(BigFloat::from(16f64.powf(63.0)))))
+        Ok(Self(
+            BigFloat::parse(&hex, Radix::Hex) / BigFloat::from(BigFloat::from(16f64.powf(63.0))),
+        ))
     }
 
     fn into_token(self) -> Token {
@@ -43,10 +44,10 @@ impl TokenizableBigFloat {
                 // This coordinate is invalid, so we return it, in case of an error, to be handled upstream
                 U256::MAX
             }
-        }.into_token()
+        }
+        .into_token()
     }
 }
-
 
 #[derive(Clone, Debug)]
 pub struct Field {
@@ -59,14 +60,12 @@ pub struct Field {
 impl Tokenizable for Field {
     fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
         match token {
-            Token::Tuple(tokens) => {
-                Ok(Self {
-                    x_min: &*TokenizableBigFloat::from_token(tokens[0].clone()).unwrap() - BigFloat::from(2.1),
-                    y_min: &*TokenizableBigFloat::from_token(tokens[1].clone()).unwrap() - BigFloat::from(1.5),
-                    x_max: &*TokenizableBigFloat::from_token(tokens[2].clone()).unwrap() - BigFloat::from(2.1),
-                    y_max: &*TokenizableBigFloat::from_token(tokens[3].clone()).unwrap() - BigFloat::from(1.5),
-                })
-            }
+            Token::Tuple(tokens) => Ok(Self {
+                x_min: &*TokenizableBigFloat::from_token(tokens[0].clone()).unwrap() - BigFloat::from(2.1),
+                y_min: &*TokenizableBigFloat::from_token(tokens[1].clone()).unwrap() - BigFloat::from(1.5),
+                x_max: &*TokenizableBigFloat::from_token(tokens[2].clone()).unwrap() - BigFloat::from(2.1),
+                y_max: &*TokenizableBigFloat::from_token(tokens[3].clone()).unwrap() - BigFloat::from(1.5),
+            }),
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
         }
     }
@@ -83,7 +82,6 @@ impl Tokenizable for Field {
 
 impl web3::contract::tokens::TokenizableItem for Field {}
 
-
 #[derive(Clone, Debug)]
 pub struct Metadata {
     pub token_id: u128,
@@ -99,27 +97,24 @@ pub struct Metadata {
 
 impl PartialEq for Metadata {
     fn eq(&self, other: &Self) -> bool {
-        self.token_id == other.token_id &&
-            self.selected == other.selected
+        self.token_id == other.token_id && self.selected == other.selected
     }
 }
 
 impl Tokenizable for Metadata {
     fn from_token(token: Token) -> Result<Self, web3::contract::Error> {
         match token {
-            Token::Tuple(tokens) => {
-                Ok(Self { 
-                    token_id: U256::from_token(tokens[0].clone())?.as_u128(),
-                    owner: Address::from_token(tokens[1].clone())?,
-                    parent_id: U256::from_token(tokens[2].clone())?.as_u128(),
-                    field: Field::from_token(tokens[3].clone())?,
-                    locked_OM: U256::from_token(tokens[4].clone())?.as_u128() as f64 / 10_f64.powi(18),
-                    minimum_price: U256::from_token(tokens[5].clone())?.as_u128() as f64 / 10_f64.powi(18),
-                    layer: U256::from_token(tokens[6].clone())?.as_u128(),
-                    owned: false,
-                    selected: false,
-                })
-            }
+            Token::Tuple(tokens) => Ok(Self {
+                token_id: U256::from_token(tokens[0].clone())?.as_u128(),
+                owner: Address::from_token(tokens[1].clone())?,
+                parent_id: U256::from_token(tokens[2].clone())?.as_u128(),
+                field: Field::from_token(tokens[3].clone())?,
+                locked_OM: U256::from_token(tokens[4].clone())?.as_u128() as f64 / 10_f64.powi(18),
+                minimum_price: U256::from_token(tokens[5].clone())?.as_u128() as f64 / 10_f64.powi(18),
+                layer: U256::from_token(tokens[6].clone())?.as_u128(),
+                owned: false,
+                selected: false,
+            }),
             _ => Err(web3::contract::Error::Abi(ethabi::Error::InvalidData)),
         }
     }
@@ -156,7 +151,7 @@ impl Metadata {
                     match color {
                         mandelbrot_explorer::FrameColor::Red => mandelbrot_explorer::FrameColor::Pink,
                         mandelbrot_explorer::FrameColor::Yellow => mandelbrot_explorer::FrameColor::Lemon,
-                        _ => mandelbrot_explorer::FrameColor::LightBlue
+                        _ => mandelbrot_explorer::FrameColor::LightBlue,
                     }
                 } else {
                     color

@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::prelude::*;
+use send_wrapper::SendWrapper;
 
 use crate::{
     evm::types::{Field, Metadata},
@@ -10,20 +11,18 @@ use crate::{
 pub fn Auction(
     token: Metadata,
 ) -> impl IntoView {
-    let state = use_context::<State>().unwrap();
+    let state = use_context::<SendWrapper<State>>().unwrap();
 
-    let bid_amount = create_rw_signal(token.minimum_price);
-    let bids_minimum_price = create_rw_signal(token.minimum_price);
+    let bid_amount = RwSignal::new(token.minimum_price);
+    let bids_minimum_price = RwSignal::new(token.minimum_price);
 
-    let create_bid = create_action({
-        move |token_id| {
-            let erc1155_contract = state.erc1155_contract.clone();
-            let mandelbrot = state.mandelbrot.clone();
-            let token_id = *token_id;
+    let create_bid = Action::new_local({
+        move |&token_id| {
+            let state = state.clone();
             async move {
                 if let Some(address) = state.address.get_untracked() {
-                    let bounds = mandelbrot.lock().unwrap().sample.borrow().get_bounds();
-                    erc1155_contract.bid(
+                    let bounds = state.mandelbrot.lock().unwrap().sample.borrow().get_bounds();
+                    state.erc1155_contract.bid(
                         address,
                         token_id,
                         Field {
@@ -77,7 +76,7 @@ pub fn Auction(
             </div>
     
             <button
-                on:click=move |_| create_bid.dispatch(token.token_id)
+                on:click=move |_| { create_bid.dispatch(token.token_id); }
                 class="h-fit px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md font-semibold transition"
             >
                 "Bid"

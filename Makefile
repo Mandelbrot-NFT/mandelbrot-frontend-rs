@@ -19,4 +19,10 @@ run: dirs
 	trunk serve
 
 run_release:
+	trunk serve --release
+
+run_release_dist:
 	(cd dist; http-server)
+
+format:
+	cargo fmt -- --config max_width=120

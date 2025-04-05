@@ -8,22 +8,26 @@ mod primitive;
 mod sales;
 mod state;
 
-use std::{sync::{Arc, Mutex}, rc::Rc, cell::RefCell};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
-use leptos::*;
+use leptos::prelude::*;
 use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider};
-use leptos_router::Router;
+use leptos_router::components::Router;
 use mandelbrot_explorer::ISample;
 
 use {
     about::About,
     account::{Account, AccountButton},
-    state::StateContextProvider,
     explorer::Explorer,
     guide::Guide,
     inventory::Inventory,
     mandelbrot::Mandelbrot,
     sales::Sales,
+    state::StateContextProvider,
 };
 
 fn tab_class(tab_name: &str, selected_tab: &str) -> String {
@@ -41,19 +45,22 @@ pub fn App() -> impl IntoView {
     let window = web_sys::window().unwrap();
     let height = window.inner_height().unwrap().as_f64().unwrap() + 1.0;
 
-    let interface = Arc::new(Mutex::new(mandelbrot_explorer::Interface::new(
-        Rc::new(RefCell::new(mandelbrot_explorer::PerturbationEngine::new(height as u32, height as u32))),
+    let interface = LocalStorage::wrap(Arc::new(Mutex::new(mandelbrot_explorer::Interface::new(
+        Rc::new(RefCell::new(mandelbrot_explorer::PerturbationEngine::new(
+            height as u32,
+            height as u32,
+        ))),
         mandelbrot_explorer::Coloring {
             max_iterations: 1600,
             offset: 0.0,
             length: 360.0,
         },
-    )));
+    ))));
 
-    let account_open = create_rw_signal(false);
-    let OM_balance = create_rw_signal(0.0);
+    let account_open = RwSignal::new(false);
+    let OM_balance = RwSignal::new(0.0);
 
-    let selected_tab = create_rw_signal("explorer");
+    let selected_tab = RwSignal::new("explorer");
 
     view! {
         <div class="min-h-screen flex flex-col">
@@ -65,14 +72,14 @@ pub fn App() -> impl IntoView {
                             <header class="h-12 z-10 bg-brand text-white flex items-center justify-between px-4">
                                 <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
                                 <div class="flex items-center gap-4">
-                                    <ConnectButton connected_html=view! {
+                                    <ConnectButton connected_html=move || view! {
                                         <AccountButton
                                             balance=OM_balance.read_only()
-                                            on_click=move |_| account_open.update(|account_open| {
+                                            on_click=move || account_open.update(|account_open| {
                                                 *account_open = !*account_open;
                                             })
                                         />
-                                    }.into_view()/>
+                                    }/>
                                 </div>
                             </header>
 

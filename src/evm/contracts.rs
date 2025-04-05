@@ -4,31 +4,32 @@ use async_trait::async_trait;
 use eyre::Result;
 use web3::{
     contract::{tokens::Tokenize, Contract, Options},
-    types::{Address, H256, U256, TransactionReceipt},
     transports::{eip_1193::Eip1193, Either, Http},
-    Web3
+    types::{Address, TransactionReceipt, H256, U256},
+    Web3,
 };
 
 use super::types::{Field, Metadata};
 
-
 const OM: U256 = U256([0, 0, 0, 0]);
-const CALLDATA: &[u8] = &[87, 114, 97, 112, 112, 101, 100, 32, 79, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 119, 79, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 18];
-
+const CALLDATA: &[u8] = &[
+    87, 114, 97, 112, 112, 101, 100, 32, 79, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20,
+    119, 79, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 18,
+];
 
 pub enum Error {
     TokenNotFound,
     NoRightsToBurn, // Only the token owner can burn it
-    TokenNotEmpty, // Cannot burn token if it has children
+    TokenNotEmpty,  // Cannot burn token if it has children
     BidNotFound,
-    BidTooLow, // Bid must exceed or equal minimum bid price
-    MinimumBidTooLow, // Child's minimum bid has to be at least as much as parent's
-    TooManyChildTokens, // A maximum of MAX_CHILDREN child tokens can be minted
+    BidTooLow,            // Bid must exceed or equal minimum bid price
+    MinimumBidTooLow,     // Child's minimum bid has to be at least as much as parent's
+    TooManyChildTokens,   // A maximum of MAX_CHILDREN child tokens can be minted
     NoRightsToApproveBid, // Only the owner of parent token can approve the bid
-    NoRightsToDeleteBid, // Only the bid creator can delete it
-    FieldOutside, // Token has to be within the field of its parent
-    FieldsOverlap, // Sibling fields cannot overlap
-    FieldTooLarge, // Token's field cannot exceed MAXIMUM_FIELD_PORTION % of its parent's
+    NoRightsToDeleteBid,  // Only the bid creator can delete it
+    FieldOutside,         // Token has to be within the field of its parent
+    FieldsOverlap,        // Sibling fields cannot overlap
+    FieldTooLarge,        // Token's field cannot exceed MAXIMUM_FIELD_PORTION % of its parent's
     Other(String),
 }
 
@@ -52,7 +53,6 @@ impl Error {
     }
 }
 
-
 #[async_trait(?Send)]
 trait CallWrapper {
     fn contract(&self) -> &Contract<Either<Eip1193, Http>>;
@@ -67,51 +67,68 @@ trait CallWrapper {
         }
     }
 
-    async fn call<T: Clone + Tokenize + std::marker::Send>(&self, method: &str, params: T, sender: Address) -> Option<H256> {
-        match self.contract().estimate_gas(method, params.clone(), sender, Options::default()).await {
+    async fn call<T: Clone + Tokenize + std::marker::Send>(
+        &self,
+        method: &str,
+        params: T,
+        sender: Address,
+    ) -> Option<H256> {
+        match self
+            .contract()
+            .estimate_gas(method, params.clone(), sender, Options::default())
+            .await
+        {
             Ok(gas) => {
                 log::info!("{} GAS: {:?}", method, gas);
             }
             Err(error) => {
                 self.process_error(error);
-                return None
+                return None;
             }
         }
 
         match self.contract().call(method, params, sender, Options::default()).await {
-            Ok(tx_hash) => {
-                Some(tx_hash)
-            }
+            Ok(tx_hash) => Some(tx_hash),
             Err(error) => {
                 self.process_error(error);
-                return None
+                return None;
             }
         }
     }
 
-    async fn call_with_confirmations<T: Clone + Tokenize + std::marker::Send>(&self, method: &str, params: T, sender: Address) -> Option<TransactionReceipt> {
-        match self.contract().estimate_gas(method, params.clone(), sender, Options::default()).await {
+    async fn call_with_confirmations<T: Clone + Tokenize + std::marker::Send>(
+        &self,
+        method: &str,
+        params: T,
+        sender: Address,
+    ) -> Option<TransactionReceipt> {
+        match self
+            .contract()
+            .estimate_gas(method, params.clone(), sender, Options::default())
+            .await
+        {
             Ok(gas) => {
                 log::info!("{} GAS: {:?}", method, gas);
             }
             Err(error) => {
                 self.process_error(error);
-                return None
+                return None;
             }
         }
 
-        match self.contract().call_with_confirmations(method, params, sender, Options::default(), 1).await {
-            Ok(receipt) => {
-                Some(receipt)
-            }
+        match self
+            .contract()
+            .call_with_confirmations(method, params, sender, Options::default(), 1)
+            .await
+        {
+            Ok(receipt) => Some(receipt),
             Err(error) => {
                 // self.process_error(error);
-                return None
+                return None;
             }
         }
     }
 }
-
 
 #[derive(Clone)]
 pub struct ERC1155Contract {
@@ -135,9 +152,13 @@ impl ERC1155Contract {
         Self {
             contract: Contract::from_json(
                 web3.eth(),
-                env!("ERC1155_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
+                env!("ERC1155_CONTRACT_ADDRESS")
+                    .trim_start_matches("0x")
+                    .parse()
+                    .unwrap(),
                 include_bytes!("../../resources/MandelbrotNFT.json"),
-            ).unwrap(),
+            )
+            .unwrap(),
             handle_error,
         }
     }
@@ -147,13 +168,10 @@ impl ERC1155Contract {
     }
 
     pub async fn get_OM_balance(&self, address: Address) -> Result<f64> {
-        let result: web3::contract::Result<U256> = self.contract.query(
-            "balanceOf",
-            (address, OM,),
-            None,
-            Options::default(),
-            None
-        ).await;
+        let result: web3::contract::Result<U256> = self
+            .contract
+            .query("balanceOf", (address, OM), None, Options::default(), None)
+            .await;
         Ok(result?.as_u128() as f64 / 10_f64.powi(18))
     }
 
@@ -168,59 +186,64 @@ impl ERC1155Contract {
                 CALLDATA.to_vec(),
             ),
             from,
-        ).await
+        )
+        .await
     }
 
     pub async fn mint(&self, sender: Address, parent_id: u128, field: Field) -> Option<H256> {
-        self.call(
-            "mintNFT",
-            (U256::from(parent_id), sender, field),
-            sender,
-        ).await
+        self.call("mintNFT", (U256::from(parent_id), sender, field), sender)
+            .await
     }
 
     pub async fn burn(&self, sender: Address, token_id: u128) -> Option<TransactionReceipt> {
-        self.call_with_confirmations(
-            "burn",
-            (U256::from(token_id),),
-            sender,
-        ).await
+        self.call_with_confirmations("burn", (U256::from(token_id),), sender)
+            .await
     }
 
     pub async fn get_metadata(&self, token_id: u128) -> Result<Metadata> {
-        let result: web3::contract::Result<Metadata> = self.contract.query(
-            "getMetadata",
-            (U256::from(token_id),),
-            None,
-            Options::default(),
-            None
-        ).await;
+        let result: web3::contract::Result<Metadata> = self
+            .contract
+            .query("getMetadata", (U256::from(token_id),), None, Options::default(), None)
+            .await;
         Ok(result?)
     }
 
     pub async fn get_children_metadata(&self, parent_id: u128) -> Result<Vec<Metadata>> {
-        let result: web3::contract::Result<Vec<Metadata>> = self.contract.query(
-            "getChildrenMetadata",
-            (U256::from(parent_id),),
-            None,
-            Options::default(),
-            None
-        ).await;
+        let result: web3::contract::Result<Vec<Metadata>> = self
+            .contract
+            .query(
+                "getChildrenMetadata",
+                (U256::from(parent_id),),
+                None,
+                Options::default(),
+                None,
+            )
+            .await;
         Ok(result?)
     }
 
     pub async fn get_ancestry_metadata(&self, token_id: u128) -> Result<Vec<Metadata>> {
-        let result: web3::contract::Result<Vec<Metadata>> = self.contract.query(
-            "getAncestryMetadata",
-            (U256::from(token_id),),
-            None,
-            Options::default(),
-            None
-        ).await;
+        let result: web3::contract::Result<Vec<Metadata>> = self
+            .contract
+            .query(
+                "getAncestryMetadata",
+                (U256::from(token_id),),
+                None,
+                Options::default(),
+                None,
+            )
+            .await;
         Ok(result?)
     }
 
-    pub async fn bid(&self, sender: Address, parent_id: u128, field: Field, amount: f64, minimum_price: f64) -> Option<H256> {
+    pub async fn bid(
+        &self,
+        sender: Address,
+        parent_id: u128,
+        field: Field,
+        amount: f64,
+        minimum_price: f64,
+    ) -> Option<H256> {
         self.call(
             "bid",
             (
@@ -231,37 +254,28 @@ impl ERC1155Contract {
                 U256::from((minimum_price * 10_f64.powi(18)) as u128),
             ),
             sender,
-        ).await
+        )
+        .await
     }
 
     pub async fn get_bids(&self, parent_id: u128) -> Result<Vec<Metadata>> {
-        let result: web3::contract::Result<Vec<Metadata>> = self.contract.query(
-            "getBids",
-            (U256::from(parent_id),),
-            None,
-            Options::default(),
-            None
-        ).await;
+        let result: web3::contract::Result<Vec<Metadata>> = self
+            .contract
+            .query("getBids", (U256::from(parent_id),), None, Options::default(), None)
+            .await;
         Ok(result?)
     }
 
     pub async fn get_owned_items(&self, owner: Address) -> Result<(Vec<Metadata>, Vec<Metadata>)> {
-        let result: web3::contract::Result<(Vec<Metadata>, Vec<Metadata>)> = self.contract.query(
-            "getOwnedItems",
-            (owner,),
-            None,
-            Options::default(),
-            None
-        ).await;
+        let result: web3::contract::Result<(Vec<Metadata>, Vec<Metadata>)> = self
+            .contract
+            .query("getOwnedItems", (owner,), None, Options::default(), None)
+            .await;
         Ok(result?)
     }
 
     pub async fn approve_bid(&self, sender: Address, bid_id: u128) -> Option<H256> {
-        self.call(
-            "approve",
-            (U256::from(bid_id),),
-            sender,
-        ).await
+        self.call("approve", (U256::from(bid_id),), sender).await
     }
 
     pub async fn batch_approve_bids(&self, sender: Address, bid_ids: &[u128]) -> Option<H256> {
@@ -269,18 +283,21 @@ impl ERC1155Contract {
             "batchApprove",
             (bid_ids.iter().map(|bid_id| U256::from(*bid_id)).collect::<Vec<U256>>(),),
             sender,
-        ).await
+        )
+        .await
     }
 
     pub async fn delete_bid(&self, sender: Address, bid_id: u128) -> Option<TransactionReceipt> {
-        self.call_with_confirmations(
-            "deleteBid",
-            (U256::from(bid_id),),
-            sender,
-        ).await
+        self.call_with_confirmations("deleteBid", (U256::from(bid_id),), sender)
+            .await
     }
 
-    pub async fn set_minimum_bid(&self, sender: Address, token_id: u128, minimum_bid: f64) -> Option<TransactionReceipt> {
+    pub async fn set_minimum_bid(
+        &self,
+        sender: Address,
+        token_id: u128,
+        minimum_bid: f64,
+    ) -> Option<TransactionReceipt> {
         self.call_with_confirmations(
             "setMinimumBid",
             (
@@ -288,11 +305,10 @@ impl ERC1155Contract {
                 U256::from((minimum_bid * 10_f64.powi(18)) as u128),
             ),
             sender,
-        ).await
-
+        )
+        .await
     }
 }
-
 
 #[derive(Clone)]
 pub struct Wrapped1155FactoryContract {
@@ -317,9 +333,13 @@ impl Wrapped1155FactoryContract {
         Self {
             contract: Contract::from_json(
                 web3.eth(),
-                env!("WRAPPER_FACTORY_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
+                env!("WRAPPER_FACTORY_CONTRACT_ADDRESS")
+                    .trim_start_matches("0x")
+                    .parse()
+                    .unwrap(),
                 include_bytes!("../../resources/Wrapped1155Factory.json"),
-            ).unwrap(),
+            )
+            .unwrap(),
             handle_error,
             erc1155_address,
         }
@@ -338,11 +358,12 @@ impl Wrapped1155FactoryContract {
                 U256::from((amount * 10_f64.powi(18)) as u128),
                 recipient,
                 CALLDATA.to_vec(),
-            ), recipient
-        ).await
+            ),
+            recipient,
+        )
+        .await
     }
 }
-
 
 #[derive(Clone)]
 pub struct ERC20Contract {
@@ -356,7 +377,8 @@ impl ERC20Contract {
                 web3.eth(),
                 env!("ERC20_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
                 include_bytes!("../../resources/Wrapped1155.json"),
-            ).unwrap(),
+            )
+            .unwrap(),
         }
     }
 
@@ -365,13 +387,10 @@ impl ERC20Contract {
     }
 
     pub async fn get_balance(&self, address: Address) -> Result<f64> {
-        let result: web3::contract::Result<U256> = self.contract.query(
-            "balanceOf",
-            (address,),
-            None,
-            Options::default(),
-            None
-        ).await;
+        let result: web3::contract::Result<U256> = self
+            .contract
+            .query("balanceOf", (address,), None, Options::default(), None)
+            .await;
         Ok(result?.as_u128() as f64 / 10_f64.powi(18))
     }
 }

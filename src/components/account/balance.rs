@@ -1,51 +1,46 @@
 use std::sync::Arc;
 
 use eyre::Result;
-use leptos::*;
+use leptos::prelude::*;
+use send_wrapper::SendWrapper;
 
 use crate::{
-    components::{
-        primitive::Slider,
-        state::Web3
-    },
-    evm::contracts::{
-        self,
-        ERC1155Contract,
-        Wrapped1155FactoryContract,
-        ERC20Contract
-    },
+    components::{primitive::Slider, state::Web3},
+    evm::contracts::{self, ERC1155Contract, ERC20Contract, Wrapped1155FactoryContract},
     state::State,
 };
-
 
 async fn get_balance(
     address: web3::types::Address,
     erc1155_contract: ERC1155Contract,
     erc20_contract: ERC20Contract,
 ) -> Result<(f64, f64)> {
-    Ok((erc1155_contract.get_OM_balance(address).await?, erc20_contract.get_balance(address).await?))
+    Ok((
+        erc1155_contract.get_OM_balance(address).await?,
+        erc20_contract.get_balance(address).await?,
+    ))
 }
 
-
 #[component]
-pub fn Balance(
-    OM_balance: RwSignal<f64>,
-) -> impl IntoView {
-    let state = use_context::<State>().unwrap();
-    let web3 = use_context::<Web3>().unwrap().0;
+pub fn Balance(OM_balance: RwSignal<f64>) -> impl IntoView {
+    let state = use_context::<SendWrapper<State>>().unwrap().take();
+    let web3 = use_context::<SendWrapper<Web3>>().unwrap().take().0;
     let handle_error = use_context::<WriteSignal<Option<contracts::Error>>>().unwrap();
 
-    let wOM_balance = create_rw_signal(0.0);
-    let wrap_amount = create_rw_signal(0.0);
-    let unwrap_amount = create_rw_signal(0.0);
+    let wOM_balance = RwSignal::new(0.0);
+    let wrap_amount = RwSignal::new(0.0);
+    let unwrap_amount = RwSignal::new(0.0);
 
-    let uniswap_link = format!("https://app.uniswap.org/#/swap?inputCurrency=ETH&outputCurrency={}", env!("ERC20_CONTRACT_ADDRESS"));
+    let uniswap_link = format!(
+        "https://app.uniswap.org/#/swap?inputCurrency=ETH&outputCurrency={}",
+        env!("ERC20_CONTRACT_ADDRESS")
+    );
 
     let handle_error = Arc::new(move |error| handle_error.set(Some(error)));
     let wrapper_contract = Wrapped1155FactoryContract::new(&web3, state.erc1155_contract.address(), handle_error);
     let erc20_contract = ERC20Contract::new(&web3);
 
-    let refresh_balance = create_action({
+    let refresh_balance = Action::new_local({
         let erc1155_contract = state.erc1155_contract.clone();
         let erc20_contract = erc20_contract.clone();
         move |_| {
@@ -53,7 +48,9 @@ pub fn Balance(
             let erc20_contract = erc20_contract.clone();
             async move {
                 if let Some(address) = state.address.get_untracked() {
-                    if let Ok((OM_balance_, wOM_balance_)) = get_balance(address, erc1155_contract, erc20_contract).await {
+                    if let Ok((OM_balance_, wOM_balance_)) =
+                        get_balance(address, erc1155_contract, erc20_contract).await
+                    {
                         OM_balance.set(OM_balance_);
                         wOM_balance.set(wOM_balance_);
                     }
@@ -62,13 +59,13 @@ pub fn Balance(
         }
     });
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if state.address.get().is_some() {
             refresh_balance.dispatch(());
         }
     });
 
-    let unwrap = create_action({
+    let unwrap = Action::new_local({
         let wrapper_contract = wrapper_contract.clone();
         move |_| {
             let wrapper_contract = wrapper_contract.clone();
@@ -81,7 +78,7 @@ pub fn Balance(
         }
     });
 
-    let wrap = create_action({
+    let wrap = Action::new_local({
         let erc1155_contract = state.erc1155_contract.clone();
         let wrapper_contract = wrapper_contract.clone();
         move |_| {
@@ -89,7 +86,9 @@ pub fn Balance(
             let wrapper_contract = wrapper_contract.clone();
             async move {
                 if let Some(address) = state.address.get_untracked() {
-                    erc1155_contract.transfer_OM(address, wrapper_contract.address(), wrap_amount.get_untracked()).await;
+                    erc1155_contract
+                        .transfer_OM(address, wrapper_contract.address(), wrap_amount.get_untracked())
+                        .await;
                     refresh_balance.dispatch(());
                 }
             }
@@ -101,7 +100,7 @@ pub fn Balance(
             // Refresh balance and Buy wOM Buttons
             <div class="grid grid-cols-2 gap-4">
                 <button
-                    on:click=move |_| refresh_balance.dispatch(())
+                    on:click=move |_| { refresh_balance.dispatch(()); }
                     class="py-2 bg-gray-700 hover:bg-gray-600 rounded-md font-semibold transition"
                 >
                     "Refresh balance"
@@ -112,17 +111,17 @@ pub fn Balance(
                     </button>
                 </a>
             </div>
-    
+
             // wOM Balance Slider and Unwrap Button
             <div class="grid grid-cols-[60px_1fr_min-content] gap-4 items-center min-w-0">
                 <label class="text-sm font-semibold text-highlight text-right">"wOM:"</label>
-    
+
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="w-[50px] text-right text-sm font-mono text-accent1">
                         {move || format!("{:.2}", wOM_balance.get())}
                     </span>
                     <Slider
-                        max=move || wOM_balance.get()
+                        max=wOM_balance.read_only()
                         value=unwrap_amount
                         class="w-full h-2 bg-gray-400 rounded-full focus:outline-none focus:ring-2 focus:ring-accent1"
                     />
@@ -130,25 +129,25 @@ pub fn Balance(
                         {move || format!("{:.2}", unwrap_amount.get())}
                     </span>
                 </div>
-    
+
                 <button
-                    on:click=move |_| unwrap.dispatch(())
+                    on:click=move |_| { unwrap.dispatch(()); }
                     class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-semibold transition"
                 >
                     "Unwrap"
                 </button>
             </div>
-    
+
             // OM Balance Slider and Wrap Button
             <div class="grid grid-cols-[60px_1fr_min-content] gap-4 items-center min-w-0">
                 <label class="text-sm font-semibold text-highlight text-right">"OM:"</label>
-    
+
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="w-[50px] text-right text-sm font-mono text-accent1">
                         {move || format!("{:.2}", OM_balance.get())}
                     </span>
                     <Slider
-                        max=move || OM_balance.get()
+                        max=OM_balance.read_only()
                         value=wrap_amount
                         class="w-full h-2 bg-gray-400 rounded-full focus:outline-none focus:ring-2 focus:ring-accent1"
                     />
@@ -156,9 +155,9 @@ pub fn Balance(
                         {move || format!("{:.2}", wrap_amount.get())}
                     </span>
                 </div>
-    
+
                 <button
-                    on:click=move |_| wrap.dispatch(())
+                    on:click=move |_| { wrap.dispatch(()); }
                     class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-semibold transition"
                 >
                     "Wrap"

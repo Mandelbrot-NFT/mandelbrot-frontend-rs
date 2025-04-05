@@ -1,27 +1,26 @@
 use std::collections::HashMap;
 
-use leptos::*;
+use leptos::prelude::*;
 use mandelbrot_explorer::FrameColor;
+use send_wrapper::SendWrapper;
 
-use crate::{
-    evm::types::Metadata,
-    state::State,
-};
-
+use crate::{evm::types::Metadata, state::State};
 
 #[component]
-pub fn Bids(
-    bids: RwSignal<HashMap<u128, Metadata>>,
-) -> impl IntoView {
-    let state = use_context::<State>().unwrap();
+pub fn Bids<T>(bids: T) -> impl IntoView
+where
+    T: Get<Value = HashMap<u128, Metadata>> + Update<Value = HashMap<u128, Metadata>> + Copy + Send + Sync + 'static,
+{
+    let state = use_context::<SendWrapper<State>>().unwrap();
 
-    let delete_bid = create_action({
+    let delete_bid = Action::new_local({
+        let state = state.clone();
         move |bid_id: &u128| {
-            let erc1155_contract = state.erc1155_contract.clone();
+            let state = state.clone();
             let bid_id = bid_id.clone();
             async move {
                 if let Some(address) = state.address.get_untracked() {
-                    if let Some(_) = erc1155_contract.delete_bid(address, bid_id).await {
+                    if let Some(_) = state.erc1155_contract.delete_bid(address, bid_id).await {
                         bids.update(|bids| {
                             bids.remove(&bid_id);
                         });
@@ -56,7 +55,7 @@ pub fn Bids(
                                         <div class="font-semibold">"Bid Id: " {bid.token_id}</div>
                                         <div class="text-accent2">"Proposed OM: " {bid.locked_OM.to_string()}</div>
                                     </div>
-    
+
                                     // <!-- Actions -->
                                     <div class="flex flex-wrap gap-2">
                                         <button
@@ -66,7 +65,7 @@ pub fn Bids(
                                             "Zoom"
                                         </button>
                                         <button
-                                            on:click=move |_| delete_bid.dispatch(bid.token_id)
+                                            on:click=move |_| { delete_bid.dispatch(bid.token_id); }
                                             class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded-md text-white text-sm font-medium transition"
                                         >
                                             "Delete"
