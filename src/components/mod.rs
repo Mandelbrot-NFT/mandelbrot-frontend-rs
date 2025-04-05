@@ -47,7 +47,7 @@ pub fn Content() -> impl IntoView {
 
     ethereum.map(|ethereum| {
         view! {
-            <div class="flex space-x-2 border-b">
+            <div class="h-[8vh] flex space-x-2 border-b">
                 {
                     move || {
                         vec![
@@ -74,7 +74,7 @@ pub fn Content() -> impl IntoView {
             </div>
 
             <Router>
-                <div class="w-full max-w-4xl mx-auto">
+                <div class="w-full mx-auto overflow-y-auto max-h-[84vh] scroll-smooth">
                     <div class="p-4 space-y-4">
                         <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
                             <Explorer />
@@ -125,7 +125,7 @@ pub fn App() -> impl IntoView {
                     <div class="flex flex-row gap-2 items-stretch">
                         <Mandelbrot interface=interface.clone()/>
                         <div class="relative w-full border overflow-auto">
-                            <header class="h-12 z-10 bg-brand text-white flex items-center justify-between px-4">
+                            <header class="h-[8vh] z-10 bg-brand text-white flex items-center justify-between px-4">
                                 <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
                                 <div class="flex items-center gap-4">
                                     <ConnectButton connected_html=move || view! {

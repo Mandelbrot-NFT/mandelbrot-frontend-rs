@@ -24,7 +24,7 @@ pub fn Visuals() -> impl IntoView {
     });
 
     view! {
-        <div class="flex flex-col text-white max-w-xl">
+        <div class="flex flex-col text-white">
 
             <div class="space-y-2">
                 <div class="flex justify-between items-center">

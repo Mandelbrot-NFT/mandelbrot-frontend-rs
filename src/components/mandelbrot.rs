@@ -35,6 +35,7 @@ pub fn Mandelbrot(interface: SendWrapper<Arc<Mutex<mandelbrot_explorer::Interfac
 
     view! {
         <canvas
+            class="outline-none"
             node_ref=canvas
             width=move || height.get() * device_pixel_ratio.get()
             height=move || height.get() * device_pixel_ratio.get()
