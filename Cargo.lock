@@ -2419,6 +2419,7 @@ name = "mandelbrot-frontend"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "console_error_panic_hook",
  "console_log",
  "ethabi",
  "eyre",
@@ -2432,6 +2433,7 @@ dependencies = [
  "mandelbrot-explorer",
  "reactive_stores",
  "send_wrapper 0.6.0",
+ "wasm-bindgen",
  "web-sys",
  "web3",
 ]

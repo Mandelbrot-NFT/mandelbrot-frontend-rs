@@ -1,5 +1,6 @@
 mod auction;
 mod bids;
+mod gradient;
 mod info;
 mod visuals;
 
@@ -18,7 +19,7 @@ use crate::{
     state::{ExplorerStateStoreFields, SalesStateStoreFields, State},
     util::preserve_log_level,
 };
-use {auction::Auction, bids::Bids, info::Info, visuals::Visuals};
+use {auction::Auction, bids::Bids, gradient::GradientEditor, info::Info, visuals::Visuals};
 
 #[component]
 pub fn Explorer() -> impl IntoView {
@@ -246,6 +247,7 @@ fn Controller() -> impl IntoView {
 
     view! {
         <div class="flex flex-col">
+            <GradientEditor/>
             <Visuals/>
 
             {

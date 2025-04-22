@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1.88"
+console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
 ethabi = "18.0.0"
 eyre = "0.6.12"
@@ -18,5 +19,9 @@ log = "0.4.27"
 mandelbrot-explorer = { version = "0.1.0", path = "mandelbrot-explorer-rs" }
 reactive_stores = "0.1.8"
 send_wrapper = "0.6.0"
+wasm-bindgen = "0.2.100"
 web-sys = { version = "0.3.77", features = ["Screen", "Window"] }
 web3 = { git = "https://github.com/platonfloria/rust-web3.git", branch="feature/transport-either-to-support-wasm", version = "0.20.0", default-features = false, features = ["eip-1193"] }
+
+[profile.dev]
+debug = true
