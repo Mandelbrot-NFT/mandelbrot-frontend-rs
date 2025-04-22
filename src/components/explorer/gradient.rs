@@ -155,20 +155,33 @@ pub fn GradientEditor() -> impl IntoView {
 
             // Color Picker UI
             {move || {
-                active_checkpoint_id.get().map(|active_checkpoint_id| {
-                    let active_checkpoint = AtKeyed::new(points.checkpoints(), active_checkpoint_id);
+                active_checkpoint_id.get().map(|id| {
+                    let active_checkpoint = AtKeyed::new(points.checkpoints(), id);
                     view! {
-                        <div class="mt-4 flex items-center space-x-2">
-                            <label class="text-sm font-medium">"Selected Color:"</label>
-                            <input
-                                type="color"
-                                class="w-8 h-8 rounded border shadow"
-                                prop:value=active_checkpoint.read().color.clone()
-                                on:input=move |ev| {
-                                    let new_color = event_target_value(&ev);
-                                    active_checkpoint.color().set(new_color);
+                        <div class="mt-4 flex items-center space-x-4">
+                            <div class="flex items-center space-x-2">
+                                <label class="text-sm font-medium">"Selected Color:"</label>
+                                <input
+                                    type="color"
+                                    class="w-8 h-8 rounded border shadow"
+                                    prop:value=active_checkpoint.read().color.clone()
+                                    on:input=move |ev| {
+                                        let new_color = event_target_value(&ev);
+                                        active_checkpoint.color().set(new_color);
+                                    }
+                                />
+                            </div>
+                            <button
+                                class="px-4 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                                on:click=move |_| {
+                                    points.update(|points| {
+                                        points.checkpoints.retain(|checkpoint| checkpoint.id != id);
+                                    });
+                                    active_checkpoint_id.set(None);
                                 }
-                            />
+                            >
+                                "Delete Checkpoint"
+                            </button>
                         </div>
                     }
                 })
