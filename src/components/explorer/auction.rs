@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use mandelbrot_explorer::ISample;
 use send_wrapper::SendWrapper;
 
 use crate::{
@@ -18,7 +19,7 @@ pub fn Auction(token: Metadata) -> impl IntoView {
             let state = state.clone();
             async move {
                 if let Some(address) = state.address.get_untracked() {
-                    let bounds = state.mandelbrot.lock().unwrap().sample.borrow().get_bounds();
+                    let bounds = state.mandelbrot.lock().unwrap().engine.borrow().get_bounds();
                     state
                         .erc1155_contract
                         .bid(

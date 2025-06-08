@@ -19,7 +19,7 @@ use crate::{
     state::{ExplorerStateStoreFields, SalesStateStoreFields, State},
     util::preserve_log_level,
 };
-use {auction::Auction, bids::Bids, gradient::GradientEditor, info::Info, visuals::Visuals};
+use {auction::Auction, bids::Bids, info::Info, visuals::Visuals};
 
 #[component]
 pub fn Explorer() -> impl IntoView {
@@ -225,7 +225,7 @@ fn Controller() -> impl IntoView {
     //         let state = state.clone();
     //         async move {
     //             if let Some(address) = state.address.get_untracked() {
-    //                 let bounds = state.mandelbrot.lock().unwrap().sample.get_bounds();
+    //                 let bounds = state.mandelbrot.lock().unwrap().engine.get_bounds();
     //                 if let Some(token) = state.nav_history.get_untracked().last() {
     //                     state.erc1155_contract.bid(
     //                         address,
@@ -247,7 +247,6 @@ fn Controller() -> impl IntoView {
 
     view! {
         <div class="flex flex-col">
-            <GradientEditor/>
             <Visuals/>
 
             {

@@ -10,6 +10,7 @@ mod state;
 
 use std::{
     cell::RefCell,
+    f32::consts::PI,
     rc::Rc,
     sync::{Arc, Mutex},
 };
@@ -17,7 +18,6 @@ use std::{
 use leptos::prelude::*;
 use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider, EthereumInterface};
 use leptos_router::components::Router;
-use mandelbrot_explorer::ISample;
 
 use {
     about::About,
@@ -104,11 +104,31 @@ pub fn App() -> impl IntoView {
     let height = window.inner_height().unwrap().as_f64().unwrap() + 1.0;
 
     let interface = LocalStorage::wrap(Arc::new(Mutex::new(mandelbrot_explorer::Interface::new(
-        Rc::new(RefCell::new(mandelbrot_explorer::PerturbationEngine::new(
-            height as u32,
-            height as u32,
-        ))),
-        mandelbrot_explorer::Coloring {
+        Rc::new(RefCell::new(
+            mandelbrot_explorer::Perturbation::new(height as u32, height as u32).into(),
+            // mandelbrot_explorer::Optimised::new(height as u32, height as u32).into(),
+        )),
+        mandelbrot_explorer::Palette {
+            gradient: mandelbrot_explorer::Gradient::Wave(mandelbrot_explorer::WaveGradient {
+                // neon
+                red: mandelbrot_explorer::Wave::new(0.5, 0.7, 12.0, 0.0),
+                green: mandelbrot_explorer::Wave::new(0.5, 0.7, 10.0, 1.5),
+                blue: mandelbrot_explorer::Wave::new(0.5, 0.7, 8.0, 3.0),
+                // red velvet
+                // red: mandelbrot_explorer::Wave::new(0.337, 0.662, 6.28, 0.0),
+                // green: mandelbrot_explorer::Wave::new(0.245, 0.586, 6.28, 0.0),
+                // blue: mandelbrot_explorer::Wave::new(0.334, -0.343, 6.28, 0.0),
+
+                // evil rainbow
+                // red: mandelbrot_explorer::Wave::new(0.4, 0.6, 7.2, 1.2),
+                // green: mandelbrot_explorer::Wave::new(0.4, 0.6, 5.9, -1.6),
+                // blue: mandelbrot_explorer::Wave::new(0.4, 0.6, 3.8, 2.1),
+
+                // winter sunrise
+                // red: mandelbrot_explorer::Wave::new(1.0, 0.5, 6.28, 0.9),
+                // green: mandelbrot_explorer::Wave::new(1.0, 0.5, 5.88, -PI),
+                // blue: mandelbrot_explorer::Wave::new(1.0, 0.5, PI, -3.64)
+            }),
             max_iterations: 1600,
             offset: 0.0,
             length: 360.0,

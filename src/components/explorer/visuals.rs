@@ -3,28 +3,52 @@ use send_wrapper::SendWrapper;
 
 use crate::{components::primitive::Slider, state::State};
 
+use super::gradient::{step, wave};
+
 #[component]
 pub fn Visuals() -> impl IntoView {
     let state = use_context::<SendWrapper<State>>().unwrap();
     let max_iterations = RwSignal::new(40.0);
     let offset = RwSignal::new(0.0);
-    let length = RwSignal::new(360.0);
+    let length = RwSignal::new(100.0);
 
     Effect::new({
         let mandelbrot = state.mandelbrot.clone();
         move |_| {
             let mut mandelbrot = mandelbrot.lock().unwrap();
-            mandelbrot.coloring.max_iterations = (max_iterations.get() as f64).powi(2) as i32;
-            mandelbrot.coloring.offset = offset.get() as f32;
-            mandelbrot.coloring.length = length.get() as f32;
+            mandelbrot.palette.max_iterations = (max_iterations.get() as f64).powi(2) as i32;
+            mandelbrot.palette.offset = offset.get() as f32;
+            mandelbrot.palette.length = length.get() as f32;
             if let Some(redraw) = &mandelbrot.redraw {
                 redraw();
             }
         }
     });
 
+    let set_gradient = move |gradient: Vec<(f64, [u8; 3])>| {
+        let mut mandelbrot = state.mandelbrot.lock().unwrap();
+        mandelbrot.palette.gradient = mandelbrot_explorer::Gradient::Step(mandelbrot_explorer::StepGradient {
+            checkpoints: gradient
+                .into_iter()
+                .map(|(position, color)| mandelbrot_explorer::Checkpoint {
+                    position: position as f32,
+                    color: [
+                        color[0] as f32 / 255.0,
+                        color[1] as f32 / 255.0,
+                        color[2] as f32 / 255.0,
+                    ],
+                })
+                .collect(),
+        });
+        if let Some(redraw) = &mandelbrot.redraw {
+            redraw();
+        }
+    };
+
     view! {
-        <div class="flex flex-col text-white">
+        <div class="flex flex-col">
+            <wave::Wave/>
+            <step::Editor on_change=set_gradient/>
 
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
@@ -62,7 +86,7 @@ pub fn Visuals() -> impl IntoView {
                     </span>
                 </div>
                 <Slider
-                    max=10000.0
+                    max=500.0
                     value=length
                     class="w-full bg-gray-300 rounded-full focus:outline-none"
                 />

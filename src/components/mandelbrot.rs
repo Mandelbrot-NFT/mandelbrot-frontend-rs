@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use leptos::prelude::*;
+use mandelbrot_explorer::ISample;
 use send_wrapper::SendWrapper;
 use web_sys::HtmlCanvasElement;
 
@@ -24,7 +25,7 @@ pub fn Mandelbrot(interface: SendWrapper<Arc<Mutex<mandelbrot_explorer::Interfac
             interface
                 .lock()
                 .unwrap()
-                .sample
+                .engine
                 .borrow_mut()
                 .resize((height.get() * pixel_ratio) as u32, (height.get() * pixel_ratio) as u32);
         }
