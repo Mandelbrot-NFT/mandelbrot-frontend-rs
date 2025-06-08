@@ -12,13 +12,13 @@ eyre = "0.6.12"
 futures = "0.3.31"
 itertools = "0.14.0"
 jsonrpc-core = "18.0.0"
-leptos = { version = "0.7.8", features = ["csr"] }
+leptos = { version = "0.8.2", features = ["csr"] }
 leptos-ethereum-provider = { git = "https://github.com/platonfloria/leptos-ethereum-provider.git", version = "0.1.0" }
-leptos-use = "0.15.7"
-leptos_router = { version = "0.7.8" }
+leptos-use = "0.16.0-beta2"
+leptos_router = { version = "0.8.2" }
 log = "0.4.27"
 mandelbrot-explorer = { version = "0.1.0", path = "mandelbrot-explorer-rs" }
-reactive_stores = "0.1.8"
+reactive_stores = "0.2.2"
 send_wrapper = "0.6.0"
 wasm-bindgen = "0.2.100"
 web-sys = { version = "0.3.77", features = ["Screen", "Window", "CanvasRenderingContext2d"] }

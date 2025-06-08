@@ -275,6 +275,7 @@ pub fn Editor(on_change: impl Fn(Vec<(f64, [u8; 3])>) + 'static) -> impl IntoVie
                                     points.update(|points| {
                                         points.checkpoints.retain(|checkpoint| checkpoint.id != id);
                                     });
+                                    points.checkpoints().update_keys();
                                     active_checkpoint_id.set(None);
                                 }
                             >
