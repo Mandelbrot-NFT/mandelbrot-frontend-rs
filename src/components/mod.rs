@@ -45,57 +45,55 @@ pub fn Content() -> impl IntoView {
     let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
     let selected_tab = RwSignal::new("explorer");
 
-    ethereum.map(|ethereum| {
-        view! {
-            <div class="h-[8vh] flex space-x-2 border-b">
-                {
-                    move || {
-                        vec![
-                            ("explorer", "Explore", true),
-                            ("inventory", "Inventory", ethereum.connected()),
-                            ("sales", "Sales", ethereum.connected()),
-                            ("description", "Description", true),
-                            ("how_to_use", "How to Use", true),
-                        ]
-                            .into_iter()
-                            .filter_map(|(name, label, show)| {
-                                show.then(|| view! {
-                                    <button
-                                        class=move || tab_class(name, selected_tab.get())
-                                        on:click=move |_| selected_tab.set(name)
-                                    >
-                                        {label}
-                                    </button>
-                                })
+    view! {
+        <div class="h-[8vh] flex space-x-2 border-b">
+            {
+                move || {
+                    vec![
+                        ("explorer", "Explore", true),
+                        ("inventory", "Inventory", ethereum.as_ref().is_some_and(|eth| eth.connected())),
+                        ("sales", "Sales", ethereum.as_ref().is_some_and(|eth| eth.connected())),
+                        ("description", "Description", true),
+                        ("how_to_use", "How to Use", true),
+                    ]
+                        .into_iter()
+                        .filter_map(|(name, label, show)| {
+                            show.then(|| view! {
+                                <button
+                                    class=move || tab_class(name, selected_tab.get())
+                                    on:click=move |_| selected_tab.set(name)
+                                >
+                                    {label}
+                                </button>
                             })
-                            .collect_view()
-                    }
+                        })
+                        .collect_view()
                 }
-            </div>
+            }
+        </div>
 
-            <Router>
-                <div class="w-full mx-auto overflow-y-auto max-h-[84vh] scroll-smooth">
-                    <div class="p-4 space-y-4">
-                        <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
-                            <Explorer />
-                        </div>
-                        <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
-                            <Inventory />
-                        </div>
-                        <div class=move || if selected_tab.get() == "sales" { "block" } else { "hidden" }>
-                            <Sales />
-                        </div>
-                        <div class=move || if selected_tab.get() == "description" { "block" } else { "hidden" }>
-                            <About />
-                        </div>
-                        <div class=move || if selected_tab.get() == "how_to_use" { "block" } else { "hidden" }>
-                            <Guide />
-                        </div>
+        <Router>
+            <div class="w-full mx-auto overflow-y-auto max-h-[84vh] scroll-smooth">
+                <div class="p-4 space-y-4">
+                    <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
+                        <Explorer />
+                    </div>
+                    <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
+                        <Inventory />
+                    </div>
+                    <div class=move || if selected_tab.get() == "sales" { "block" } else { "hidden" }>
+                        <Sales />
+                    </div>
+                    <div class=move || if selected_tab.get() == "description" { "block" } else { "hidden" }>
+                        <About />
+                    </div>
+                    <div class=move || if selected_tab.get() == "how_to_use" { "block" } else { "hidden" }>
+                        <Guide />
                     </div>
                 </div>
-            </Router>
-        }
-    })
+            </div>
+        </Router>
+    }
 }
 
 #[component]
