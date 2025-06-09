@@ -4,6 +4,8 @@ use leptos_use::{use_draggable, use_element_bounding};
 use reactive_stores::{AtKeyed, Store};
 use wasm_bindgen::JsCast;
 
+use super::smoothstep;
+
 fn hex_to_rgb(hex: &str) -> Option<[u8; 3]> {
     let hex = hex.strip_prefix('#').unwrap_or(hex);
 
@@ -33,21 +35,16 @@ impl Points {
         id
     }
 
-    fn export(&self) -> Option<Vec<(f64, [u8; 3])>> {
-        self.checkpoints
-            .iter()
-            .min_by(|a, b| a.position.partial_cmp(&b.position).unwrap())
-            .map(|first| {
-                let mut mapped = self
-                    .checkpoints
-                    .iter()
-                    .sorted_by(|a, b| a.position.partial_cmp(&b.position).unwrap())
-                    .map(|c| (c.position, c.color))
-                    .collect::<Vec<_>>();
-
-                mapped.push((1.0, first.color)); // wrap-around color
-                mapped
-            })
+    fn export(&self) -> Vec<(f64, [u8; 3])> {
+        if self.checkpoints.is_empty() {
+            vec![(0.0, [255, 255, 255])]
+        } else {
+            self.checkpoints
+                .iter()
+                .sorted_by(|a, b| a.position.partial_cmp(&b.position).unwrap())
+                .map(|c| (c.position, c.color))
+                .collect()
+        }
     }
 }
 
@@ -138,38 +135,34 @@ fn Bar(
     };
 
     let step_gradient = move |t: f64| {
-        let checkpoints = &points.read().checkpoints;
-
-        let (mut prev_position, mut prev_color) = if let Some(checkpoint) = checkpoints
+        let points = points.read();
+        let checkpoints = points
+            .checkpoints
             .iter()
-            .min_by(|a, b| a.position.partial_cmp(&b.position).unwrap())
-        {
-            (1.0, checkpoint.color)
-        } else {
-            return [0, 0, 0];
-        };
+            .sorted_by(|a, b| a.position.partial_cmp(&b.position).unwrap())
+            .collect::<Vec<_>>();
 
-        for checkpoint in checkpoints
-            .into_iter()
-            .sorted_by(|a, b| b.position.partial_cmp(&a.position).unwrap())
-        {
-            let pos = checkpoint.position;
-            let color = checkpoint.color;
-
-            if t > pos {
-                let mut local_t = (prev_position - t) / (prev_position - pos);
-                local_t = local_t * local_t * (3.0 - 2.0 * local_t);
-                return (0..3)
-                    .map(|i| ((1.0 - local_t) * prev_color[i] as f64 + local_t * color[i] as f64).round() as u8)
-                    .collect::<Vec<_>>()
-                    .try_into()
-                    .unwrap();
-            }
-
-            prev_position = pos;
-            prev_color = color;
+        if checkpoints.is_empty() {
+            return [255, 255, 255];
         }
-        prev_color
+
+        let (a, b, local_t) = checkpoints
+            .windows(2)
+            .find(|&pair| {
+                let [a, b] = *pair else { unreachable!() };
+                t >= a.position && t < b.position
+            })
+            .map(|pair| {
+                let [a, b] = *pair else { unreachable!() };
+                (a, b, (t - a.position) / (b.position - a.position))
+            })
+            .unwrap_or_else(|| {
+                let first = checkpoints[0];
+                let last = checkpoints.last().unwrap();
+                let range = 1.0 - last.position + first.position;
+                (last, first, ((t - last.position + 1.0) % 1.0) / range)
+            });
+        smoothstep(&a.color, &b.color, local_t)
     };
 
     Effect::new(move |_| {
@@ -215,11 +208,7 @@ pub fn Editor(on_change: impl Fn(Vec<(f64, [u8; 3])>) + 'static) -> impl IntoVie
 
     let active_checkpoint_id = RwSignal::new(Some(0));
 
-    Effect::new(move || {
-        if let Some(checkpoints) = points.read().export() {
-            on_change(checkpoints);
-        }
-    });
+    Effect::new(move || on_change(points.read().export()));
 
     let on_gradient_click = move |position| {
         let mut checkpoint_id = 0;
