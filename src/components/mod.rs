@@ -10,7 +10,7 @@ mod state;
 
 use std::{
     cell::RefCell,
-    f32::consts::PI,
+    // f32::consts::PI,
     rc::Rc,
     sync::{Arc, Mutex},
 };
@@ -134,7 +134,7 @@ pub fn App() -> impl IntoView {
     ))));
 
     let account_open = RwSignal::new(false);
-    let OM_balance = RwSignal::new(0.0);
+    let token_balance = RwSignal::new(0.0);
 
     view! {
         <div class="min-h-screen flex flex-col">
@@ -148,7 +148,7 @@ pub fn App() -> impl IntoView {
                                 <div class="flex items-center gap-4">
                                     <ConnectButton connected_html=move || view! {
                                         <AccountButton
-                                            balance=OM_balance.read_only()
+                                            balance=token_balance.read_only()
                                             on_click=move || account_open.update(|account_open| {
                                                 *account_open = !*account_open;
                                             })
@@ -159,7 +159,7 @@ pub fn App() -> impl IntoView {
                             <Content/>
                         </div>
                     </div>
-                    <Account OM_balance open=account_open/>
+                    <Account token_balance open=account_open/>
                 </StateContextProvider>
             </EthereumContextProvider>
         </div>

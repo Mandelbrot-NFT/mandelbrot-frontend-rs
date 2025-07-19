@@ -24,7 +24,7 @@ where
 
     let sorted_bids = Memo::new(move |_| {
         let mut bids: Vec<Metadata> = bids.get().values().map(|bid| bid.clone()).collect();
-        bids.sort_by(|bid_a, bid_b| bid_b.locked_OM.partial_cmp(&bid_a.locked_OM).unwrap());
+        bids.sort_by(|bid_a, bid_b| bid_b.locked_tokens.partial_cmp(&bid_a.locked_tokens).unwrap());
         bids
     });
 
@@ -41,7 +41,7 @@ where
                         view! {
                             <div class="flex items-center justify-between bg-gray-800 text-white rounded px-4 py-2">
                                 <span class="text-sm font-mono">
-                                    {format!("{} {:?}", bid.locked_OM.to_string(), bid.owner)}
+                                    {format!("{} {:?}", bid.locked_tokens.to_string(), bid.owner)}
                                 </span>
                                 <button
                                     on:click=move |_| zoom_bid(bid.token_id)

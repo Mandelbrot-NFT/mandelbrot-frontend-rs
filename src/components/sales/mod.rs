@@ -89,7 +89,7 @@ pub fn Sales() -> impl IntoView {
         }
     });
 
-    let total_approve_amount = move || 0f64.max(selected_bids.get().iter().map(|bid| bid.locked_OM).sum::<f64>());
+    let total_approve_amount = move || 0f64.max(selected_bids.get().iter().map(|bid| bid.locked_tokens).sum::<f64>());
 
     let approve_bids = Action::new_local({
         let state = state.clone();
@@ -146,7 +146,7 @@ pub fn Sales() -> impl IntoView {
                                                 let bids = bids.clone();
                                                 move || {
                                                     let mut bids = bids().values().map(|bid| bid.clone()).collect::<Vec<_>>();
-                                                    bids.sort_by(|a, b| b.locked_OM.partial_cmp(&a.locked_OM).unwrap());
+                                                    bids.sort_by(|a, b| b.locked_tokens.partial_cmp(&a.locked_tokens).unwrap());
                                                     bids
                                                 }
                                             };
@@ -181,7 +181,7 @@ pub fn Sales() -> impl IntoView {
                                                                         }
                                                                     }
                                                                     <span class="text-sm font-mono">
-                                                                        {format!("{} {:?}", bid.locked_OM.to_string(), bid.owner)}
+                                                                        {format!("{} {:?}", bid.locked_tokens.to_string(), bid.owner)}
                                                                     </span>
                                                                 </div>
                                                                 <button

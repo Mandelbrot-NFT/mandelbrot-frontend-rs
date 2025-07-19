@@ -22,7 +22,7 @@ pub fn AccountButton(balance: ReadSignal<f64>, #[prop(into)] on_click: Callback<
 }
 
 #[component]
-pub fn Account(open: RwSignal<bool>, OM_balance: RwSignal<f64>) -> impl IntoView {
+pub fn Account(open: RwSignal<bool>, token_balance: RwSignal<f64>) -> impl IntoView {
     let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
 
     let disconnect = {
@@ -47,7 +47,7 @@ pub fn Account(open: RwSignal<bool>, OM_balance: RwSignal<f64>) -> impl IntoView
                     <AccountLabel/>
                 </div>
 
-                <Balance OM_balance/>
+                <Balance token_balance/>
 
                 <div class="flex justify-center">
                     <button on:click=disconnect class="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-semibold transition">

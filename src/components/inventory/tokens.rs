@@ -82,7 +82,7 @@ where
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-md border border-gray-700 bg-gray-900/50">
                                     <div class="text-sm text-white">
                                         <div class="font-semibold">"Token Id: " {token.token_id}</div>
-                                        <div class="text-accent2">"Locked OM: " {token.locked_OM.to_string()}</div>
+                                        <div class="text-accent2">"Locked OM: " {token.locked_tokens.to_string()}</div>
                                     </div>
 
                                     <div class="flex flex-wrap gap-2">

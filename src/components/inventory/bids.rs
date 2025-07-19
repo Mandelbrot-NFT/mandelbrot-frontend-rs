@@ -53,7 +53,7 @@ where
                                     // <!-- Bid Info -->
                                     <div class="text-sm text-white">
                                         <div class="font-semibold">"Bid Id: " {bid.token_id}</div>
-                                        <div class="text-accent2">"Proposed OM: " {bid.locked_OM.to_string()}</div>
+                                        <div class="text-accent2">"Proposed OM: " {bid.locked_tokens.to_string()}</div>
                                     </div>
 
                                     // <!-- Actions -->

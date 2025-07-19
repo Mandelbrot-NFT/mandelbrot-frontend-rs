@@ -123,7 +123,7 @@ trait CallWrapper {
         {
             Ok(receipt) => Some(receipt),
             Err(error) => {
-                // self.process_error(error);
+                self.process_error(error.into());
                 return None;
             }
         }
@@ -167,7 +167,7 @@ impl ERC1155Contract {
         self.contract.address()
     }
 
-    pub async fn get_OM_balance(&self, address: Address) -> Result<f64> {
+    pub async fn get_token_balance(&self, address: Address) -> Result<f64> {
         let result: web3::contract::Result<U256> = self
             .contract
             .query("balanceOf", (address, OM), None, Options::default(), None)
@@ -175,7 +175,7 @@ impl ERC1155Contract {
         Ok(result?.as_u128() as f64 / 10_f64.powi(18))
     }
 
-    pub async fn transfer_OM(&self, from: Address, to: Address, amount: f64) -> Option<TransactionReceipt> {
+    pub async fn transfer_tokens(&self, from: Address, to: Address, amount: f64) -> Option<TransactionReceipt> {
         self.call_with_confirmations(
             "safeTransferFrom",
             (
@@ -190,7 +190,7 @@ impl ERC1155Contract {
         .await
     }
 
-    pub async fn mint(&self, sender: Address, parent_id: u128, field: Field) -> Option<H256> {
+    pub async fn _mint(&self, sender: Address, parent_id: u128, field: Field) -> Option<H256> {
         self.call("mintNFT", (U256::from(parent_id), sender, field), sender)
             .await
     }
@@ -200,7 +200,7 @@ impl ERC1155Contract {
             .await
     }
 
-    pub async fn get_metadata(&self, token_id: u128) -> Result<Metadata> {
+    pub async fn _get_metadata(&self, token_id: u128) -> Result<Metadata> {
         let result: web3::contract::Result<Metadata> = self
             .contract
             .query("getMetadata", (U256::from(token_id),), None, Options::default(), None)
@@ -274,7 +274,7 @@ impl ERC1155Contract {
         Ok(result?)
     }
 
-    pub async fn approve_bid(&self, sender: Address, bid_id: u128) -> Option<H256> {
+    pub async fn _approve_bid(&self, sender: Address, bid_id: u128) -> Option<H256> {
         self.call("approve", (U256::from(bid_id),), sender).await
     }
 
@@ -382,7 +382,7 @@ impl ERC20Contract {
         }
     }
 
-    pub fn address(&self) -> Address {
+    pub fn _address(&self) -> Address {
         self.contract.address()
     }
 

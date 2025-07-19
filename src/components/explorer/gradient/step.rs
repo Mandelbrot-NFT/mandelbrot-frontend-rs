@@ -56,7 +56,7 @@ struct Checkpoint {
 }
 
 impl Checkpoint {
-    fn color_rgb(&self) -> String {
+    fn _color_rgb(&self) -> String {
         let [r, g, b] = self.color;
         format!("rgb({},{},{})", r, g, b)
     }

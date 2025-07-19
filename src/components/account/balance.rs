@@ -16,18 +16,18 @@ async fn get_balance(
     erc20_contract: ERC20Contract,
 ) -> Result<(f64, f64)> {
     Ok((
-        erc1155_contract.get_OM_balance(address).await?,
+        erc1155_contract.get_token_balance(address).await?,
         erc20_contract.get_balance(address).await?,
     ))
 }
 
 #[component]
-pub fn Balance(OM_balance: RwSignal<f64>) -> impl IntoView {
+pub fn Balance(token_balance: RwSignal<f64>) -> impl IntoView {
     let state = use_context::<SendWrapper<State>>().unwrap().take();
     let web3 = use_context::<SendWrapper<Web3>>().unwrap().take().0;
     let handle_error = use_context::<WriteSignal<Option<contracts::Error>>>().unwrap();
 
-    let wOM_balance = RwSignal::new(0.0);
+    let wrapped_token_balance = RwSignal::new(0.0);
     let wrap_amount = RwSignal::new(0.0);
     let unwrap_amount = RwSignal::new(0.0);
 
@@ -51,8 +51,8 @@ pub fn Balance(OM_balance: RwSignal<f64>) -> impl IntoView {
                     if let Ok((OM_balance_, wOM_balance_)) =
                         get_balance(address, erc1155_contract, erc20_contract).await
                     {
-                        OM_balance.set(OM_balance_);
-                        wOM_balance.set(wOM_balance_);
+                        token_balance.set(OM_balance_);
+                        wrapped_token_balance.set(wOM_balance_);
                     }
                 }
             }
@@ -87,7 +87,7 @@ pub fn Balance(OM_balance: RwSignal<f64>) -> impl IntoView {
             async move {
                 if let Some(address) = state.address.get_untracked() {
                     erc1155_contract
-                        .transfer_OM(address, wrapper_contract.address(), wrap_amount.get_untracked())
+                        .transfer_tokens(address, wrapper_contract.address(), wrap_amount.get_untracked())
                         .await;
                     refresh_balance.dispatch(());
                 }
@@ -118,10 +118,10 @@ pub fn Balance(OM_balance: RwSignal<f64>) -> impl IntoView {
 
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="w-[50px] text-right text-sm font-mono text-accent1">
-                        {move || format!("{:.2}", wOM_balance.get())}
+                        {move || format!("{:.2}", wrapped_token_balance.get())}
                     </span>
                     <Slider
-                        max=wOM_balance.read_only()
+                        max=wrapped_token_balance.read_only()
                         value=unwrap_amount
                         class="w-full h-2 bg-gray-400 rounded-full focus:outline-none focus:ring-2 focus:ring-accent1"
                     />
@@ -144,10 +144,10 @@ pub fn Balance(OM_balance: RwSignal<f64>) -> impl IntoView {
 
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="w-[50px] text-right text-sm font-mono text-accent1">
-                        {move || format!("{:.2}", OM_balance.get())}
+                        {move || format!("{:.2}", token_balance.get())}
                     </span>
                     <Slider
-                        max=OM_balance.read_only()
+                        max=token_balance.read_only()
                         value=wrap_amount
                         class="w-full h-2 bg-gray-400 rounded-full focus:outline-none focus:ring-2 focus:ring-accent1"
                     />

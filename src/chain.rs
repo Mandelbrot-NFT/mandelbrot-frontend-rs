@@ -1,6 +1,6 @@
 use leptos_ethereum_provider::{base_currency, Chain};
 
-pub fn ethereum() -> Chain {
+pub fn _ethereum() -> Chain {
     Chain {
         chain_id: "0x1".into(),
         chain_name: "Ethereum Mainnet".into(),
