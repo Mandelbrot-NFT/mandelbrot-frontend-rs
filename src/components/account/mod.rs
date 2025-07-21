@@ -7,7 +7,7 @@ use balance::Balance;
 
 #[component]
 pub fn AccountButton(balance: ReadSignal<f64>, #[prop(into)] on_click: Callback<()>) -> impl IntoView {
-    let disconnect = { move |_| on_click.run(()) };
+    let disconnect = move |_| on_click.run(());
 
     view! {
         <div>
@@ -25,12 +25,10 @@ pub fn AccountButton(balance: ReadSignal<f64>, #[prop(into)] on_click: Callback<
 pub fn Account(open: RwSignal<bool>, token_balance: RwSignal<f64>) -> impl IntoView {
     let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
 
-    let disconnect = {
-        move |_| {
-            open.set(false);
-            if let Some(ethereum) = &ethereum {
-                ethereum.disconnect();
-            }
+    let disconnect = move |_| {
+        open.set(false);
+        if let Some(ethereum) = &ethereum {
+            ethereum.disconnect();
         }
     };
 

@@ -42,7 +42,7 @@ pub fn Wave() -> impl IntoView {
     let canvas_ref = NodeRef::<leptos::html::Canvas>::new();
     let canvas_size = use_element_size(canvas_ref);
 
-    Effect::new(move |_| {
+    Effect::new(move || {
         if let Some(canvas) = canvas_ref.get() {
             let width = canvas_size.width.get() as u32;
             let height = canvas_size.height.get() as u32;

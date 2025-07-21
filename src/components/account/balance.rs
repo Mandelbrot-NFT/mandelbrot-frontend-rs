@@ -59,7 +59,7 @@ pub fn Balance(token_balance: RwSignal<f64>) -> impl IntoView {
         }
     });
 
-    Effect::new(move |_| {
+    Effect::new(move || {
         if state.address.get().is_some() {
             refresh_balance.dispatch(());
         }

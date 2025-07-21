@@ -14,7 +14,7 @@ pub fn Visuals() -> impl IntoView {
 
     Effect::new({
         let mandelbrot = state.mandelbrot.clone();
-        move |_| {
+        move || {
             let mut mandelbrot = mandelbrot.lock().unwrap();
             mandelbrot.palette.max_iterations = (max_iterations.get() as f64).powi(2) as i32;
             mandelbrot.palette.offset = offset.get() as f32;

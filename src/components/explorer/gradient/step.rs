@@ -77,7 +77,7 @@ fn DraggableArrow(
     let el = NodeRef::<leptos::html::Div>::new();
     let draggable = use_draggable(el);
 
-    Effect::new(move |_| {
+    Effect::new(move || {
         if draggable.is_dragging.get() {
             let x = draggable.x.get();
             if x > 0.0 {
@@ -165,7 +165,7 @@ fn Bar(
         smoothstep(&a.color, &b.color, local_t)
     };
 
-    Effect::new(move |_| {
+    Effect::new(move || {
         if let Some(canvas) = node_ref.get() {
             let width = bounding.width.get() as u32;
             let height = bounding.height.get() as u32;

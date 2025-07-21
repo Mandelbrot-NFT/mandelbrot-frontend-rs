@@ -84,7 +84,7 @@ pub fn StateContextProvider(
     };
     provide_context(LocalStorage::wrap(state.clone()));
 
-    Effect::new(move |_| {
+    Effect::new(move || {
         if state.address.get().is_some() {
             let state = state.clone();
             spawn_local(async move {

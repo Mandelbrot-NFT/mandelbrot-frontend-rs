@@ -7,6 +7,7 @@ mod util;
 use leptos::prelude::*;
 
 use components::App;
+use leptos_router::components::Router;
 use util::parse_url_query_string;
 
 #[cfg(debug_assertions)]
@@ -23,5 +24,11 @@ fn main() {
         .and_then(|x| x.parse().ok())
         .unwrap_or(log::Level::Error);
     console_log::init_with_level(level).expect("could not initialize logger");
-    mount_to_body(|| view! { <App/> })
+    mount_to_body(|| {
+        view! {
+            <Router>
+                <App/>
+            </Router>
+        }
+    })
 }

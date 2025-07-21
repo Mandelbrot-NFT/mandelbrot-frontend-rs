@@ -9,10 +9,11 @@ use std::sync::Arc;
 use leptos::{prelude::*, task::spawn_local};
 use leptos_router::{
     components::{Route, Routes},
-    hooks::{use_navigate, use_params, use_query_map},
+    hooks::{use_navigate, use_params, use_query, use_query_map},
     params::Params,
     path,
 };
+use mandelbrot_explorer::Focus;
 use send_wrapper::SendWrapper;
 
 use crate::{
@@ -22,12 +23,11 @@ use crate::{
 use {auction::Auction, bids::Bids, info::Info, visuals::Visuals};
 
 #[component]
-pub fn Explorer() -> impl IntoView {
+pub fn Explorer(token_id: RwSignal<Option<u128>>) -> impl IntoView {
     view! {
         <Routes fallback=|| "Not found.">
-            <Route path=path!("/tokens/:token_id") view=Controller/>
-            // <Route path="/" view=move |cx| view! { cx, <Controller address/> }/>
-            <Route path=path!("*") view=Controller/>
+            <Route path=path!("/tokens/:token_id") view=move || view! { <Controller token_id/> }/>
+            <Route path=path!("*") view=move || view! { <Controller token_id/> }/>
         </Routes>
     }
 }
@@ -37,24 +37,30 @@ struct ControllerParams {
     token_id: Option<u128>,
 }
 
+#[derive(Clone, Debug, Params, PartialEq)]
+struct FocusQuery {
+    focus: Option<Focus>,
+}
+
 #[component]
-fn Controller() -> impl IntoView {
+fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
     let state = use_context::<SendWrapper<State>>().unwrap();
     let navigate = use_navigate();
     let query_map = use_query_map();
-
     let params = use_params::<ControllerParams>();
-    let token_id = move || params.get().ok().and_then(|params| params.token_id);
+    let mut focus = use_query::<FocusQuery>().get_untracked().unwrap().focus;
+
+    Effect::new(move || token_id.set(params.get().ok().and_then(|params| params.token_id)));
 
     // query tokens and bids
     Effect::new({
         let state = state.clone();
         let navigate = navigate.clone();
         let token_id = token_id.clone();
-        move |_| {
+        move || {
             let state = state.clone();
             let navigate = navigate.clone();
-            let token_id = token_id().unwrap_or(1);
+            let token_id = token_id.get().unwrap_or(1);
             spawn_local(async move {
                 if let (Ok(tokens), Ok(children), Ok(bids)) = (
                     state.erc1155_contract.get_ancestry_metadata(token_id).await,
@@ -80,21 +86,27 @@ fn Controller() -> impl IntoView {
         }
     });
 
+    // zoom, but only on first page load
     let first = StoredValue::new(true);
     Effect::new({
         let state = state.clone();
-        move |_| {
+        move || {
             if first.get_value() {
-                state.explorer.nav_history().with(|nav_history| {
-                    if let Some(token) = nav_history.last() {
-                        first.set_value(false);
-                        state
-                            .mandelbrot
-                            .lock()
-                            .unwrap()
-                            .move_into_bounds(&token.to_frame(mandelbrot_explorer::FrameColor::Blue).bounds);
-                    }
-                });
+                if let Some(focus) = focus.take() {
+                    first.set_value(false);
+                    state.mandelbrot.lock().unwrap().move_into_focus(focus.clone());
+                } else {
+                    state.explorer.nav_history().with(|nav_history| {
+                        if let Some(token) = nav_history.last() {
+                            first.set_value(false);
+                            state
+                                .mandelbrot
+                                .lock()
+                                .unwrap()
+                                .move_into_bounds(&token.to_frame(mandelbrot_explorer::FrameColor::Blue).bounds);
+                        }
+                    });
+                }
             }
         }
     });
@@ -147,13 +159,21 @@ fn Controller() -> impl IntoView {
                         Default::default(),
                     );
                 }
+                mandelbrot_explorer::FrameColor::Blue | mandelbrot_explorer::FrameColor::LightBlue => {
+                    if Some(frame.id) == token_id.get_untracked() {
+                        navigate(
+                            &preserve_log_level(format!("/tokens/{}", frame.id), query_map),
+                            Default::default(),
+                        );
+                    }
+                }
                 _ => {}
             },
             _ => {}
         }
     });
 
-    state.mandelbrot.lock().unwrap().frame_event_callback = Some(Arc::new({
+    state.mandelbrot.lock().unwrap().on_frame_event = Some(Arc::new({
         let on_frame_event = on_frame_event.clone();
         move |frame_event| on_frame_event(frame_event)
     }));
@@ -161,7 +181,7 @@ fn Controller() -> impl IntoView {
     // check ownership
     Effect::new({
         let state = state.clone();
-        move |_| {
+        move || {
             if let Some(address) = state.address.get() {
                 state.explorer.children().update(|children| {
                     children
@@ -184,7 +204,7 @@ fn Controller() -> impl IntoView {
     // update frames
     Effect::new({
         let state = state.clone();
-        move |_| {
+        move || {
             let mandelbrot = &mut state.mandelbrot.lock().unwrap();
             let frames = &mut mandelbrot.frames;
             frames.clear();
@@ -218,32 +238,6 @@ fn Controller() -> impl IntoView {
             }
         }
     });
-
-    // let create_bid = create_action(cx, {
-    //     let state = state.clone();
-    //     move |_| {
-    //         let state = state.clone();
-    //         async move {
-    //             if let Some(address) = state.address.get_untracked() {
-    //                 let bounds = state.mandelbrot.lock().unwrap().engine.get_bounds();
-    //                 if let Some(token) = state.nav_history.get_untracked().last() {
-    //                     state.erc1155_contract.bid(
-    //                         address,
-    //                         token.token_id,
-    //                         Field {
-    //                             x_min: bounds.x_min as f64,
-    //                             y_min: bounds.y_min as f64,
-    //                             x_max: bounds.x_max as f64,
-    //                             y_max: bounds.y_max as f64
-    //                         },
-    //                         bid_amount.get_untracked(),
-    //                         bids_minimum_price.get_untracked(),
-    //                     ).await;
-    //                 }
-    //             };
-    //         }
-    //     }
-    // });
 
     view! {
         <div class="flex flex-col">

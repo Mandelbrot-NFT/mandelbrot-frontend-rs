@@ -17,7 +17,9 @@ use std::{
 
 use leptos::prelude::*;
 use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider, EthereumInterface};
-use leptos_router::components::Router;
+use leptos_router::hooks::use_query_map;
+
+use crate::util::preserve_log_level;
 
 use {
     about::About,
@@ -41,7 +43,7 @@ fn tab_class(tab_name: &str, selected_tab: &str) -> String {
 }
 
 #[component]
-pub fn Content() -> impl IntoView {
+pub fn Content(token_id: RwSignal<Option<u128>>) -> impl IntoView {
     let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
     let selected_tab = RwSignal::new("explorer");
 
@@ -72,39 +74,52 @@ pub fn Content() -> impl IntoView {
             }
         </div>
 
-        <Router>
-            <div class="w-full mx-auto overflow-y-auto max-h-[84vh] scroll-smooth">
-                <div class="p-4 space-y-4">
-                    <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
-                        <Explorer />
-                    </div>
-                    <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
-                        <Inventory />
-                    </div>
-                    <div class=move || if selected_tab.get() == "sales" { "block" } else { "hidden" }>
-                        <Sales />
-                    </div>
-                    <div class=move || if selected_tab.get() == "description" { "block" } else { "hidden" }>
-                        <About />
-                    </div>
-                    <div class=move || if selected_tab.get() == "how_to_use" { "block" } else { "hidden" }>
-                        <Guide />
-                    </div>
+        <div class="w-full mx-auto overflow-y-auto max-h-[84vh] scroll-smooth">
+            <div class="p-4 space-y-4">
+                <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
+                    <Explorer token_id/>
+                </div>
+                <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
+                    <Inventory />
+                </div>
+                <div class=move || if selected_tab.get() == "sales" { "block" } else { "hidden" }>
+                    <Sales />
+                </div>
+                <div class=move || if selected_tab.get() == "description" { "block" } else { "hidden" }>
+                    <About />
+                </div>
+                <div class=move || if selected_tab.get() == "how_to_use" { "block" } else { "hidden" }>
+                    <Guide />
                 </div>
             </div>
-        </Router>
+        </div>
     }
 }
 
 #[component]
 pub fn App() -> impl IntoView {
+    let query_map = use_query_map();
     let window = web_sys::window().unwrap();
     let height = window.inner_height().unwrap().as_f64().unwrap() + 1.0;
+    let token_id = RwSignal::new(None);
+
+    let on_focus_change = {
+        move |focus| {
+            let url = if let Some(token_id) = token_id.get_untracked() {
+                preserve_log_level(format!("/tokens/{}?focus={}", token_id, focus), query_map)
+            } else {
+                preserve_log_level(format!("?focus={}", focus), query_map)
+            };
+            if let Ok(history) = window.history() {
+                let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&url));
+            }
+        }
+    };
 
     let interface = LocalStorage::wrap(Arc::new(Mutex::new(mandelbrot_explorer::Interface::new(
         Rc::new(RefCell::new(
-            mandelbrot_explorer::Perturbation::new(height as u32, height as u32).into(),
-            // mandelbrot_explorer::Optimised::new(height as u32, height as u32).into(),
+            mandelbrot_explorer::Perturbation::new(height as u32, height as u32, on_focus_change).into(),
+            // mandelbrot_explorer::Optimised::new(height as u32, height as u32, on_focus_change).into(),
         )),
         mandelbrot_explorer::Palette {
             gradient: mandelbrot_explorer::Gradient::Wave(mandelbrot_explorer::WaveGradient {
@@ -156,7 +171,7 @@ pub fn App() -> impl IntoView {
                                     }/>
                                 </div>
                             </header>
-                            <Content/>
+                            <Content token_id/>
                         </div>
                     </div>
                     <Account token_balance open=account_open/>

@@ -21,7 +21,11 @@ pub fn parse_url_query_string<'a>(query: &'a str, search_key: &str) -> Option<&'
 
 pub fn preserve_log_level(uri: String, query_map: Memo<ParamsMap>) -> String {
     if let Some(log_level) = query_map.get_untracked().get("RUST_LOG") {
-        format!("{uri}?RUST_LOG={log_level}")
+        if uri.contains("?") {
+            format!("{uri}&RUST_LOG={log_level}")
+        } else {
+            format!("{uri}?RUST_LOG={log_level}")
+        }
     } else {
         uri
     }
