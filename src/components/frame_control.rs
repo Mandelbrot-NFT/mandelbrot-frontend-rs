@@ -22,7 +22,10 @@ struct FocusQuery {
 pub fn FrameControl() -> impl IntoView {
     let navigate = use_navigate();
     let query_map = use_query_map();
-    let mut focus = use_query::<FocusQuery>().get_untracked().ok().and_then(|query| query.focus);
+    let mut focus = use_query::<FocusQuery>()
+        .get_untracked()
+        .ok()
+        .and_then(|query| query.focus);
     let context = use_context::<SendWrapper<Context>>().unwrap();
 
     // query tokens and bids
