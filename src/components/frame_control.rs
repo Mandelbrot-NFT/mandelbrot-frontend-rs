@@ -8,7 +8,10 @@ use leptos_router::{
 use mandelbrot_explorer::Focus;
 use send_wrapper::SendWrapper;
 
-use crate::{context::{Context, ExplorerStoreFields, SalesStoreFields, StateStoreFields}, util::preserve_log_level};
+use crate::{
+    context::{Context, ExplorerStoreFields, SalesStoreFields, StateStoreFields},
+    util::preserve_log_level,
+};
 
 #[derive(Clone, Debug, Params, PartialEq)]
 struct FocusQuery {
@@ -16,7 +19,7 @@ struct FocusQuery {
 }
 
 #[component]
-pub fn FrameControl(children: Children) -> impl IntoView {
+pub fn FrameControl() -> impl IntoView {
     let navigate = use_navigate();
     let query_map = use_query_map();
     let mut focus = use_query::<FocusQuery>().get_untracked().unwrap().focus;
@@ -213,6 +216,4 @@ pub fn FrameControl(children: Children) -> impl IntoView {
             }
         }
     });
-
-    children()
 }

@@ -1,14 +1,10 @@
-mod about;
 mod account;
 mod context;
 mod error_handler;
-mod explorer;
 mod frame_control;
-mod guide;
-mod inventory;
 mod mandelbrot;
 mod primitive;
-mod sales;
+mod tabs;
 
 use std::{
     cell::RefCell,
@@ -18,23 +14,29 @@ use std::{
 };
 
 use leptos::prelude::*;
-use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider, EthereumInterface};
-use leptos_router::hooks::use_query_map;
+use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider};
+use leptos_router::{
+    components::{Route, Routes},
+    hooks::use_query_map,
+    params::Params,
+    path,
+};
 use reactive_stores::Store;
 
 use crate::{context::StateStoreFields, util::preserve_log_level};
 use frame_control::FrameControl;
 
 use {
-    about::About,
     account::{Account, AccountButton},
     context::ContextProvider,
-    explorer::Explorer,
-    guide::Guide,
-    inventory::Inventory,
     mandelbrot::Mandelbrot,
-    sales::Sales,
+    tabs::Tabs,
 };
+
+#[derive(Clone, Params, PartialEq)]
+struct ControllerParams {
+    token_id: Option<u128>,
+}
 
 fn tab_class(tab_name: &str, selected_tab: &str) -> String {
     if tab_name == selected_tab {
@@ -43,60 +45,6 @@ fn tab_class(tab_name: &str, selected_tab: &str) -> String {
     } else {
         // Inactive tab styling
         "px-4 py-2 font-medium text-gray-500 hover:text-blue-500 transition-colors".to_string()
-    }
-}
-
-#[component]
-pub fn Content() -> impl IntoView {
-    let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
-    let selected_tab = RwSignal::new("explorer");
-
-    view! {
-        <div class="h-[8vh] flex space-x-2 border-b">
-            {
-                move || {
-                    vec![
-                        ("explorer", "Explore", true),
-                        ("inventory", "Inventory", ethereum.as_ref().is_some_and(|eth| eth.connected())),
-                        ("sales", "Sales", ethereum.as_ref().is_some_and(|eth| eth.connected())),
-                        ("description", "Description", true),
-                        ("how_to_use", "How to Use", true),
-                    ]
-                        .into_iter()
-                        .filter_map(|(name, label, show)| {
-                            show.then(|| view! {
-                                <button
-                                    class=move || tab_class(name, selected_tab.get())
-                                    on:click=move |_| selected_tab.set(name)
-                                >
-                                    {label}
-                                </button>
-                            })
-                        })
-                        .collect_view()
-                }
-            }
-        </div>
-
-        <div class="w-full mx-auto overflow-y-auto max-h-[84vh] scroll-smooth">
-            <div class="p-4 space-y-4">
-                <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
-                    <Explorer/>
-                </div>
-                <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
-                    <Inventory />
-                </div>
-                <div class=move || if selected_tab.get() == "sales" { "block" } else { "hidden" }>
-                    <Sales />
-                </div>
-                <div class=move || if selected_tab.get() == "description" { "block" } else { "hidden" }>
-                    <About />
-                </div>
-                <div class=move || if selected_tab.get() == "how_to_use" { "block" } else { "hidden" }>
-                    <Guide />
-                </div>
-            </div>
-        </div>
     }
 }
 
@@ -161,23 +109,25 @@ pub fn App() -> impl IntoView {
                 <Mandelbrot interface=interface.clone()/>
                 <EthereumContextProvider>
                     <ContextProvider mandelbrot=interface.clone() state>
-                        <FrameControl>
-                            <div class="relative w-full overflow-auto">
-                                <header class="h-[8vh] z-10 bg-brand text-white flex items-center justify-between px-4">
-                                    <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
-                                    <ConnectButton connected_html=move || view! {
-                                        <AccountButton
-                                            balance=token_balance.read_only()
-                                            on_click=move || account_open.update(|account_open| {
-                                                *account_open = !*account_open;
-                                            })
-                                        />
-                                    }/>
-                                </header>
-                                <Content/>
-                            </div>
-                            <Account token_balance open=account_open/>
-                        </FrameControl>
+                        <FrameControl/>
+                        <div class="relative w-full overflow-auto">
+                            <header class="h-[8vh] z-10 bg-brand text-white flex items-center justify-between px-4">
+                                <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
+                                <ConnectButton connected_html=move || view! {
+                                    <AccountButton
+                                        balance=token_balance.read_only()
+                                        on_click=move || account_open.update(|account_open| {
+                                            *account_open = !*account_open;
+                                        })
+                                    />
+                                }/>
+                            </header>
+                            <Routes fallback=|| "Not found.">
+                                <Route path=path!("/tokens/:token_id") view=move || view! { <Tabs/> }/>
+                                <Route path=path!("*") view=move || view! { <Tabs/> }/>
+                            </Routes>
+                        </div>
+                        <Account token_balance open=account_open/>
                     </ContextProvider>
                 </EthereumContextProvider>
             </div>
