@@ -5,9 +5,9 @@ use leptos::prelude::*;
 use send_wrapper::SendWrapper;
 
 use crate::{
-    components::{primitive::Slider, state::Web3},
+    components::{context::Web3, primitive::Slider},
+    context::{Context, StateStoreFields},
     evm::contracts::{self, ERC1155Contract, ERC20Contract, Wrapped1155FactoryContract},
-    state::State,
 };
 
 async fn get_balance(
@@ -23,7 +23,7 @@ async fn get_balance(
 
 #[component]
 pub fn Balance(token_balance: RwSignal<f64>) -> impl IntoView {
-    let state = use_context::<SendWrapper<State>>().unwrap().take();
+    let context = use_context::<SendWrapper<Context>>().unwrap().take();
     let web3 = use_context::<SendWrapper<Web3>>().unwrap().take().0;
     let handle_error = use_context::<WriteSignal<Option<contracts::Error>>>().unwrap();
 
@@ -37,17 +37,17 @@ pub fn Balance(token_balance: RwSignal<f64>) -> impl IntoView {
     );
 
     let handle_error = Arc::new(move |error| handle_error.set(Some(error)));
-    let wrapper_contract = Wrapped1155FactoryContract::new(&web3, state.erc1155_contract.address(), handle_error);
+    let wrapper_contract = Wrapped1155FactoryContract::new(&web3, context.erc1155_contract.address(), handle_error);
     let erc20_contract = ERC20Contract::new(&web3);
 
     let refresh_balance = Action::new_local({
-        let erc1155_contract = state.erc1155_contract.clone();
+        let erc1155_contract = context.erc1155_contract.clone();
         let erc20_contract = erc20_contract.clone();
         move |_| {
             let erc1155_contract = erc1155_contract.clone();
             let erc20_contract = erc20_contract.clone();
             async move {
-                if let Some(address) = state.address.get_untracked() {
+                if let Some(address) = context.state.address().get_untracked() {
                     if let Ok((OM_balance_, wOM_balance_)) =
                         get_balance(address, erc1155_contract, erc20_contract).await
                     {
@@ -60,7 +60,7 @@ pub fn Balance(token_balance: RwSignal<f64>) -> impl IntoView {
     });
 
     Effect::new(move || {
-        if state.address.get().is_some() {
+        if context.state.address().get().is_some() {
             refresh_balance.dispatch(());
         }
     });
@@ -70,7 +70,7 @@ pub fn Balance(token_balance: RwSignal<f64>) -> impl IntoView {
         move |_| {
             let wrapper_contract = wrapper_contract.clone();
             async move {
-                if let Some(address) = state.address.get_untracked() {
+                if let Some(address) = context.state.address().get_untracked() {
                     wrapper_contract.unwrap(address, unwrap_amount.get_untracked()).await;
                     refresh_balance.dispatch(());
                 }
@@ -79,13 +79,13 @@ pub fn Balance(token_balance: RwSignal<f64>) -> impl IntoView {
     });
 
     let wrap = Action::new_local({
-        let erc1155_contract = state.erc1155_contract.clone();
+        let erc1155_contract = context.erc1155_contract.clone();
         let wrapper_contract = wrapper_contract.clone();
         move |_| {
             let erc1155_contract = erc1155_contract.clone();
             let wrapper_contract = wrapper_contract.clone();
             async move {
-                if let Some(address) = state.address.get_untracked() {
+                if let Some(address) = context.state.address().get_untracked() {
                     erc1155_contract
                         .transfer_tokens(address, wrapper_contract.address(), wrap_amount.get_untracked())
                         .await;

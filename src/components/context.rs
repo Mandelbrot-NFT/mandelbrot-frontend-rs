@@ -11,15 +11,15 @@ use web3::transports::{eip_1193::Eip1193, Either, Http};
 
 use crate::{
     chain::sepolia_testnet,
+    context::{Context, ExplorerState, InventoryState, SalesState, State, StateStoreFields},
     evm::contracts::{self, ERC1155Contract},
-    state::{ExplorerState, InventoryState, SalesState, State},
 };
 
 #[derive(Clone, Debug)]
 pub struct Web3(pub web3::Web3<Either<Eip1193, Http>>);
 
 #[component]
-pub fn StateContextProvider(
+pub fn ContextProvider(
     mandelbrot: SendWrapper<Arc<Mutex<mandelbrot_explorer::Interface>>>,
     children: Children,
 ) -> impl IntoView {
@@ -62,33 +62,33 @@ pub fn StateContextProvider(
     });
     provide_context(error.write_only());
 
-    let state = State {
+    let context = Context {
         mandelbrot: mandelbrot.take(),
-        address: Signal::derive(move || {
-            ethereum
+        erc1155_contract: ERC1155Contract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
+        state: Store::new(State {
+            address: ethereum
                 .clone()
                 .and_then(|ethereum| ethereum.connected().then(|| ethereum.address().get()))
-                .flatten()
+                .flatten(),
+            explorer: ExplorerState {
+                nav_history: Vec::new(),
+                children: HashMap::new(),
+                bids: HashMap::new(),
+            },
+            inventory: InventoryState {
+                tokens: HashMap::new(),
+                bids: HashMap::new(),
+            },
+            sales: SalesState { bids: HashMap::new() },
         }),
-        erc1155_contract: ERC1155Contract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
-        explorer: Store::new(ExplorerState {
-            nav_history: Vec::new(),
-            children: HashMap::new(),
-            bids: HashMap::new(),
-        }),
-        inventory: Store::new(InventoryState {
-            tokens: HashMap::new(),
-            bids: HashMap::new(),
-        }),
-        sales: Store::new(SalesState { bids: HashMap::new() }),
     };
-    provide_context(LocalStorage::wrap(state.clone()));
+    provide_context(LocalStorage::wrap(context.clone()));
 
     Effect::new(move || {
-        if state.address.get().is_some() {
-            let state = state.clone();
+        if context.state.address().get().is_some() {
+            let context = context.clone();
             spawn_local(async move {
-                state.reload_inventory().await;
+                context.reload_inventory().await;
             });
         }
     });

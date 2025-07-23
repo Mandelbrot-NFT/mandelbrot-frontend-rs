@@ -1,12 +1,12 @@
 mod about;
 mod account;
+mod context;
 mod explorer;
 mod guide;
 mod inventory;
 mod mandelbrot;
 mod primitive;
 mod sales;
-mod state;
 
 use std::{
     cell::RefCell,
@@ -24,12 +24,12 @@ use crate::util::preserve_log_level;
 use {
     about::About,
     account::{Account, AccountButton},
+    context::ContextProvider,
     explorer::Explorer,
     guide::Guide,
     inventory::Inventory,
     mandelbrot::Mandelbrot,
     sales::Sales,
-    state::StateContextProvider,
 };
 
 fn tab_class(tab_name: &str, selected_tab: &str) -> String {
@@ -156,7 +156,7 @@ pub fn App() -> impl IntoView {
             <div class="flex flex-row items-stretch">
                 <Mandelbrot interface=interface.clone()/>
                 <EthereumContextProvider>
-                    <StateContextProvider mandelbrot=interface.clone()>
+                    <ContextProvider mandelbrot=interface.clone()>
                         <div class="relative w-full overflow-auto">
                             <header class="h-[8vh] z-10 bg-brand text-white flex items-center justify-between px-4">
                                 <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
@@ -172,7 +172,7 @@ pub fn App() -> impl IntoView {
                             <Content token_id/>
                         </div>
                         <Account token_balance open=account_open/>
-                    </StateContextProvider>
+                    </ContextProvider>
                 </EthereumContextProvider>
             </div>
         </div>

@@ -4,23 +4,26 @@ use leptos::prelude::*;
 use mandelbrot_explorer::FrameColor;
 use send_wrapper::SendWrapper;
 
-use crate::{evm::types::Metadata, state::State};
+use crate::{
+    context::{Context, StateStoreFields},
+    evm::types::Metadata,
+};
 
 #[component]
 pub fn Bids<T>(bids: T) -> impl IntoView
 where
     T: Get<Value = HashMap<u128, Metadata>> + Update<Value = HashMap<u128, Metadata>> + Copy + Send + Sync + 'static,
 {
-    let state = use_context::<SendWrapper<State>>().unwrap();
+    let context = use_context::<SendWrapper<Context>>().unwrap();
 
     let delete_bid = Action::new_local({
-        let state = state.clone();
+        let context = context.clone();
         move |bid_id: &u128| {
-            let state = state.clone();
+            let context = context.clone();
             let bid_id = bid_id.clone();
             async move {
-                if let Some(address) = state.address.get_untracked() {
-                    if let Some(_) = state.erc1155_contract.delete_bid(address, bid_id).await {
+                if let Some(address) = context.state.address().get_untracked() {
+                    if let Some(_) = context.erc1155_contract.delete_bid(address, bid_id).await {
                         bids.update(|bids| {
                             bids.remove(&bid_id);
                         });
@@ -34,7 +37,7 @@ where
         move |bid_id| {
             if let Some(bid) = bids.get().get(&bid_id) {
                 let frame = bid.to_frame(FrameColor::Blue);
-                state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+                context.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
             }
         }
     };

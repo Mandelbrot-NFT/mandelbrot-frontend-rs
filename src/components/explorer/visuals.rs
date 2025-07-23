@@ -1,19 +1,19 @@
 use leptos::prelude::*;
 use send_wrapper::SendWrapper;
 
-use crate::{components::primitive::Slider, state::State};
+use crate::{components::primitive::Slider, context::Context};
 
 use super::gradient::{step, wave};
 
 #[component]
 pub fn Visuals() -> impl IntoView {
-    let state = use_context::<SendWrapper<State>>().unwrap();
+    let context = use_context::<SendWrapper<Context>>().unwrap();
     let max_iterations = RwSignal::new(40.0);
     let offset = RwSignal::new(0.0);
     let length = RwSignal::new(100.0);
 
     Effect::new({
-        let mandelbrot = state.mandelbrot.clone();
+        let mandelbrot = context.mandelbrot.clone();
         move || {
             let mut mandelbrot = mandelbrot.lock().unwrap();
             mandelbrot.palette.max_iterations = (max_iterations.get() as f64).powi(2) as i32;
@@ -26,7 +26,7 @@ pub fn Visuals() -> impl IntoView {
     });
 
     let set_gradient = move |gradient: Vec<(f64, [u8; 3])>| {
-        let mut mandelbrot = state.mandelbrot.lock().unwrap();
+        let mut mandelbrot = context.mandelbrot.lock().unwrap();
         mandelbrot.palette.gradient = mandelbrot_explorer::Gradient::Step(mandelbrot_explorer::StepGradient {
             checkpoints: gradient
                 .into_iter()

@@ -17,7 +17,7 @@ use mandelbrot_explorer::Focus;
 use send_wrapper::SendWrapper;
 
 use crate::{
-    state::{ExplorerStateStoreFields, SalesStateStoreFields, State},
+    context::{Context, ExplorerStateStoreFields, SalesStateStoreFields, StateStoreFields},
     util::preserve_log_level,
 };
 use {auction::Auction, bids::Bids, info::Info, visuals::Visuals};
@@ -44,7 +44,7 @@ struct FocusQuery {
 
 #[component]
 fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
-    let state = use_context::<SendWrapper<State>>().unwrap();
+    let context = use_context::<SendWrapper<Context>>().unwrap();
     let navigate = use_navigate();
     let query_map = use_query_map();
     let params = use_params::<ControllerParams>();
@@ -54,28 +54,28 @@ fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
 
     // query tokens and bids
     Effect::new({
-        let state = state.clone();
+        let context = context.clone();
         let navigate = navigate.clone();
         let token_id = token_id.clone();
         move || {
-            let state = state.clone();
+            let context = context.clone();
             let navigate = navigate.clone();
             let token_id = token_id.get().unwrap_or(1);
             spawn_local(async move {
                 if let (Ok(tokens), Ok(children), Ok(bids)) = (
-                    state.erc1155_contract.get_ancestry_metadata(token_id).await,
-                    state.erc1155_contract.get_children_metadata(token_id).await,
-                    state.erc1155_contract.get_bids(token_id).await,
+                    context.erc1155_contract.get_ancestry_metadata(token_id).await,
+                    context.erc1155_contract.get_children_metadata(token_id).await,
+                    context.erc1155_contract.get_bids(token_id).await,
                 ) {
-                    state.explorer.nav_history().update(|nav_history| {
+                    context.state.explorer().nav_history().update(|nav_history| {
                         nav_history.clear();
                         nav_history.extend(tokens.into_iter().rev());
                     });
-                    state.explorer.children().update(|children_| {
+                    context.state.explorer().children().update(|children_| {
                         children_.clear();
                         children_.extend(children.into_iter().map(|m| (m.token_id, m)));
                     });
-                    state.explorer.bids().update(|bids_| {
+                    context.state.explorer().bids().update(|bids_| {
                         bids_.clear();
                         bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
                     });
@@ -89,17 +89,17 @@ fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
     // zoom, but only on first page load
     let first = StoredValue::new(true);
     Effect::new({
-        let state = state.clone();
+        let context = context.clone();
         move || {
             if first.get_value() {
                 if let Some(focus) = focus.take() {
                     first.set_value(false);
-                    state.mandelbrot.lock().unwrap().move_into_focus(focus.clone());
+                    context.mandelbrot.lock().unwrap().move_into_focus(focus.clone());
                 } else {
-                    state.explorer.nav_history().with(|nav_history| {
+                    context.state.explorer().nav_history().with(|nav_history| {
                         if let Some(token) = nav_history.last() {
                             first.set_value(false);
-                            state
+                            context
                                 .mandelbrot
                                 .lock()
                                 .unwrap()
@@ -112,14 +112,14 @@ fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
     });
 
     let select_bid = {
-        let state = state.clone();
+        let context = context.clone();
         move |bid_id, selected| {
-            state.explorer.bids().update(|bids| {
+            context.state.explorer().bids().update(|bids| {
                 if let Some(bid) = bids.get_mut(&bid_id) {
                     bid.selected = selected;
                 }
             });
-            state.sales.bids().update(|bids| {
+            context.state.sales().bids().update(|bids| {
                 for token_bids in bids.values_mut() {
                     for bid in token_bids.values_mut() {
                         if bid.token_id == bid_id {
@@ -132,14 +132,14 @@ fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
     };
 
     let on_frame_event = Arc::new({
-        let state = state.clone();
+        let context = context.clone();
         move |frame_event: mandelbrot_explorer::FrameEvent| match frame_event {
             mandelbrot_explorer::FrameEvent::DoubleClicked(frame) => match frame.color {
                 mandelbrot_explorer::FrameColor::Red
                 | mandelbrot_explorer::FrameColor::Pink
                 | mandelbrot_explorer::FrameColor::Blue
                 | mandelbrot_explorer::FrameColor::LightBlue => {
-                    state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds);
+                    context.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds);
                     navigate(
                         &preserve_log_level(format!("/tokens/{}", frame.id), query_map),
                         Default::default(),
@@ -173,26 +173,27 @@ fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
         }
     });
 
-    state.mandelbrot.lock().unwrap().on_frame_event = Some(Arc::new({
+    context.mandelbrot.lock().unwrap().on_frame_event = Some(Arc::new({
         let on_frame_event = on_frame_event.clone();
         move |frame_event| on_frame_event(frame_event)
     }));
 
     // check ownership
     Effect::new({
-        let state = state.clone();
+        let context = context.clone();
         move || {
-            if let Some(address) = state.address.get() {
-                state.explorer.children().update(|children| {
+            if let Some(address) = context.state.address().get() {
+                context.state.explorer().children().update(|children| {
                     children
                         .values_mut()
                         .for_each(|token| token.owned = token.owner == address)
                 });
-                state
-                    .explorer
+                context
+                    .state
+                    .explorer()
                     .bids()
                     .update(|bids| bids.values_mut().for_each(|bid| bid.owned = bid.owner == address));
-                state.explorer.nav_history().update(|nav_history| {
+                context.state.explorer().nav_history().update(|nav_history| {
                     nav_history
                         .iter_mut()
                         .for_each(|token| token.owned = token.owner == address)
@@ -203,30 +204,33 @@ fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
 
     // update frames
     Effect::new({
-        let state = state.clone();
+        let context = context.clone();
         move || {
-            let mandelbrot = &mut state.mandelbrot.lock().unwrap();
+            let mandelbrot = &mut context.mandelbrot.lock().unwrap();
             let frames = &mut mandelbrot.frames;
             frames.clear();
             frames.extend(
-                state
-                    .explorer
+                context
+                    .state
+                    .explorer()
                     .children()
                     .get()
                     .values()
                     .map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Red)),
             );
             frames.extend(
-                state
-                    .explorer
+                context
+                    .state
+                    .explorer()
                     .bids()
                     .get()
                     .values()
                     .map(|token| token.to_frame(mandelbrot_explorer::FrameColor::Yellow)),
             );
             frames.extend(
-                state
-                    .explorer
+                context
+                    .state
+                    .explorer()
                     .nav_history()
                     .get()
                     .iter()
@@ -244,14 +248,14 @@ fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
             <Visuals/>
 
             {
-                move || state.explorer.nav_history().get().last().cloned().map(|token| {
-                    let state = state.clone();
+                move || context.state.explorer().nav_history().get().last().cloned().map(|token| {
+                    let context = context.clone();
                     view! {
                         <div class="bg-gray-800 text-white rounded-md shadow p-4">
                             <Info token=token.clone() />
                         </div>
 
-                        <Show when={let state = state.clone(); move || state.address.get().is_some()} fallback=|| {} >
+                        <Show when={let context = context.clone(); move || context.state.address().get().is_some()} fallback=|| {} >
                             {
                                 let token = token.clone();
                                 view! {
@@ -264,9 +268,9 @@ fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
                         </Show>
 
                         <div class="border-t border-gray-700 my-4" />
-                        <Show when={let state = state.clone(); move || state.explorer.bids().get().len() > 0} fallback=|| {} >
+                        <Show when={let context = context.clone(); move || context.state.explorer().bids().get().len() > 0} fallback=|| {} >
                             <div class="bg-gray-800 text-white rounded-md shadow p-4">
-                                <Bids bids=state.explorer.bids() />
+                                <Bids bids=context.state.explorer().bids() />
                             </div>
                         </Show>
                     }.into_any()

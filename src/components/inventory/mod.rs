@@ -4,20 +4,20 @@ mod tokens;
 use leptos::prelude::*;
 use send_wrapper::SendWrapper;
 
-use crate::state::{InventoryStateStoreFields, State};
+use crate::context::{Context, InventoryStateStoreFields, StateStoreFields};
 use bids::Bids;
 use tokens::Tokens;
 
 #[component]
 pub fn Inventory() -> impl IntoView {
-    let state = use_context::<SendWrapper<State>>().unwrap();
+    let context = use_context::<SendWrapper<Context>>().unwrap();
 
     let refresh = Action::new_local({
-        let state = state.clone();
+        let context = context.clone();
         move |_| {
-            let state = state.clone();
+            let context = context.clone();
             async move {
-                state.reload_inventory().await;
+                context.reload_inventory().await;
             }
         }
     });
@@ -25,10 +25,10 @@ pub fn Inventory() -> impl IntoView {
     view! {
         <div class="space-y-4">
             <p class="text-lg font-semibold text-gray-700">"Tokens:"</p>
-            <Tokens tokens=state.inventory.tokens() />
+            <Tokens tokens=context.state.inventory().tokens() />
 
             <p class="text-lg font-semibold text-gray-700">"Bids:"</p>
-            <Bids bids=state.inventory.bids() />
+            <Bids bids=context.state.inventory().bids() />
 
             <button
                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"

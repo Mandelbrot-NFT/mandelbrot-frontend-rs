@@ -1,7 +1,7 @@
 mod chain;
 mod components;
+mod context;
 mod evm;
-mod state;
 mod util;
 
 use leptos::prelude::*;

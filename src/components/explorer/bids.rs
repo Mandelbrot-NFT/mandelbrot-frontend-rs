@@ -4,20 +4,20 @@ use leptos::prelude::*;
 use mandelbrot_explorer::FrameColor;
 use send_wrapper::SendWrapper;
 
-use crate::{evm::types::Metadata, state::State};
+use crate::{context::Context, evm::types::Metadata};
 
 #[component]
 pub fn Bids<T>(bids: T) -> impl IntoView
 where
-    T: Get<Value = HashMap<u128, Metadata>> + Update<Value = HashMap<u128, Metadata>> + Copy + Send + Sync + 'static,
+    T: Get<Value = HashMap<u128, Metadata>> + Copy + Send + Sync + 'static,
 {
-    let state = use_context::<SendWrapper<State>>().unwrap();
+    let context = use_context::<SendWrapper<Context>>().unwrap();
 
     let zoom_bid = {
         move |bid_id| {
             if let Some(bid) = bids.get().get(&bid_id) {
                 let frame = bid.to_frame(FrameColor::Blue);
-                state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+                context.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
             }
         }
     };
