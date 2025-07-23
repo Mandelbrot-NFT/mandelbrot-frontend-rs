@@ -3,6 +3,7 @@ mod account;
 mod context;
 mod error_handler;
 mod explorer;
+mod frame_control;
 mod guide;
 mod inventory;
 mod mandelbrot;
@@ -22,6 +23,7 @@ use leptos_router::hooks::use_query_map;
 use reactive_stores::Store;
 
 use crate::{context::StateStoreFields, util::preserve_log_level};
+use frame_control::FrameControl;
 
 use {
     about::About,
@@ -159,21 +161,23 @@ pub fn App() -> impl IntoView {
                 <Mandelbrot interface=interface.clone()/>
                 <EthereumContextProvider>
                     <ContextProvider mandelbrot=interface.clone() state>
-                        <div class="relative w-full overflow-auto">
-                            <header class="h-[8vh] z-10 bg-brand text-white flex items-center justify-between px-4">
-                                <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
-                                <ConnectButton connected_html=move || view! {
-                                    <AccountButton
-                                        balance=token_balance.read_only()
-                                        on_click=move || account_open.update(|account_open| {
-                                            *account_open = !*account_open;
-                                        })
-                                    />
-                                }/>
-                            </header>
-                            <Content/>
-                        </div>
-                        <Account token_balance open=account_open/>
+                        <FrameControl>
+                            <div class="relative w-full overflow-auto">
+                                <header class="h-[8vh] z-10 bg-brand text-white flex items-center justify-between px-4">
+                                    <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
+                                    <ConnectButton connected_html=move || view! {
+                                        <AccountButton
+                                            balance=token_balance.read_only()
+                                            on_click=move || account_open.update(|account_open| {
+                                                *account_open = !*account_open;
+                                            })
+                                        />
+                                    }/>
+                                </header>
+                                <Content/>
+                            </div>
+                            <Account token_balance open=account_open/>
+                        </FrameControl>
                     </ContextProvider>
                 </EthereumContextProvider>
             </div>

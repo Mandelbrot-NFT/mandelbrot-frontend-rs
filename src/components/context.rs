@@ -28,8 +28,8 @@ pub fn ContextProvider(
     } else {
         Either::Right(Http::new(&sepolia_testnet().rpc_urls[0]).unwrap())
     };
-
     let web3 = web3::Web3::new(transport);
+
     let error = RwSignal::new(None);
     let context = Context {
         mandelbrot: mandelbrot.take(),
@@ -49,7 +49,7 @@ pub fn ContextProvider(
     Effect::new({
         let context = context.clone();
         move || {
-            if context.state.address().get().is_some() {
+            if state.address().get().is_some() {
                 let context = context.clone();
                 spawn_local(async move {
                     context.reload_inventory().await;
