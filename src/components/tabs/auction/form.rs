@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[component]
-pub fn Auction(token: Metadata) -> impl IntoView {
+pub fn Form(token: Metadata) -> impl IntoView {
     let context = use_context::<SendWrapper<Context>>().unwrap();
 
     let bid_amount = RwSignal::new(token.minimum_price);

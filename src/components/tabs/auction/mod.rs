@@ -1,8 +1,6 @@
-mod auction;
 mod bids;
-mod gradient;
+mod form;
 mod info;
-mod visuals;
 
 use leptos::prelude::*;
 use leptos_router::{
@@ -14,10 +12,10 @@ use leptos_router::{
 use send_wrapper::SendWrapper;
 
 use crate::context::{Context, ExplorerStoreFields, StateStoreFields};
-use {auction::Auction, bids::Bids, info::Info, visuals::Visuals};
+use {bids::Bids, form::Form, info::Info};
 
 #[component]
-pub fn Explorer() -> impl IntoView {
+pub fn Auction() -> impl IntoView {
     view! {
         <Routes fallback=|| "Not found.">
             <Route path=path!("/tokens/:token_id") view=move || view! { <Controller/> }/>
@@ -48,8 +46,6 @@ fn Controller() -> impl IntoView {
 
     view! {
         <div class="flex flex-col">
-            <Visuals/>
-
             {
                 move || context.state.explorer().nav_history().get().last().cloned().map(|token| {
                     let context = context.clone();
@@ -64,7 +60,7 @@ fn Controller() -> impl IntoView {
                                 view! {
                                     <div class="border-t border-gray-700 my-4" />
                                     <div class="bg-gray-800 text-white rounded-md shadow p-4">
-                                        <Auction token />
+                                        <Form token />
                                     </div>
                                 }
                             }

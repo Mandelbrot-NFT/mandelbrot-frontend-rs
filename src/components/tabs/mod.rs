@@ -1,4 +1,5 @@
 mod about;
+mod auction;
 mod explorer;
 mod guide;
 mod inventory;
@@ -11,13 +12,7 @@ use send_wrapper::SendWrapper;
 
 use crate::context::{Context, StateStoreFields};
 
-use {
-    about::About,
-    explorer::Explorer,
-    guide::Guide,
-    inventory::Inventory,
-    sales::Sales,
-};
+use {about::About, auction::Auction, explorer::Explorer, guide::Guide, inventory::Inventory, sales::Sales};
 
 #[derive(Clone, Params, PartialEq)]
 struct ControllerParams {
@@ -57,6 +52,7 @@ pub fn Tabs() -> impl IntoView {
                 move || {
                     vec![
                         ("explorer", "Explore", true),
+                        ("auction", "Auction", ethereum.is_some()),
                         ("inventory", "Inventory", ethereum.as_ref().is_some_and(|eth| eth.connected())),
                         ("sales", "Sales", ethereum.as_ref().is_some_and(|eth| eth.connected())),
                         ("description", "Description", true),
@@ -82,6 +78,9 @@ pub fn Tabs() -> impl IntoView {
             <div class="p-4 space-y-4">
                 <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
                     <Explorer/>
+                </div>
+                <div class=move || if selected_tab.get() == "auction" { "block" } else { "hidden" }>
+                    <Auction/>
                 </div>
                 <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
                     <Inventory />
