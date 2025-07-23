@@ -6,10 +6,11 @@ use reactive_stores::Store;
 use send_wrapper::SendWrapper;
 use web3::transports::{eip_1193::Eip1193, Either, Http};
 
+use super::error_handler::ErrorHandler;
 use crate::{
     chain::sepolia_testnet,
     context::{Context, State, StateStoreFields},
-    evm::contracts::{self, ERC1155Contract},
+    evm::contracts::ERC1155Contract,
 };
 
 #[derive(Clone, Debug)]
@@ -27,38 +28,14 @@ pub fn ContextProvider(
     } else {
         Either::Right(Http::new(&sepolia_testnet().rpc_urls[0]).unwrap())
     };
-    let web3 = web3::Web3::new(transport);
-    provide_context(LocalStorage::wrap(Web3(web3.clone())));
 
+    let web3 = web3::Web3::new(transport);
     let error = RwSignal::new(None);
-    let error_message = Memo::new(move |_| {
-        error.with(|error| {
-            error.as_ref().map(|error| match error {
-                contracts::Error::TokenNotFound => "Unable to find an NFT with this Id".into(),
-                contracts::Error::NoRightsToBurn => "You don't have the necessary rights to burn this NFT".into(),
-                contracts::Error::TokenNotEmpty => {
-                    "It is not allowed to burn an NFT if it has minted NFTs inside".into()
-                }
-                contracts::Error::BidNotFound => "Unable to find a bid with this Id".into(),
-                contracts::Error::BidTooLow => "Your bid is too low".into(),
-                contracts::Error::MinimumBidTooLow => "Minimum bid for the NFT that you wish to mint is too low".into(),
-                contracts::Error::TooManyChildTokens => "This NFT cannot contain any more NFTs".into(),
-                contracts::Error::NoRightsToApproveBid => {
-                    "You don't have the necessary rights to approve these bids".into()
-                }
-                contracts::Error::NoRightsToDeleteBid => {
-                    "You don't have the necessary rights to delete this bid".into()
-                }
-                contracts::Error::FieldOutside => {
-                    "NFT that you are trying to mint has to be within the bounds of parent NFT".into()
-                }
-                contracts::Error::FieldsOverlap => "NFT that you are trying to mint overlaps with another NFT".into(),
-                contracts::Error::FieldTooLarge => "NFT that you are trying to mint is too large".into(),
-                contracts::Error::Other(message) => message.clone(),
-            })
-        })
-    });
-    provide_context(error.write_only());
+    let context = Context {
+        mandelbrot: mandelbrot.take(),
+        erc1155_contract: ERC1155Contract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
+        state,
+    };
 
     Effect::new(move || {
         state.address().set(
@@ -69,48 +46,24 @@ pub fn ContextProvider(
         )
     });
 
-    let context = Context {
-        mandelbrot: mandelbrot.take(),
-        erc1155_contract: ERC1155Contract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
-        state,
-    };
-    provide_context(LocalStorage::wrap(context.clone()));
-
-    Effect::new(move || {
-        if context.state.address().get().is_some() {
-            let context = context.clone();
-            spawn_local(async move {
-                context.reload_inventory().await;
-            });
+    Effect::new({
+        let context = context.clone();
+        move || {
+            if context.state.address().get().is_some() {
+                let context = context.clone();
+                spawn_local(async move {
+                    context.reload_inventory().await;
+                });
+            }
         }
     });
 
+    provide_context(LocalStorage::wrap(Web3(web3)));
+    provide_context(error.write_only());
+    provide_context(LocalStorage::wrap(context));
+
     view! {
         { children() }
-
-        <Show when=move || error_message.get().is_some()>
-            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-                <div class="bg-gray-900 text-white rounded-lg shadow-lg p-6 w-full max-w-md space-y-6">
-
-                    <div class="text-xl font-semibold border-b border-gray-700 pb-2">
-                        "Error"
-                    </div>
-
-                    <div class="text-sm text-gray-300">
-                        {move || error_message.get().unwrap_or("".into())}
-                    </div>
-
-                    <div class="flex justify-end pt-4 border-t border-gray-700">
-                        <button
-                            on:click=move |_| error.set(None)
-                            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md text-sm font-medium transition"
-                        >
-                            "Ok"
-                        </button>
-                    </div>
-
-                </div>
-            </div>
-        </Show>
+        <ErrorHandler error/>
     }
 }

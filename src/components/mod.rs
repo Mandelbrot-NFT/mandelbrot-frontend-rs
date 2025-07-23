@@ -1,6 +1,7 @@
 mod about;
 mod account;
 mod context;
+mod error_handler;
 mod explorer;
 mod guide;
 mod inventory;

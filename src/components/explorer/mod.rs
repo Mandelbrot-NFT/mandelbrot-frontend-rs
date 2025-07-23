@@ -52,7 +52,12 @@ fn Controller() -> impl IntoView {
 
     Effect::new({
         let context = context.clone();
-        move || context.state.current_token_id().set(params.get().ok().and_then(|params| params.token_id))
+        move || {
+            context
+                .state
+                .current_token_id()
+                .set(params.get().ok().and_then(|params| params.token_id))
+        }
     });
 
     // query tokens and bids
