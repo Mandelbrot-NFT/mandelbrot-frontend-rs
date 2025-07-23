@@ -60,6 +60,15 @@ pub fn ContextProvider(
     });
     provide_context(error.write_only());
 
+    Effect::new(move || {
+        state.address().set(
+            ethereum
+                .clone()
+                .and_then(|ethereum| ethereum.connected().then(|| ethereum.address().get()))
+                .flatten(),
+        )
+    });
+
     let context = Context {
         mandelbrot: mandelbrot.take(),
         erc1155_contract: ERC1155Contract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
