@@ -153,30 +153,28 @@ pub fn App() -> impl IntoView {
 
     view! {
         <div class="min-h-screen flex flex-col">
-            <EthereumContextProvider>
-                <StateContextProvider mandelbrot=interface.clone()>
-                    <div class="flex flex-row gap-2 items-stretch">
-                        <Mandelbrot interface=interface.clone()/>
-                        <div class="relative w-full border overflow-auto">
+            <div class="flex flex-row items-stretch">
+                <Mandelbrot interface=interface.clone()/>
+                <EthereumContextProvider>
+                    <StateContextProvider mandelbrot=interface.clone()>
+                        <div class="relative w-full overflow-auto">
                             <header class="h-[8vh] z-10 bg-brand text-white flex items-center justify-between px-4">
                                 <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
-                                <div class="flex items-center gap-4">
-                                    <ConnectButton connected_html=move || view! {
-                                        <AccountButton
-                                            balance=token_balance.read_only()
-                                            on_click=move || account_open.update(|account_open| {
-                                                *account_open = !*account_open;
-                                            })
-                                        />
-                                    }/>
-                                </div>
+                                <ConnectButton connected_html=move || view! {
+                                    <AccountButton
+                                        balance=token_balance.read_only()
+                                        on_click=move || account_open.update(|account_open| {
+                                            *account_open = !*account_open;
+                                        })
+                                    />
+                                }/>
                             </header>
                             <Content token_id/>
                         </div>
-                    </div>
-                    <Account token_balance open=account_open/>
-                </StateContextProvider>
-            </EthereumContextProvider>
+                        <Account token_balance open=account_open/>
+                    </StateContextProvider>
+                </EthereumContextProvider>
+            </div>
         </div>
     }
 }
