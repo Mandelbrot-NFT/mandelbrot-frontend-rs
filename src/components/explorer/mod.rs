@@ -17,7 +17,7 @@ use mandelbrot_explorer::Focus;
 use send_wrapper::SendWrapper;
 
 use crate::{
-    context::{Context, ExplorerStateStoreFields, SalesStateStoreFields, StateStoreFields},
+    context::{Context, ExplorerStoreFields, SalesStoreFields, StateStoreFields},
     util::preserve_log_level,
 };
 use {auction::Auction, bids::Bids, info::Info, visuals::Visuals};

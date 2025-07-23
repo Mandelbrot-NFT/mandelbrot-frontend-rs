@@ -6,7 +6,7 @@ use mandelbrot_explorer::FrameColor;
 use send_wrapper::SendWrapper;
 
 use crate::{
-    context::{Context, ExplorerStateStoreFields, InventoryStateStoreFields, SalesStateStoreFields, StateStoreFields},
+    context::{Context, ExplorerStoreFields, InventoryStoreFields, SalesStoreFields, StateStoreFields},
     util::preserve_log_level,
 };
 

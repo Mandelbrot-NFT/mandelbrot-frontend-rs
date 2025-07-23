@@ -4,7 +4,7 @@ mod tokens;
 use leptos::prelude::*;
 use send_wrapper::SendWrapper;
 
-use crate::context::{Context, InventoryStateStoreFields, StateStoreFields};
+use crate::context::{Context, InventoryStoreFields, StateStoreFields};
 use bids::Bids;
 use tokens::Tokens;
 

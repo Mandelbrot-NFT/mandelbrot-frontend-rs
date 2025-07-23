@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use leptos::{prelude::*, task::spawn_local};
 use leptos_ethereum_provider::EthereumInterface;
@@ -11,7 +8,7 @@ use web3::transports::{eip_1193::Eip1193, Either, Http};
 
 use crate::{
     chain::sepolia_testnet,
-    context::{Context, ExplorerState, InventoryState, SalesState, State, StateStoreFields},
+    context::{Context, StateStoreFields},
     evm::contracts::{self, ERC1155Contract},
 };
 
@@ -65,22 +62,7 @@ pub fn ContextProvider(
     let context = Context {
         mandelbrot: mandelbrot.take(),
         erc1155_contract: ERC1155Contract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
-        state: Store::new(State {
-            address: ethereum
-                .clone()
-                .and_then(|ethereum| ethereum.connected().then(|| ethereum.address().get()))
-                .flatten(),
-            explorer: ExplorerState {
-                nav_history: Vec::new(),
-                children: HashMap::new(),
-                bids: HashMap::new(),
-            },
-            inventory: InventoryState {
-                tokens: HashMap::new(),
-                bids: HashMap::new(),
-            },
-            sales: SalesState { bids: HashMap::new() },
-        }),
+        state: Store::default(),
     };
     provide_context(LocalStorage::wrap(context.clone()));
 

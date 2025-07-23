@@ -8,30 +8,30 @@ use reactive_stores::Store;
 
 use crate::evm::{contracts::ERC1155Contract, types::Metadata};
 
-#[derive(Clone, Store)]
-pub struct ExplorerState {
+#[derive(Clone, Default, Store)]
+pub struct Explorer {
     pub nav_history: Vec<Metadata>,
     pub children: HashMap<u128, Metadata>,
     pub bids: HashMap<u128, Metadata>,
 }
 
-#[derive(Clone, Store)]
-pub struct InventoryState {
+#[derive(Clone, Default, Store)]
+pub struct Inventory {
     pub tokens: HashMap<u128, Metadata>,
     pub bids: HashMap<u128, Metadata>,
 }
 
-#[derive(Clone, Store)]
-pub struct SalesState {
+#[derive(Clone, Default, Store)]
+pub struct Sales {
     pub bids: HashMap<u128, HashMap<u128, Metadata>>,
 }
 
-#[derive(Clone, Store)]
+#[derive(Clone, Default, Store)]
 pub struct State {
     pub address: Option<web3::types::Address>,
-    pub explorer: ExplorerState,
-    pub inventory: InventoryState,
-    pub sales: SalesState,
+    pub explorer: Explorer,
+    pub inventory: Inventory,
+    pub sales: Sales,
 }
 
 #[derive(Clone)]
