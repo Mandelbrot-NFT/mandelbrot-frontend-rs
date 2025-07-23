@@ -29,6 +29,7 @@ pub struct Sales {
 #[derive(Clone, Default, Store)]
 pub struct State {
     pub address: Option<web3::types::Address>,
+    pub current_token_id: Option<u128>,
     pub explorer: Explorer,
     pub inventory: Inventory,
     pub sales: Sales,

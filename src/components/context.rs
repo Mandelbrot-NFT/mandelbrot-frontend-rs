@@ -8,7 +8,7 @@ use web3::transports::{eip_1193::Eip1193, Either, Http};
 
 use crate::{
     chain::sepolia_testnet,
-    context::{Context, StateStoreFields},
+    context::{Context, State, StateStoreFields},
     evm::contracts::{self, ERC1155Contract},
 };
 
@@ -18,6 +18,7 @@ pub struct Web3(pub web3::Web3<Either<Eip1193, Http>>);
 #[component]
 pub fn ContextProvider(
     mandelbrot: SendWrapper<Arc<Mutex<mandelbrot_explorer::Interface>>>,
+    state: Store<State>,
     children: Children,
 ) -> impl IntoView {
     let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
@@ -62,7 +63,7 @@ pub fn ContextProvider(
     let context = Context {
         mandelbrot: mandelbrot.take(),
         erc1155_contract: ERC1155Contract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
-        state: Store::default(),
+        state,
     };
     provide_context(LocalStorage::wrap(context.clone()));
 

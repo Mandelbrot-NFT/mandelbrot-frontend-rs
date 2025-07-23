@@ -23,11 +23,11 @@ use crate::{
 use {auction::Auction, bids::Bids, info::Info, visuals::Visuals};
 
 #[component]
-pub fn Explorer(token_id: RwSignal<Option<u128>>) -> impl IntoView {
+pub fn Explorer() -> impl IntoView {
     view! {
         <Routes fallback=|| "Not found.">
-            <Route path=path!("/tokens/:token_id") view=move || view! { <Controller token_id/> }/>
-            <Route path=path!("*") view=move || view! { <Controller token_id/> }/>
+            <Route path=path!("/tokens/:token_id") view=move || view! { <Controller/> }/>
+            <Route path=path!("*") view=move || view! { <Controller/> }/>
         </Routes>
     }
 }
@@ -43,24 +43,26 @@ struct FocusQuery {
 }
 
 #[component]
-fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
+fn Controller() -> impl IntoView {
     let context = use_context::<SendWrapper<Context>>().unwrap();
     let navigate = use_navigate();
     let query_map = use_query_map();
     let params = use_params::<ControllerParams>();
     let mut focus = use_query::<FocusQuery>().get_untracked().unwrap().focus;
 
-    Effect::new(move || token_id.set(params.get().ok().and_then(|params| params.token_id)));
+    Effect::new({
+        let context = context.clone();
+        move || context.state.current_token_id().set(params.get().ok().and_then(|params| params.token_id))
+    });
 
     // query tokens and bids
     Effect::new({
         let context = context.clone();
         let navigate = navigate.clone();
-        let token_id = token_id.clone();
         move || {
             let context = context.clone();
             let navigate = navigate.clone();
-            let token_id = token_id.get().unwrap_or(1);
+            let token_id = context.state.current_token_id().get().unwrap_or(1);
             spawn_local(async move {
                 if let (Ok(tokens), Ok(children), Ok(bids)) = (
                     context.erc1155_contract.get_ancestry_metadata(token_id).await,
@@ -160,7 +162,7 @@ fn Controller(token_id: RwSignal<Option<u128>>) -> impl IntoView {
                     );
                 }
                 mandelbrot_explorer::FrameColor::Blue | mandelbrot_explorer::FrameColor::LightBlue => {
-                    if Some(frame.id) == token_id.get_untracked() {
+                    if Some(frame.id) == context.state.current_token_id().get_untracked() {
                         navigate(
                             &preserve_log_level(format!("/tokens/{}", frame.id), query_map),
                             Default::default(),
