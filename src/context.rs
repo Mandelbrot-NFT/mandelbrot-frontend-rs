@@ -8,43 +8,49 @@ use reactive_stores::Store;
 
 use crate::evm::{contracts::ERC1155Contract, types::Metadata};
 
-#[derive(Clone, Store)]
-pub struct ExplorerState {
+#[derive(Clone, Default, Store)]
+pub struct Explorer {
     pub nav_history: Vec<Metadata>,
     pub children: HashMap<u128, Metadata>,
     pub bids: HashMap<u128, Metadata>,
 }
 
-#[derive(Clone, Store)]
-pub struct InventoryState {
+#[derive(Clone, Default, Store)]
+pub struct Inventory {
     pub tokens: HashMap<u128, Metadata>,
     pub bids: HashMap<u128, Metadata>,
 }
 
-#[derive(Clone, Store)]
-pub struct SalesState {
+#[derive(Clone, Default, Store)]
+pub struct Sales {
     pub bids: HashMap<u128, HashMap<u128, Metadata>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default, Store)]
 pub struct State {
-    pub mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
-    pub address: Signal<Option<web3::types::Address>>,
-    pub erc1155_contract: ERC1155Contract,
-    pub explorer: Store<ExplorerState>,
-    pub inventory: Store<InventoryState>,
-    pub sales: Store<SalesState>,
+    pub address: Option<web3::types::Address>,
+    pub current_token_id: Option<u128>,
+    pub explorer: Explorer,
+    pub inventory: Inventory,
+    pub sales: Sales,
 }
 
-impl State {
+#[derive(Clone)]
+pub struct Context {
+    pub mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
+    pub erc1155_contract: ERC1155Contract,
+    pub state: Store<State>,
+}
+
+impl Context {
     pub async fn reload_inventory(&self) {
-        if let Some(address) = self.address.get_untracked() {
+        if let Some(address) = self.state.address().get_untracked() {
             if let Ok((tokens, bids)) = self.erc1155_contract.get_owned_items(address).await {
-                self.inventory.tokens().update(|tokens_| {
+                self.state.inventory().tokens().update(|tokens_| {
                     tokens_.clear();
                     tokens_.extend(tokens.into_iter().map(|token| (token.token_id, token)));
                 });
-                self.inventory.bids().update(|bids_| {
+                self.state.inventory().bids().update(|bids_| {
                     bids_.clear();
                     bids_.extend(bids.into_iter().map(|bid| (bid.token_id, bid)));
                 });
@@ -55,7 +61,8 @@ impl State {
 
     pub async fn reload_sales(&self) {
         let selected_bids = self
-            .explorer
+            .state
+            .explorer()
             .bids()
             .get_untracked()
             .iter()
@@ -63,7 +70,8 @@ impl State {
             .collect::<Vec<_>>();
 
         let bids = futures::future::join_all(
-            self.inventory
+            self.state
+                .inventory()
                 .tokens()
                 .get_untracked()
                 .keys()
@@ -87,6 +95,6 @@ impl State {
             )
         })
         .collect::<HashMap<_, _>>();
-        self.sales.bids().set(bids);
+        self.state.sales().bids().set(bids);
     }
 }

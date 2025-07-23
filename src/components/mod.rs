@@ -1,12 +1,14 @@
 mod about;
 mod account;
+mod context;
+mod error_handler;
 mod explorer;
+mod frame_control;
 mod guide;
 mod inventory;
 mod mandelbrot;
 mod primitive;
 mod sales;
-mod state;
 
 use std::{
     cell::RefCell,
@@ -18,18 +20,20 @@ use std::{
 use leptos::prelude::*;
 use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider, EthereumInterface};
 use leptos_router::hooks::use_query_map;
+use reactive_stores::Store;
 
-use crate::util::preserve_log_level;
+use crate::{context::StateStoreFields, util::preserve_log_level};
+use frame_control::FrameControl;
 
 use {
     about::About,
     account::{Account, AccountButton},
+    context::ContextProvider,
     explorer::Explorer,
     guide::Guide,
     inventory::Inventory,
     mandelbrot::Mandelbrot,
     sales::Sales,
-    state::StateContextProvider,
 };
 
 fn tab_class(tab_name: &str, selected_tab: &str) -> String {
@@ -43,7 +47,7 @@ fn tab_class(tab_name: &str, selected_tab: &str) -> String {
 }
 
 #[component]
-pub fn Content(token_id: RwSignal<Option<u128>>) -> impl IntoView {
+pub fn Content() -> impl IntoView {
     let ethereum = use_context::<Option<EthereumInterface>>().unwrap();
     let selected_tab = RwSignal::new("explorer");
 
@@ -77,7 +81,7 @@ pub fn Content(token_id: RwSignal<Option<u128>>) -> impl IntoView {
         <div class="w-full mx-auto overflow-y-auto max-h-[84vh] scroll-smooth">
             <div class="p-4 space-y-4">
                 <div class=move || if selected_tab.get() == "explorer" { "block" } else { "hidden" }>
-                    <Explorer token_id/>
+                    <Explorer/>
                 </div>
                 <div class=move || if selected_tab.get() == "inventory" { "block" } else { "hidden" }>
                     <Inventory />
@@ -101,11 +105,11 @@ pub fn App() -> impl IntoView {
     let query_map = use_query_map();
     let window = web_sys::window().unwrap();
     let height = window.inner_height().unwrap().as_f64().unwrap() + 1.0;
-    let token_id = RwSignal::new(None);
+    let state = Store::default();
 
     let on_focus_change = {
         move |focus| {
-            let url = if let Some(token_id) = token_id.get_untracked() {
+            let url = if let Some(token_id) = state.current_token_id().get_untracked() {
                 preserve_log_level(format!("/tokens/{}?focus={}", token_id, focus), query_map)
             } else {
                 preserve_log_level(format!("?focus={}", focus), query_map)
@@ -153,14 +157,14 @@ pub fn App() -> impl IntoView {
 
     view! {
         <div class="min-h-screen flex flex-col">
-            <EthereumContextProvider>
-                <StateContextProvider mandelbrot=interface.clone()>
-                    <div class="flex flex-row gap-2 items-stretch">
-                        <Mandelbrot interface=interface.clone()/>
-                        <div class="relative w-full border overflow-auto">
-                            <header class="h-[8vh] z-10 bg-brand text-white flex items-center justify-between px-4">
-                                <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
-                                <div class="flex items-center gap-4">
+            <div class="flex flex-row items-stretch">
+                <Mandelbrot interface=interface.clone()/>
+                <EthereumContextProvider>
+                    <ContextProvider mandelbrot=interface.clone() state>
+                        <FrameControl>
+                            <div class="relative w-full overflow-auto">
+                                <header class="h-[8vh] z-10 bg-brand text-white flex items-center justify-between px-4">
+                                    <h3 class="text-lg font-bold">"Mandelbrot NFT"</h3>
                                     <ConnectButton connected_html=move || view! {
                                         <AccountButton
                                             balance=token_balance.read_only()
@@ -169,14 +173,14 @@ pub fn App() -> impl IntoView {
                                             })
                                         />
                                     }/>
-                                </div>
-                            </header>
-                            <Content token_id/>
-                        </div>
-                    </div>
-                    <Account token_balance open=account_open/>
-                </StateContextProvider>
-            </EthereumContextProvider>
+                                </header>
+                                <Content/>
+                            </div>
+                            <Account token_balance open=account_open/>
+                        </FrameControl>
+                    </ContextProvider>
+                </EthereumContextProvider>
+            </div>
         </div>
     }
 }

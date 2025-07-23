@@ -6,45 +6,46 @@ use mandelbrot_explorer::FrameColor;
 use send_wrapper::SendWrapper;
 
 use crate::{
-    state::{ExplorerStateStoreFields, InventoryStateStoreFields, SalesStateStoreFields, State},
+    context::{Context, ExplorerStoreFields, InventoryStoreFields, SalesStoreFields, StateStoreFields},
     util::preserve_log_level,
 };
 
 #[component]
 pub fn Sales() -> impl IntoView {
-    let state = use_context::<SendWrapper<State>>().unwrap();
+    let context = use_context::<SendWrapper<Context>>().unwrap();
     let navigate = use_navigate();
     let query_map = use_query_map();
 
     let refresh = Action::new_local({
-        let state = state.clone();
+        let context = context.clone();
         move |_| {
-            let state = state.clone();
+            let context = context.clone();
             async move {
-                state.reload_inventory().await;
+                context.reload_inventory().await;
             }
         }
     });
 
     let zoom_token = {
-        let state = state.clone();
+        let context = context.clone();
         move |token_id| {
-            if let Some(token) = state.inventory.tokens().get().get(&token_id) {
+            if let Some(token) = context.state.inventory().tokens().get().get(&token_id) {
                 navigate(
                     &preserve_log_level(format!("/tokens/{}", token_id), query_map),
                     Default::default(),
                 );
                 let frame = token.to_frame(FrameColor::Blue);
-                state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+                context.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
             }
         }
     };
 
     let zoom_bid = {
-        let state = state.clone();
+        let context = context.clone();
         move |token_id, bid_id| {
-            let bids = state
-                .sales
+            let bids = context
+                .state
+                .sales()
                 .bids()
                 .get()
                 .get(&token_id)
@@ -52,22 +53,22 @@ pub fn Sales() -> impl IntoView {
                 .clone();
             if let Some(bid) = bids.get(&bid_id) {
                 let frame = bid.to_frame(FrameColor::Blue);
-                state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+                context.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
             }
         }
     };
 
     let toggle_bid = {
-        let state = state.clone();
+        let context = context.clone();
         move |token_id, bid_id, selected| {
-            state.sales.bids().update(|bids| {
+            context.state.sales().bids().update(|bids| {
                 if let Some(bids) = bids.get_mut(&token_id) {
                     if let Some(bid) = bids.get_mut(&bid_id) {
                         bid.selected = selected;
                     }
                 }
             });
-            state.explorer.bids().update(|bids| {
+            context.state.explorer().bids().update(|bids| {
                 if let Some(bid) = bids.get_mut(&bid_id) {
                     bid.selected = selected;
                 }
@@ -76,10 +77,11 @@ pub fn Sales() -> impl IntoView {
     };
 
     let selected_bids = Signal::derive({
-        let state = state.clone();
+        let context = context.clone();
         move || {
-            state
-                .sales
+            context
+                .state
+                .sales()
                 .bids()
                 .get()
                 .values()
@@ -92,14 +94,17 @@ pub fn Sales() -> impl IntoView {
     let total_approve_amount = move || 0f64.max(selected_bids.get().iter().map(|bid| bid.locked_tokens).sum::<f64>());
 
     let approve_bids = Action::new_local({
-        let state = state.clone();
+        let context = context.clone();
         move |_| {
-            let state = state.clone();
+            let context = context.clone();
             async move {
-                if let Some(address) = state.address.get_untracked() {
+                if let Some(address) = context.state.address().get_untracked() {
                     let selected_bids: Vec<u128> =
                         selected_bids.get_untracked().iter().map(|bid| bid.token_id).collect();
-                    state.erc1155_contract.batch_approve_bids(address, &selected_bids).await;
+                    context
+                        .erc1155_contract
+                        .batch_approve_bids(address, &selected_bids)
+                        .await;
                 }
             }
         }
@@ -111,8 +116,8 @@ pub fn Sales() -> impl IntoView {
             <div class="flex flex-col gap-3">
                 <For
                     each={
-                        let state = state.clone();
-                        move || state.inventory.tokens().get().into_values()
+                        let context = context.clone();
+                        move || context.state.inventory().tokens().get().into_values()
                     }
                     key=|token| token.token_id
                     children=move |token| {
@@ -135,13 +140,13 @@ pub fn Sales() -> impl IntoView {
 
                                 <div class="px-4 py-2 space-y-2 bg-gray-900">
                                     {
-                                        let state = state.clone();
+                                        let context = context.clone();
                                         let toggle_bid = toggle_bid.clone();
                                         move || {
-                                            let state = state.clone();
+                                            let context = context.clone();
                                             let zoom_bid = zoom_bid.clone();
                                             let toggle_bid = toggle_bid.clone();
-                                            let bids = move || state.sales.bids().get().get(&token.token_id).unwrap_or(&HashMap::new()).clone();
+                                            let bids = move || context.state.sales().bids().get().get(&token.token_id).unwrap_or(&HashMap::new()).clone();
                                             let sorted_bids = {
                                                 let bids = bids.clone();
                                                 move || {

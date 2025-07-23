@@ -3,24 +3,24 @@ use mandelbrot_explorer::ISample;
 use send_wrapper::SendWrapper;
 
 use crate::{
+    context::{Context, StateStoreFields},
     evm::types::{Field, Metadata},
-    state::State,
 };
 
 #[component]
 pub fn Auction(token: Metadata) -> impl IntoView {
-    let state = use_context::<SendWrapper<State>>().unwrap();
+    let context = use_context::<SendWrapper<Context>>().unwrap();
 
     let bid_amount = RwSignal::new(token.minimum_price);
     let bids_minimum_price = RwSignal::new(token.minimum_price);
 
     let create_bid = Action::new_local({
         move |&token_id| {
-            let state = state.clone();
+            let context = context.clone();
             async move {
-                if let Some(address) = state.address.get_untracked() {
-                    let bounds = state.mandelbrot.lock().unwrap().engine.borrow().get_bounds();
-                    state
+                if let Some(address) = context.state.address().get_untracked() {
+                    let bounds = context.mandelbrot.lock().unwrap().engine.borrow().get_bounds();
+                    context
                         .erc1155_contract
                         .bid(
                             address,

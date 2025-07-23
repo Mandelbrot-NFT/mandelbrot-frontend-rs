@@ -5,25 +5,29 @@ use leptos_router::hooks::{use_navigate, use_query_map};
 use mandelbrot_explorer::FrameColor;
 use send_wrapper::SendWrapper;
 
-use crate::{evm::types::Metadata, state::State, util::preserve_log_level};
+use crate::{
+    context::{Context, StateStoreFields},
+    evm::types::Metadata,
+    util::preserve_log_level,
+};
 
 #[component]
 pub fn Tokens<T>(tokens: T) -> impl IntoView
 where
     T: Get<Value = HashMap<u128, Metadata>> + Update<Value = HashMap<u128, Metadata>> + Copy + Send + Sync + 'static,
 {
-    let state = use_context::<SendWrapper<State>>().unwrap();
+    let context = use_context::<SendWrapper<Context>>().unwrap();
     let navigate = use_navigate();
     let query_map = use_query_map();
 
     let burn_token = Action::new_local({
-        let state = state.clone();
+        let context = context.clone();
         move |token_id: &u128| {
-            let state = state.clone();
+            let context = context.clone();
             let token_id = token_id.clone();
             async move {
-                if let Some(address) = state.address.get_untracked() {
-                    if let Some(_) = state.erc1155_contract.burn(address, token_id).await {
+                if let Some(address) = context.state.address().get_untracked() {
+                    if let Some(_) = context.erc1155_contract.burn(address, token_id).await {
                         tokens.update(|tokens| {
                             tokens.remove(&token_id);
                         });
@@ -34,7 +38,7 @@ where
     });
 
     let zoom_token = {
-        let state = state.clone();
+        let context = context.clone();
         move |token_id| {
             if let Some(token) = tokens.get().get(&token_id) {
                 navigate(
@@ -42,7 +46,7 @@ where
                     Default::default(),
                 );
                 let frame = token.to_frame(FrameColor::Blue);
-                state.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
+                context.mandelbrot.lock().unwrap().move_into_bounds(&frame.bounds)
             }
         }
     };
@@ -54,12 +58,14 @@ where
         edited_token.set(Some(token))
     };
     let edit_token_submit = Action::new_local({
-        let state = state.clone();
+        let context = context.clone();
         move |_| {
-            let state = state.clone();
+            let context = context.clone();
             async move {
-                if let (Some(address), Some(token)) = (state.address.get_untracked(), edited_token.get_untracked()) {
-                    state
+                if let (Some(address), Some(token)) =
+                    (context.state.address().get_untracked(), edited_token.get_untracked())
+                {
+                    context
                         .erc1155_contract
                         .set_minimum_bid(address, token.token_id, bids_minimum_price.get_untracked())
                         .await;
