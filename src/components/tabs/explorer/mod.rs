@@ -6,37 +6,26 @@ use std::collections::HashMap;
 use leptos::prelude::*;
 use mandelbrot_explorer::{Focus, ISample};
 use send_wrapper::SendWrapper;
-use web_sys::window;
 
 use visuals::Visuals;
 
-use crate::context::Context;
-
-pub fn set_session_item(key: &str, value: &str) {
-    if let Some(storage) = window().and_then(|w| w.session_storage().ok()).flatten() {
-        let _ = storage.set_item(key, value);
-    }
-}
-
-pub fn get_session_item(key: &str) -> Option<String> {
-    window()
-        .and_then(|w| w.session_storage().ok())
-        .flatten()
-        .and_then(|storage| storage.get_item(key).ok().flatten())
-}
+use crate::{
+    context::Context,
+    util::{get_session_item, set_session_item},
+};
 
 #[component]
 pub fn Explorer() -> impl IntoView {
     let context = use_context::<SendWrapper<Context>>().unwrap();
-
     let location_name = RwSignal::new(String::new());
+
     let locations: RwSignal<HashMap<String, Focus>> = RwSignal::new(
         get_session_item("locations")
             .unwrap_or_default()
-            .split("\x1F")
+            .split('\x1F')
             .filter(|s| !s.trim().is_empty())
             .map(|s| {
-                let (name, focus) = s.split_once("\x1E").expect("Failed to parse location");
+                let (name, focus) = s.split_once('\x1E').expect("Failed to parse location");
                 (name.into(), focus.parse().expect("Failed to parse Focus"))
             })
             .collect::<HashMap<String, Focus>>(),
@@ -48,7 +37,7 @@ pub fn Explorer() -> impl IntoView {
             &locations
                 .get_untracked()
                 .iter()
-                .map(|(name, focus)| format!("{name}\x1E{}", focus.to_string()))
+                .map(|(name, focus)| format!("{name}\x1E{focus}"))
                 .collect::<Vec<_>>()
                 .join("\x1F"),
         );
@@ -65,7 +54,6 @@ pub fn Explorer() -> impl IntoView {
                 <div class="px-4 py-2 bg-gray-100 shadow-sm">
                     <input
                         type="text"
-                        pattern="[^;=]*"
                         placeholder="Enter localion name"
                         prop:value=move || location_name.get()
                         on:input=move |ev| location_name.set(event_target_value(&ev)) />

@@ -18,7 +18,6 @@ use leptos_ethereum_provider::{ConnectButton, EthereumContextProvider};
 use leptos_router::{
     components::{Route, Routes},
     hooks::use_query_map,
-    params::Params,
     path,
 };
 use reactive_stores::Store;
@@ -32,21 +31,6 @@ use {
     mandelbrot::Mandelbrot,
     tabs::Tabs,
 };
-
-#[derive(Clone, Params, PartialEq)]
-struct ControllerParams {
-    token_id: Option<u128>,
-}
-
-fn tab_class(tab_name: &str, selected_tab: &str) -> String {
-    if tab_name == selected_tab {
-        // Active tab styling
-        "px-4 py-2 font-medium border-b-2 border-blue-600 text-blue-600".to_string()
-    } else {
-        // Inactive tab styling
-        "px-4 py-2 font-medium text-gray-500 hover:text-blue-500 transition-colors".to_string()
-    }
-}
 
 #[component]
 pub fn App() -> impl IntoView {

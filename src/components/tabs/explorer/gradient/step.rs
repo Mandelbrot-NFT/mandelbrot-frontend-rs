@@ -4,72 +4,63 @@ use leptos_use::{use_draggable, use_element_bounding};
 use reactive_stores::{AtKeyed, Store};
 use wasm_bindgen::JsCast;
 
-use super::smoothstep;
+use crate::color::{hex_to_rgb, smoothstep, Checkpoint, StepGradient};
 
-fn hex_to_rgb(hex: &str) -> Option<[u8; 3]> {
-    let hex = hex.strip_prefix('#').unwrap_or(hex);
-
-    if hex.len() != 6 {
-        return None;
-    }
-
-    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
-
-    Some([r, g, b])
-}
-
-#[derive(Store, Debug, Default, Clone)]
+#[derive(Store, Default, Clone)]
 pub struct Points {
     #[store(key: u8 = |checkpoint| checkpoint.id)]
-    checkpoints: Vec<Checkpoint>,
+    checkpoints: Vec<IndexedCheckpoint>,
     next_id: u8,
 }
 
 impl Points {
-    fn add_checkpoint(&mut self, position: f64, color: [u8; 3]) -> u8 {
+    fn add_checkpoint(&mut self, checkpoint: Checkpoint) -> u8 {
         let id = self.next_id;
-        self.checkpoints.push(Checkpoint { id, position, color });
+        self.checkpoints.push(IndexedCheckpoint { id, inner: checkpoint });
         self.next_id += 1;
         id
     }
 
-    fn export(&self) -> Vec<(f64, [u8; 3])> {
+    fn export(&self) -> StepGradient {
         if self.checkpoints.is_empty() {
-            vec![(0.0, [255, 255, 255])]
+            StepGradient {
+                checkpoints: vec![Checkpoint {
+                    position: 0.0,
+                    color: [255, 255, 255],
+                }],
+            }
         } else {
-            self.checkpoints
-                .iter()
-                .sorted_by(|a, b| a.position.partial_cmp(&b.position).unwrap())
-                .map(|c| (c.position, c.color))
-                .collect()
+            StepGradient {
+                checkpoints: self
+                    .checkpoints
+                    .iter()
+                    .sorted_by(|a, b| a.inner.position.partial_cmp(&b.inner.position).unwrap())
+                    .map(|ic| ic.inner)
+                    .collect(),
+            }
         }
     }
 }
 
-#[derive(Store, Debug, Clone, PartialEq)]
-struct Checkpoint {
-    id: u8,
-    position: f64,
-    color: [u8; 3],
+impl From<StepGradient> for Points {
+    fn from(value: StepGradient) -> Self {
+        let mut this = Self::default();
+        for checkpoint in value.checkpoints {
+            this.add_checkpoint(checkpoint);
+        }
+        this
+    }
 }
 
-impl Checkpoint {
-    fn _color_rgb(&self) -> String {
-        let [r, g, b] = self.color;
-        format!("rgb({},{},{})", r, g, b)
-    }
-
-    fn color_hex(&self) -> String {
-        let [r, g, b] = self.color;
-        format!("#{:02x}{:02x}{:02x}", r, g, b)
-    }
+#[derive(Clone, PartialEq, Store)]
+struct IndexedCheckpoint {
+    id: u8,
+    inner: Checkpoint,
 }
 
 #[component]
 fn DraggableArrow(
-    checkpoint: AtKeyed<Store<Points>, Points, u8, Vec<Checkpoint>>,
+    checkpoint: AtKeyed<Store<Points>, Points, u8, Vec<IndexedCheckpoint>>,
     active_checkpoint_id: RwSignal<Option<u8>>,
     #[prop(into)] bar_width: Signal<f64>,
     #[prop(into)] bar_left: Signal<f64>,
@@ -82,12 +73,14 @@ fn DraggableArrow(
             let x = draggable.x.get();
             if x > 0.0 {
                 let new_position = ((x + 8.0 - bar_left.get()) / bar_width.get()).max(0.0).min(1.0);
-                checkpoint.position().set(new_position);
+                checkpoint
+                    .inner()
+                    .update(|checkpoint| checkpoint.position = new_position);
             }
         }
     });
 
-    let left_px = move || checkpoint.position().get() * bar_width.get();
+    let left_px = move || checkpoint.inner().get().position * bar_width.get();
 
     view! {
         <div
@@ -111,11 +104,12 @@ fn DraggableArrow(
 }
 
 #[component]
-fn Bar(
+pub fn Bar(
     position: WriteSignal<f64>,
     width: WriteSignal<f64>,
     points: Store<Points>,
     mut on_click: impl FnMut(f64) -> () + 'static,
+    #[prop(optional)] children: Option<Children>,
 ) -> impl IntoView {
     let node_ref = NodeRef::<leptos::html::Canvas>::new();
     let bounding = use_element_bounding(node_ref);
@@ -139,6 +133,7 @@ fn Bar(
         let checkpoints = points
             .checkpoints
             .iter()
+            .map(|checkpoint| checkpoint.inner)
             .sorted_by(|a, b| a.position.partial_cmp(&b.position).unwrap())
             .collect::<Vec<_>>();
 
@@ -158,7 +153,7 @@ fn Bar(
             })
             .unwrap_or_else(|| {
                 let first = checkpoints[0];
-                let last = checkpoints.last().unwrap();
+                let last = *checkpoints.last().unwrap();
                 let range = 1.0 - last.position + first.position;
                 (last, first, ((t - last.position + 1.0) % 1.0) / range)
             });
@@ -189,31 +184,38 @@ fn Bar(
         }
     });
 
-    view! {
-        <canvas node_ref=node_ref on:click=emit_click class="h-10 w-full rounded cursor-crosshair"/>
-    }
+view! {
+    <div class="relative h-12 w-full">
+        <canvas
+            node_ref=node_ref
+            on:click=emit_click
+            class="absolute inset-0 h-full w-full rounded cursor-crosshair z-0"
+        />
+        {children.map(|children| view! {
+            <div class="absolute inset-0 z-10 flex flex-col justify-center items-center">
+                {children()}
+            </div>
+        })}
+    </div>
+}
 }
 
 #[component]
-pub fn Editor(on_change: impl Fn(Vec<(f64, [u8; 3])>) + 'static) -> impl IntoView {
+pub fn Editor(gradient: StepGradient, on_update: impl Fn(StepGradient) + 'static) -> impl IntoView {
     let bar_width = RwSignal::new(0.0);
     let bar_left = RwSignal::new(0.0);
-
-    let points = Store::new(Points::default());
-    points.update(|points| {
-        points.add_checkpoint(0.0, hex_to_rgb("#ff0000").unwrap());
-        points.add_checkpoint(0.333, hex_to_rgb("#00ff00").unwrap());
-        points.add_checkpoint(0.666, hex_to_rgb("#0000ff").unwrap());
-    });
-
+    let points = Store::new(Points::from(gradient));
     let active_checkpoint_id = RwSignal::new(Some(0));
 
-    Effect::new(move || on_change(points.read().export()));
+    Effect::new(move || on_update(points.get().export()));
 
     let on_gradient_click = move |position| {
         let mut checkpoint_id = 0;
         points.update(|points| {
-            checkpoint_id = points.add_checkpoint(position, hex_to_rgb("#ffffff").unwrap());
+            checkpoint_id = points.add_checkpoint(Checkpoint {
+                position,
+                color: hex_to_rgb("#ffffff").unwrap(),
+            });
         });
         active_checkpoint_id.set(Some(checkpoint_id));
     };
@@ -251,10 +253,10 @@ pub fn Editor(on_change: impl Fn(Vec<(f64, [u8; 3])>) + 'static) -> impl IntoVie
                                 <input
                                     type="color"
                                     class="w-8 h-8 rounded border shadow"
-                                    prop:value=active_checkpoint.read().color_hex()
+                                    prop:value=active_checkpoint.read().inner.color_hex()
                                     on:input=move |ev| {
                                         let new_color = hex_to_rgb(&event_target_value(&ev)).unwrap();
-                                        active_checkpoint.color().set(new_color);
+                                        active_checkpoint.inner().update(|checkpoint| checkpoint.color = new_color);
                                     }
                                 />
                             </div>

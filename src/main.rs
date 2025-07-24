@@ -1,4 +1,5 @@
 mod chain;
+mod color;
 mod components;
 mod context;
 mod evm;
