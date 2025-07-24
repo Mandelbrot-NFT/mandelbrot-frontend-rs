@@ -184,20 +184,20 @@ pub fn Bar(
         }
     });
 
-view! {
-    <div class="relative h-12 w-full">
-        <canvas
-            node_ref=node_ref
-            on:click=emit_click
-            class="absolute inset-0 h-full w-full rounded cursor-crosshair z-0"
-        />
-        {children.map(|children| view! {
-            <div class="absolute inset-0 z-10 flex flex-col justify-center items-center">
-                {children()}
-            </div>
-        })}
-    </div>
-}
+    view! {
+        <div class="relative h-12 w-full">
+            <canvas
+                node_ref=node_ref
+                on:click=emit_click
+                class="absolute inset-0 h-full w-full rounded cursor-crosshair z-0"
+            />
+            {children.map(|children| view! {
+                <div class="absolute inset-0 z-10 flex flex-col justify-center items-center">
+                    {children()}
+                </div>
+            })}
+        </div>
+    }
 }
 
 #[component]

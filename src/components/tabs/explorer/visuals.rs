@@ -20,7 +20,7 @@ use super::gradient::{step, wave};
 
 #[derive(Clone, Store)]
 pub struct Palette {
-    gradient: Gradient,
+    pub(super) gradient: Gradient,
     max_iterations: f64,
     offset: f64,
     length: f64,
@@ -62,9 +62,9 @@ impl FromStr for Palette {
 }
 
 #[component]
-pub fn Visuals() -> impl IntoView {
+pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static) -> impl IntoView {
     let context = use_context::<SendWrapper<Context>>().unwrap();
-    let selected_palette = RwSignal::new(Palette::default());
+    let selected_palette = palette;
     let active_palette = Store::new(Palette::default());
     let palette_name = RwSignal::new(String::new());
 
@@ -81,6 +81,7 @@ pub fn Visuals() -> impl IntoView {
     );
 
     Effect::new(move || active_palette.set(selected_palette.get()));
+    Effect::new(move || on_update(active_palette.get()));
     Effect::new({
         let mandelbrot = context.mandelbrot.clone();
         move || {
@@ -180,24 +181,26 @@ pub fn Visuals() -> impl IntoView {
                     Saved Palettes
                 </summary>
                 <div class="px-4 py-2 bg-gray-100 shadow-sm">
-                    <input
-                        type="text"
-                        placeholder="Enter palette name"
-                        prop:value=move || palette_name.get()
-                        on:input=move |ev| palette_name.set(event_target_value(&ev)) />
-                    <button
-                        on:click={
-                            move |_| {
-                                let name = palette_name.get_untracked().trim().to_string();
-                                if !name.is_empty() {
-                                    palettes.update(|palettes| { palettes.insert(name, active_palette.get()); });
-                                    save_palettes();
-                                    palette_name.set(String::new());
+                    <div class="flex flex-row gap-2 items-center">
+                        <input
+                            type="text"
+                            placeholder="Enter palette name"
+                            prop:value=move || palette_name.get()
+                            on:input=move |ev| palette_name.set(event_target_value(&ev)) />
+                        <button
+                            on:click={
+                                move |_| {
+                                    let name = palette_name.get_untracked().trim().to_string();
+                                    if !name.is_empty() {
+                                        palettes.update(|palettes| { palettes.insert(name, active_palette.get()); });
+                                        save_palettes();
+                                        palette_name.set(String::new());
+                                    }
                                 }
                             }
-                        }
-                        class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-md text-sm font-semibold transition"
-                    >Save</button>
+                            class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-md text-sm font-semibold transition"
+                        >Save</button>
+                    </div>
                     <For
                         each=move || palettes.get()
                         key=|(name, palette)| (name.clone(), palette.to_string())
