@@ -25,37 +25,11 @@ pub fn Explorer() -> impl IntoView {
     let location_name = RwSignal::new(String::new());
     let preserve_color = RwSignal::new(true);
 
-    let locations = RwSignal::new(
-        get_session_item("locations")
-            .unwrap_or_default()
-            .split('\x1F')
-            .filter(|s| !s.trim().is_empty())
-            .map(|s| {
-                let parts = s.splitn(3, '\x1E').collect::<Vec<_>>();
-                let name = parts[0].into();
-                let focus = parts[1].parse().expect("Failed to parse Focus");
-                let palette = (parts.len() == 3).then(|| parts[2].parse().expect("Failed to parse Palette"));
-                (name, (focus, palette))
-            })
-            .collect::<HashMap<String, (Focus, Option<Palette>)>>(),
-    );
+    let locations =
+        RwSignal::new(get_session_item::<HashMap<String, (Focus, Option<Palette>)>>("locations").unwrap_or_default());
 
     let save_locations = move || {
-        set_session_item(
-            "locations",
-            &locations
-                .get_untracked()
-                .iter()
-                .map(|(name, (focus, palette))| {
-                    if let Some(palette) = palette {
-                        format!("{name}\x1E{focus}\x1E{palette}")
-                    } else {
-                        format!("{name}\x1E{focus}")
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("\x1F"),
-        );
+        set_session_item("locations", &locations.get_untracked());
     };
 
     view! {

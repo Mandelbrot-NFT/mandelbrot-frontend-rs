@@ -1,9 +1,4 @@
-use std::{
-    fmt::{Display, Formatter},
-    str::FromStr,
-};
-
-use eyre::{bail, OptionExt, Report, Result};
+use serde::{Deserialize, Serialize};
 
 pub fn smoothstep(a: &[u8; 3], b: &[u8; 3], t: f64) -> [u8; 3] {
     let st = t * t * (3.0 - 2.0 * t);
@@ -28,7 +23,7 @@ pub fn hex_to_rgb(hex: &str) -> Option<[u8; 3]> {
     Some([r, g, b])
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct Wave {
     bias: f32,
     amplitude: f32,
@@ -47,25 +42,11 @@ impl Wave {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct WaveGradient {
     pub red: Wave,
     pub green: Wave,
     pub blue: Wave,
-}
-
-impl Display for WaveGradient {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
-
-impl FromStr for WaveGradient {
-    type Err = Report;
-
-    fn from_str(_s: &str) -> Result<Self> {
-        todo!()
-    }
 }
 
 impl From<WaveGradient> for mandelbrot_explorer::WaveGradient {
@@ -74,7 +55,7 @@ impl From<WaveGradient> for mandelbrot_explorer::WaveGradient {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Deserialize, PartialEq, Serialize)]
 pub struct Checkpoint {
     pub position: f64,
     pub color: [u8; 3],
@@ -92,26 +73,6 @@ impl Checkpoint {
     }
 }
 
-impl Display for Checkpoint {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}{}", self.position, self.color_hex(),)
-    }
-}
-
-impl FromStr for Checkpoint {
-    type Err = Report;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let (position, color) = s
-            .split_once('#')
-            .ok_or_eyre("Failed to parse step gradient checkpoint")?;
-        Ok(Self {
-            position: position.parse()?,
-            color: hex_to_rgb(color).ok_or_eyre("Fialed to parse hex color")?,
-        })
-    }
-}
-
 impl From<Checkpoint> for mandelbrot_explorer::Checkpoint {
     fn from(value: Checkpoint) -> Self {
         Self {
@@ -125,7 +86,7 @@ impl From<Checkpoint> for mandelbrot_explorer::Checkpoint {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct StepGradient {
     pub checkpoints: Vec<Checkpoint>,
 }
@@ -151,30 +112,6 @@ impl Default for StepGradient {
     }
 }
 
-impl Display for StepGradient {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.checkpoints
-                .iter()
-                .map(|checkpoint| checkpoint.to_string())
-                .collect::<Vec<_>>()
-                .join(",")
-        )
-    }
-}
-
-impl FromStr for StepGradient {
-    type Err = Report;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let checkpoints = s.split(',').map(|s| s.parse()).collect::<Result<Vec<_>>>()?;
-
-        Ok(Self { checkpoints })
-    }
-}
-
 impl From<StepGradient> for mandelbrot_explorer::StepGradient {
     fn from(value: StepGradient) -> Self {
         Self {
@@ -194,32 +131,10 @@ impl From<StepGradient> for mandelbrot_explorer::StepGradient {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub enum Gradient {
     Wave(WaveGradient),
     Step(StepGradient),
-}
-
-impl Display for Gradient {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Wave(gradient) => write!(f, "W{gradient}"),
-            Self::Step(gradient) => write!(f, "S{gradient}"),
-        }
-    }
-}
-
-impl FromStr for Gradient {
-    type Err = Report;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let (prefix, gradient) = s.split_at(1);
-        Ok(match prefix {
-            "W" => Self::Wave(gradient.parse()?),
-            "S" => Self::Step(gradient.parse()?),
-            _ => bail!("Invalid gradient format"),
-        })
-    }
 }
 
 impl From<WaveGradient> for Gradient {

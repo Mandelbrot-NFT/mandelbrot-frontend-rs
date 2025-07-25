@@ -1,18 +1,19 @@
 use leptos::prelude::*;
 use leptos_router::params::ParamsMap;
+use serde::{de::DeserializeOwned, Serialize};
 use web_sys::window;
 
-pub fn set_session_item(key: &str, value: &str) {
+pub fn set_session_item(key: &str, value: &impl Serialize) {
     if let Some(storage) = window().and_then(|w| w.session_storage().ok()).flatten() {
-        let _ = storage.set_item(key, value);
+        let _ = storage.set_item(key, &serde_json::to_string(value).unwrap());
     }
 }
 
-pub fn get_session_item(key: &str) -> Option<String> {
-    window()
-        .and_then(|w| w.session_storage().ok())
-        .flatten()
-        .and_then(|storage| storage.get_item(key).ok().flatten())
+pub fn get_session_item<T>(key: &str) -> Option<T>
+where
+    T: DeserializeOwned,
+{
+    serde_json::from_str(&window()?.session_storage().ok()??.get_item(key).ok()??).ok()
 }
 
 /// Parse the query string as returned by `web_sys::window()?.location().search()?` and get a

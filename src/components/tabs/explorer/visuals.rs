@@ -1,13 +1,9 @@
-use std::{
-    collections::HashMap,
-    fmt::{Display, Formatter},
-    str::FromStr,
-};
+use std::collections::HashMap;
 
-use eyre::{Report, Result};
 use leptos::prelude::*;
 use reactive_stores::Store;
 use send_wrapper::SendWrapper;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     color::{Gradient, StepGradient},
@@ -18,12 +14,18 @@ use crate::{
 
 use super::gradient::{step, wave};
 
-#[derive(Clone, Store)]
+#[derive(Clone, Deserialize, Serialize, Store)]
 pub struct Palette {
     pub(super) gradient: Gradient,
     max_iterations: f64,
     offset: f64,
     length: f64,
+}
+
+impl Palette {
+    fn key(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
 }
 
 impl Default for Palette {
@@ -37,30 +39,6 @@ impl Default for Palette {
     }
 }
 
-impl Display for Palette {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}/{:?}/{:?}/{:?}",
-            self.gradient, self.max_iterations, self.offset, self.length
-        )
-    }
-}
-
-impl FromStr for Palette {
-    type Err = Report;
-
-    fn from_str(s: &str) -> Result<Self> {
-        let parts = s.splitn(4, '/').collect::<Vec<_>>();
-        Ok(Self {
-            gradient: parts[0].parse()?,
-            max_iterations: parts[1].parse()?,
-            offset: parts[2].parse()?,
-            length: parts[3].parse()?,
-        })
-    }
-}
-
 #[component]
 pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static) -> impl IntoView {
     let context = use_context::<SendWrapper<Context>>().unwrap();
@@ -68,17 +46,11 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
     let active_palette = Store::new(Palette::default());
     let palette_name = RwSignal::new(String::new());
 
-    let palettes: RwSignal<HashMap<String, Palette>> = RwSignal::new(
-        get_session_item("palettes")
-            .unwrap_or_default()
-            .split('\x1F')
-            .filter(|s| !s.trim().is_empty())
-            .map(|s| {
-                let (name, palette) = s.split_once('\x1E').expect("Failed to parse palette");
-                (name.into(), palette.parse().expect("Failed to parse Palette"))
-            })
-            .collect::<HashMap<String, Palette>>(),
-    );
+    let palettes = RwSignal::new(get_session_item::<HashMap<String, Palette>>("palettes").unwrap_or_default());
+
+    let save_palettes = move || {
+        set_session_item("palettes", &palettes.get_untracked());
+    };
 
     Effect::new(move || active_palette.set(selected_palette.get()));
     Effect::new(move || on_update(active_palette.get()));
@@ -108,18 +80,6 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
         if active_palette.gradient().get_untracked() != gradient {
             active_palette.gradient().set(gradient);
         }
-    };
-
-    let save_palettes = move || {
-        set_session_item(
-            "palettes",
-            &palettes
-                .get_untracked()
-                .iter()
-                .map(|(name, palette)| format!("{name}\x1E{palette}"))
-                .collect::<Vec<_>>()
-                .join("\x1F"),
-        );
     };
 
     view! {
@@ -203,7 +163,7 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
                     </div>
                     <For
                         each=move || palettes.get()
-                        key=|(name, palette)| (name.clone(), palette.to_string())
+                        key=|(name, palette)| (name.clone(), palette.key())
                         let((name, palette))
                     >
                         {
