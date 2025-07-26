@@ -20,17 +20,14 @@ use visuals::Palette;
 #[component]
 pub fn Explorer() -> impl IntoView {
     let context = use_context::<SendWrapper<Context>>().unwrap();
-    let selected_palette = RwSignal::new(Palette::default());
+    let selected_palette = RwSignal::new(get_session_item::<Palette>("active_palette").unwrap_or_default());
     let active_palette = RwSignal::new(Palette::default());
-    let location_name = RwSignal::new(String::new());
-    let preserve_color = RwSignal::new(true);
 
     let locations =
         RwSignal::new(get_session_item::<HashMap<String, (Focus, Option<Palette>)>>("locations").unwrap_or_default());
-
-    let save_locations = move || {
-        set_session_item("locations", &locations.get_untracked());
-    };
+    let location_name = RwSignal::new(String::new());
+    let preserve_color = RwSignal::new(true);
+    let store_locations = move || set_session_item("locations", &locations.get_untracked());
 
     view! {
         <div class="flex flex-col">
@@ -59,7 +56,7 @@ pub fn Explorer() -> impl IntoView {
                                                 active_palette.get()
                                             })));
                                         });
-                                        save_locations();
+                                        store_locations();
                                         location_name.set(String::new());
                                     }
                                 }
@@ -107,7 +104,7 @@ pub fn Explorer() -> impl IntoView {
                                                     <button
                                                         on:click=move |_| {
                                                             locations.update(|locations| { locations.remove(&name); });
-                                                            save_locations();
+                                                            store_locations();
                                                         }
                                                         class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded-md text-white text-sm font-medium transition"
                                                     >
@@ -138,7 +135,7 @@ pub fn Explorer() -> impl IntoView {
                                             <button
                                                 on:click=move |_| {
                                                     locations.update(|locations| { locations.remove(&name); });
-                                                    save_locations();
+                                                    store_locations();
                                                 }
                                                 class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded-md text-white text-sm font-medium transition"
                                             >

@@ -44,15 +44,13 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
     let context = use_context::<SendWrapper<Context>>().unwrap();
     let selected_palette = palette;
     let active_palette = Store::new(Palette::default());
-    let palette_name = RwSignal::new(String::new());
 
     let palettes = RwSignal::new(get_session_item::<HashMap<String, Palette>>("palettes").unwrap_or_default());
-
-    let save_palettes = move || {
-        set_session_item("palettes", &palettes.get_untracked());
-    };
+    let palette_name = RwSignal::new(String::new());
+    let store_palettes = move || set_session_item("palettes", &palettes.get_untracked());
 
     Effect::new(move || active_palette.set(selected_palette.get()));
+    Effect::new(move || set_session_item("active_palette", &active_palette.get()));
     Effect::new(move || on_update(active_palette.get()));
     Effect::new({
         let mandelbrot = context.mandelbrot.clone();
@@ -153,7 +151,7 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
                                     let name = palette_name.get_untracked().trim().to_string();
                                     if !name.is_empty() {
                                         palettes.update(|palettes| { palettes.insert(name, active_palette.get()); });
-                                        save_palettes();
+                                        store_palettes();
                                         palette_name.set(String::new());
                                     }
                                 }
@@ -190,7 +188,7 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
                                                 <button
                                                     on:click=move |_| {
                                                         palettes.update(|palettes| { palettes.remove(&name); });
-                                                        save_palettes();
+                                                        store_palettes();
                                                     }
                                                     class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded-md text-white text-sm font-medium transition"
                                                 >
