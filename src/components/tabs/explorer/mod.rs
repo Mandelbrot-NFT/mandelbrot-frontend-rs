@@ -100,6 +100,8 @@ pub fn Explorer() -> impl IntoView {
                                                         width=RwSignal::new(0.0).write_only()
                                                         points=Store::new(gradient.into())
                                                         on_click=|_| {}
+                                                        length=palette.length
+                                                        offset=palette.offset
                                                     >
                                                         <Location
                                                             name=name.clone()

@@ -18,8 +18,8 @@ use super::gradient::{step, wave};
 pub struct Palette {
     pub(super) gradient: Gradient,
     max_iterations: f64,
-    offset: f64,
-    length: f64,
+    pub(super) offset: f64,
+    pub(super) length: f64,
 }
 
 impl Palette {
@@ -172,6 +172,8 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
                                         width=RwSignal::new(0.0).write_only()
                                         points=Store::new(gradient.into())
                                         on_click=|_| {}
+                                        length=palette.length
+                                        offset=palette.offset
                                     >
                                         <div class="w-full flex flex-row items-center justify-between gap-4 p-4">
                                             <div class="text-sm text-white">

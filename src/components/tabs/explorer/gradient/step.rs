@@ -109,6 +109,8 @@ pub fn Bar(
     width: WriteSignal<f64>,
     points: Store<Points>,
     mut on_click: impl FnMut(f64) -> () + 'static,
+    #[prop(optional)] length: Option<f64>,
+    #[prop(optional)] offset: Option<f64>,
     #[prop(optional)] children: Option<Children>,
 ) -> impl IntoView {
     let node_ref = NodeRef::<leptos::html::Canvas>::new();
@@ -176,7 +178,12 @@ pub fn Bar(
             canvas.set_height(height);
 
             for x in 0..width {
-                let t = x as f64 / width as f64;
+                let t = if let (Some(mut length), Some(offset)) = (length, offset) {
+                    length = (length * 8.0).min(width as f64);
+                    (x as f64 + length * offset) % length / length
+                } else {
+                    x as f64 / width as f64
+                };
                 let [r, g, b] = step_gradient(t);
                 ctx.set_fill_style_str(&format!("rgb({},{},{})", r, g, b));
                 ctx.fill_rect(x as f64, 0.0, 1.0, height as f64);
