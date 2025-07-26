@@ -16,7 +16,7 @@ use visuals::Visuals;
 use crate::{
     color::Gradient,
     context::Context,
-    util::{get_session_item, set_session_item},
+    util::{load_item, store_item},
 };
 use visuals::Palette;
 
@@ -28,17 +28,17 @@ pub fn Explorer() -> impl IntoView {
         if let Some(palette) = query_map.get_untracked().get("palette") {
             serde_json::from_slice(&URL_SAFE_NO_PAD.decode(&palette).unwrap()).unwrap()
         } else {
-            get_session_item::<Palette>("active_palette").unwrap_or_default()
+            load_item::<Palette>("active_palette").unwrap_or_default()
         }
     });
     let active_palette = RwSignal::new(Palette::default());
     let show_toast = RwSignal::new(false);
 
     let locations =
-        RwSignal::new(get_session_item::<HashMap<String, (Focus, Option<Palette>)>>("locations").unwrap_or_default());
+        RwSignal::new(load_item::<HashMap<String, (Focus, Option<Palette>)>>("locations").unwrap_or_default());
     let location_name = RwSignal::new(String::new());
     let preserve_color = RwSignal::new(true);
-    let store_locations = move || set_session_item("locations", &locations.get_untracked());
+    let store_locations = move || store_item("locations", &locations.get_untracked());
 
     view! {
         <div class="flex flex-col">

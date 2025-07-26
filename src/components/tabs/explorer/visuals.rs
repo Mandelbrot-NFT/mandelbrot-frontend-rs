@@ -9,7 +9,7 @@ use crate::{
     color::{Gradient, StepGradient},
     components::primitive::Slider,
     context::Context,
-    util::{get_session_item, set_session_item},
+    util::{load_item, store_item},
 };
 
 use super::gradient::{step, wave};
@@ -45,12 +45,12 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
     let selected_palette = palette;
     let active_palette = Store::new(Palette::default());
 
-    let palettes = RwSignal::new(get_session_item::<HashMap<String, Palette>>("palettes").unwrap_or_default());
+    let palettes = RwSignal::new(load_item::<HashMap<String, Palette>>("palettes").unwrap_or_default());
     let palette_name = RwSignal::new(String::new());
-    let store_palettes = move || set_session_item("palettes", &palettes.get_untracked());
+    let store_palettes = move || store_item("palettes", &palettes.get_untracked());
 
     Effect::new(move || active_palette.set(selected_palette.get()));
-    Effect::new(move || set_session_item("active_palette", &active_palette.get()));
+    Effect::new(move || store_item("active_palette", &active_palette.get()));
     Effect::new(move || on_update(active_palette.get()));
     Effect::new({
         let mandelbrot = context.mandelbrot.clone();
