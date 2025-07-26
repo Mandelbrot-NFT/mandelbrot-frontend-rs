@@ -133,8 +133,7 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
                 />
             </div>
 
-
-            <details open class="border-b w-full text-gray-700 rounded-md">
+            <details class="border-b w-full text-gray-700 rounded-md">
                 <summary class="cursor-pointer px-2 py-2 bg-gray-100 hover:bg-gray-200">
                     Saved Palettes
                 </summary>
