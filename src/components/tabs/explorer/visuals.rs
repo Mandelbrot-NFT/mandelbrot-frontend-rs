@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use leptos::prelude::*;
 use reactive_stores::Store;
 use send_wrapper::SendWrapper;
@@ -45,8 +43,7 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
     let selected_palette = palette;
     let active_palette = Store::new(Palette::default());
 
-    let palettes = RwSignal::new(load_item::<HashMap<String, Palette>>("palettes").unwrap_or_default());
-    let palette_name = RwSignal::new(String::new());
+    let palettes = RwSignal::new(load_item::<Vec<Palette>>("palettes").unwrap_or_default());
     let store_palettes = move || store_item("palettes", &palettes.get_untracked());
 
     Effect::new(move || active_palette.set(selected_palette.get()));
@@ -138,30 +135,21 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
                     Saved Palettes
                 </summary>
                 <div class="px-4 py-2 bg-gray-100 shadow-sm">
-                    <div class="flex flex-row gap-2 items-center">
-                        <input
-                            type="text"
-                            placeholder="Enter palette name"
-                            prop:value=move || palette_name.get()
-                            on:input=move |ev| palette_name.set(event_target_value(&ev)) />
+                    <div class="py-2">
                         <button
                             on:click={
                                 move |_| {
-                                    let name = palette_name.get_untracked().trim().to_string();
-                                    if !name.is_empty() {
-                                        palettes.update(|palettes| { palettes.insert(name, active_palette.get()); });
-                                        store_palettes();
-                                        palette_name.set(String::new());
-                                    }
+                                    palettes.update(|palettes| { palettes.push(active_palette.get()); });
+                                    store_palettes();
                                 }
                             }
                             class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-md text-sm font-semibold transition"
                         >Save</button>
                     </div>
                     <For
-                        each=move || palettes.get()
-                        key=|(name, palette)| (name.clone(), palette.key())
-                        let((name, palette))
+                        each=move || palettes.get().into_iter().enumerate()
+                        key=|(_, palette)| palette.key()
+                        let((i, palette))
                     >
                         {
                             match palette.gradient.clone() {
@@ -175,27 +163,22 @@ pub fn Visuals(palette: RwSignal<Palette>, on_update: impl Fn(Palette) + 'static
                                         length=palette.length
                                         offset=palette.offset
                                     >
-                                        <div class="w-full flex flex-row items-center justify-between gap-4 p-4">
-                                            <div class="text-sm text-white">
-                                                <div class="font-semibold">{name.clone()}</div>
-                                            </div>
-                                            <div class="flex flex-wrap gap-2">
-                                                <button
-                                                    on:click=move |_| selected_palette.set(palette.clone())
-                                                    class="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-medium transition"
-                                                >
-                                                    Load
-                                                </button>
-                                                <button
-                                                    on:click=move |_| {
-                                                        palettes.update(|palettes| { palettes.remove(&name); });
-                                                        store_palettes();
-                                                    }
-                                                    class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded-md text-white text-sm font-medium transition"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
+                                        <div class="w-full flex flex-row items-center justify-end gap-2 p-4">
+                                            <button
+                                                on:click=move |_| selected_palette.set(palette.clone())
+                                                class="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded-md text-white text-sm font-medium transition"
+                                            >
+                                                Load
+                                            </button>
+                                            <button
+                                                on:click=move |_| {
+                                                    palettes.update(|palettes| { palettes.remove(i); });
+                                                    store_palettes();
+                                                }
+                                                class="px-3 py-1 bg-red-600 hover:bg-red-500 rounded-md text-white text-sm font-medium transition"
+                                            >
+                                                Delete
+                                            </button>
                                         </div>
                                     </step::Bar>
                                 }.into_any(),
