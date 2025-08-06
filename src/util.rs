@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use leptos_router::params::ParamsMap;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use web_sys::window;
 
 pub fn store_item(key: &str, value: &impl Serialize) {

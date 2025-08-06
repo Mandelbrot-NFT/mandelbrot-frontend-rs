@@ -4,7 +4,7 @@ use leptos_use::{use_draggable, use_element_bounding};
 use reactive_stores::{AtKeyed, Store};
 use wasm_bindgen::JsCast;
 
-use crate::color::{hex_to_rgb, smoothstep, Checkpoint, StepGradient};
+use crate::color::{Checkpoint, StepGradient, hex_to_rgb, smoothstep};
 
 #[derive(Store, Default, Clone)]
 pub struct Points {

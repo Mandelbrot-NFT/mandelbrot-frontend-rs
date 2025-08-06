@@ -3,7 +3,7 @@ mod visuals;
 
 use std::{collections::HashMap, time::Duration};
 
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use mandelbrot_explorer::{Focus, ISample};

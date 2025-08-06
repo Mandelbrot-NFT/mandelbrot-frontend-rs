@@ -7,7 +7,7 @@ use send_wrapper::SendWrapper;
 use crate::{
     components::{context::Web3, primitive::Slider},
     context::{Context, StateStoreFields},
-    evm::contracts::{self, ERC1155Contract, ERC20Contract, Wrapped1155FactoryContract},
+    evm::contracts::{self, ERC20Contract, ERC1155Contract, Wrapped1155FactoryContract},
 };
 
 async fn get_balance(

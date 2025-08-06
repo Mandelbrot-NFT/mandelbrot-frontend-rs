@@ -4,7 +4,7 @@ use leptos::{prelude::*, task::spawn_local};
 use leptos_ethereum_provider::EthereumInterface;
 use reactive_stores::Store;
 use send_wrapper::SendWrapper;
-use web3::transports::{eip_1193::Eip1193, Either, Http};
+use web3::transports::{Either, Http, eip_1193::Eip1193};
 
 use super::error_handler::ErrorHandler;
 use crate::{

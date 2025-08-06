@@ -1,4 +1,4 @@
-use leptos_ethereum_provider::{base_currency, Chain};
+use leptos_ethereum_provider::{Chain, base_currency};
 
 pub fn _ethereum() -> Chain {
     Chain {

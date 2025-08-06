@@ -3,10 +3,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use eyre::Result;
 use web3::{
-    contract::{tokens::Tokenize, Contract, Options},
-    transports::{eip_1193::Eip1193, Either, Http},
-    types::{Address, TransactionReceipt, H256, U256},
     Web3,
+    contract::{Contract, Options, tokens::Tokenize},
+    transports::{Either, Http, eip_1193::Eip1193},
+    types::{Address, H256, TransactionReceipt, U256},
 };
 
 use super::types::{Field, Metadata};
