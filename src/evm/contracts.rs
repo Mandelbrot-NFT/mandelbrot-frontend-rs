@@ -151,10 +151,6 @@ impl MandelbrotNFTContract {
         }
     }
 
-    pub fn address(&self) -> Address {
-        self.contract.address()
-    }
-
     pub async fn get_token_balance(&self, address: Address) -> Result<f64> {
         let result: web3::contract::Result<U256> = self
             .contract

@@ -26,8 +26,8 @@ pub fn Balance(token_balance: RwSignal<f64>) -> impl IntoView {
             let contract = contract.clone();
             async move {
                 if let Some(address) = context.state.address().get_untracked() {
-                    if let Ok(OM_balance) = get_balance(address, contract).await {
-                        token_balance.set(OM_balance);
+                    if let Ok(balance) = get_balance(address, contract).await {
+                        token_balance.set(balance);
                     }
                 }
             }
