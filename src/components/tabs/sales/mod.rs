@@ -101,10 +101,7 @@ pub fn Sales() -> impl IntoView {
                 if let Some(address) = context.state.address().get_untracked() {
                     let selected_bids: Vec<u128> =
                         selected_bids.get_untracked().iter().map(|bid| bid.token_id).collect();
-                    context
-                        .erc1155_contract
-                        .batch_approve_bids(address, &selected_bids)
-                        .await;
+                    context.contract.batch_approve_bids(address, &selected_bids).await;
                 }
             }
         }

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use eyre::Result;
 use web3::{
     Web3,
@@ -10,12 +9,6 @@ use web3::{
 };
 
 use super::types::{Field, Metadata};
-
-const OM: U256 = U256([0, 0, 0, 0]);
-const CALLDATA: &[u8] = &[
-    87, 114, 97, 112, 112, 101, 100, 32, 79, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20,
-    119, 79, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 18,
-];
 
 pub enum Error {
     TokenNotFound,
@@ -53,7 +46,6 @@ impl Error {
     }
 }
 
-#[async_trait(?Send)]
 trait CallWrapper {
     fn contract(&self) -> &Contract<Either<Eip1193, Http>>;
 
@@ -131,13 +123,12 @@ trait CallWrapper {
 }
 
 #[derive(Clone)]
-pub struct ERC1155Contract {
+pub struct MandelbrotNFTContract {
     contract: Contract<Either<Eip1193, Http>>,
     handle_error: Arc<dyn Fn(Error)>,
 }
 
-#[async_trait]
-impl CallWrapper for ERC1155Contract {
+impl CallWrapper for MandelbrotNFTContract {
     fn contract(&self) -> &Contract<Either<Eip1193, Http>> {
         &self.contract
     }
@@ -147,15 +138,12 @@ impl CallWrapper for ERC1155Contract {
     }
 }
 
-impl ERC1155Contract {
+impl MandelbrotNFTContract {
     pub fn new(web3: &Web3<Either<Eip1193, Http>>, handle_error: Arc<dyn Fn(Error)>) -> Self {
         Self {
             contract: Contract::from_json(
                 web3.eth(),
-                env!("ERC1155_CONTRACT_ADDRESS")
-                    .trim_start_matches("0x")
-                    .parse()
-                    .unwrap(),
+                env!("CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
                 include_bytes!("../../resources/MandelbrotNFT.json"),
             )
             .unwrap(),
@@ -170,24 +158,9 @@ impl ERC1155Contract {
     pub async fn get_token_balance(&self, address: Address) -> Result<f64> {
         let result: web3::contract::Result<U256> = self
             .contract
-            .query("balanceOf", (address, OM), None, Options::default(), None)
+            .query("balanceOf", address, None, Options::default(), None)
             .await;
         Ok(result?.as_u128() as f64 / 10_f64.powi(18))
-    }
-
-    pub async fn transfer_tokens(&self, from: Address, to: Address, amount: f64) -> Option<TransactionReceipt> {
-        self.call_with_confirmations(
-            "safeTransferFrom",
-            (
-                from,
-                to,
-                OM,
-                U256::from((amount * 10_f64.powi(18)) as u128),
-                CALLDATA.to_vec(),
-            ),
-            from,
-        )
-        .await
     }
 
     pub async fn _mint(&self, sender: Address, parent_id: u128, field: Field) -> Option<H256> {
@@ -307,90 +280,5 @@ impl ERC1155Contract {
             sender,
         )
         .await
-    }
-}
-
-#[derive(Clone)]
-pub struct Wrapped1155FactoryContract {
-    contract: Contract<Either<Eip1193, Http>>,
-    handle_error: Arc<dyn Fn(Error)>,
-    erc1155_address: Address,
-}
-
-#[async_trait]
-impl CallWrapper for Wrapped1155FactoryContract {
-    fn contract(&self) -> &Contract<Either<Eip1193, Http>> {
-        &self.contract
-    }
-
-    fn _handle_error(&self, error: Error) {
-        (self.handle_error)(error);
-    }
-}
-
-impl Wrapped1155FactoryContract {
-    pub fn new(web3: &Web3<Either<Eip1193, Http>>, erc1155_address: Address, handle_error: Arc<dyn Fn(Error)>) -> Self {
-        Self {
-            contract: Contract::from_json(
-                web3.eth(),
-                env!("WRAPPER_FACTORY_CONTRACT_ADDRESS")
-                    .trim_start_matches("0x")
-                    .parse()
-                    .unwrap(),
-                include_bytes!("../../resources/Wrapped1155Factory.json"),
-            )
-            .unwrap(),
-            handle_error,
-            erc1155_address,
-        }
-    }
-
-    pub fn address(&self) -> Address {
-        self.contract.address()
-    }
-
-    pub async fn unwrap(&self, recipient: Address, amount: f64) -> Option<TransactionReceipt> {
-        self.call_with_confirmations(
-            "unwrap",
-            (
-                self.erc1155_address,
-                OM,
-                U256::from((amount * 10_f64.powi(18)) as u128),
-                recipient,
-                CALLDATA.to_vec(),
-            ),
-            recipient,
-        )
-        .await
-    }
-}
-
-#[derive(Clone)]
-pub struct ERC20Contract {
-    contract: Contract<Either<Eip1193, Http>>,
-}
-
-impl ERC20Contract {
-    pub fn new(web3: &Web3<Either<Eip1193, Http>>) -> Self {
-        Self {
-            contract: Contract::from_json(
-                web3.eth(),
-                env!("ERC20_CONTRACT_ADDRESS").trim_start_matches("0x").parse().unwrap(),
-                include_bytes!("../../resources/Wrapped1155.json"),
-            )
-            .unwrap(),
-        }
-    }
-
-    pub fn _address(&self) -> Address {
-        self.contract.address()
-    }
-
-    pub async fn get_balance(&self, address: Address) -> Result<f64> {
-        let result: web3::contract::Result<U256> = self
-            .contract
-            .query("balanceOf", (address,), None, Options::default(), None)
-            .await;
-        Ok(result?.as_u128() as f64 / 10_f64.powi(18))
     }
 }

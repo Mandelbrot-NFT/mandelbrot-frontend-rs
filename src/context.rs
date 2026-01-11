@@ -6,7 +6,7 @@ use std::{
 use leptos::prelude::*;
 use reactive_stores::Store;
 
-use crate::evm::{contracts::ERC1155Contract, types::Metadata};
+use crate::evm::{contracts::MandelbrotNFTContract, types::Metadata};
 
 #[derive(Clone, Default, Store)]
 pub struct Explorer {
@@ -38,14 +38,14 @@ pub struct State {
 #[derive(Clone)]
 pub struct Context {
     pub mandelbrot: Arc<Mutex<mandelbrot_explorer::Interface>>,
-    pub erc1155_contract: ERC1155Contract,
+    pub contract: MandelbrotNFTContract,
     pub state: Store<State>,
 }
 
 impl Context {
     pub async fn reload_inventory(&self) {
         if let Some(address) = self.state.address().get_untracked() {
-            if let Ok((tokens, bids)) = self.erc1155_contract.get_owned_items(address).await {
+            if let Ok((tokens, bids)) = self.contract.get_owned_items(address).await {
                 self.state.inventory().tokens().update(|tokens_| {
                     tokens_.clear();
                     tokens_.extend(tokens.into_iter().map(|token| (token.token_id, token)));
@@ -75,7 +75,7 @@ impl Context {
                 .tokens()
                 .get_untracked()
                 .keys()
-                .map(|token_id| async move { (*token_id, self.erc1155_contract.get_bids(*token_id).await) }),
+                .map(|token_id| async move { (*token_id, self.contract.get_bids(*token_id).await) }),
         )
         .await
         .into_iter()

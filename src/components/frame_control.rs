@@ -38,9 +38,9 @@ pub fn FrameControl() -> impl IntoView {
             let token_id = context.state.current_token_id().get().unwrap_or(1);
             spawn_local(async move {
                 if let (Ok(tokens), Ok(children), Ok(bids)) = (
-                    context.erc1155_contract.get_ancestry_metadata(token_id).await,
-                    context.erc1155_contract.get_children_metadata(token_id).await,
-                    context.erc1155_contract.get_bids(token_id).await,
+                    context.contract.get_ancestry_metadata(token_id).await,
+                    context.contract.get_children_metadata(token_id).await,
+                    context.contract.get_bids(token_id).await,
                 ) {
                     context.state.explorer().nav_history().update(|nav_history| {
                         nav_history.clear();

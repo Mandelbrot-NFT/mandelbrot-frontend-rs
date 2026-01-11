@@ -10,11 +10,8 @@ use super::error_handler::ErrorHandler;
 use crate::{
     chain::sepolia_testnet,
     context::{Context, State, StateStoreFields},
-    evm::contracts::ERC1155Contract,
+    evm::contracts::MandelbrotNFTContract,
 };
-
-#[derive(Clone, Debug)]
-pub struct Web3(pub web3::Web3<Either<Eip1193, Http>>);
 
 #[component]
 pub fn ContextProvider(
@@ -33,7 +30,7 @@ pub fn ContextProvider(
     let error = RwSignal::new(None);
     let context = Context {
         mandelbrot: mandelbrot.take(),
-        erc1155_contract: ERC1155Contract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
+        contract: MandelbrotNFTContract::new(&web3, Arc::new(move |e| error.set(Some(e)))),
         state,
     };
 
@@ -58,7 +55,6 @@ pub fn ContextProvider(
         }
     });
 
-    provide_context(LocalStorage::wrap(Web3(web3)));
     provide_context(error.write_only());
     provide_context(LocalStorage::wrap(context));
 

@@ -21,7 +21,7 @@ pub fn Form(token: Metadata) -> impl IntoView {
                 if let Some(address) = context.state.address().get_untracked() {
                     let bounds = context.mandelbrot.lock().unwrap().engine.borrow().get_bounds();
                     context
-                        .erc1155_contract
+                        .contract
                         .bid(
                             address,
                             token_id,

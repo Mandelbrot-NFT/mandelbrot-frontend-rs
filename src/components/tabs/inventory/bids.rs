@@ -23,7 +23,7 @@ where
             let bid_id = bid_id.clone();
             async move {
                 if let Some(address) = context.state.address().get_untracked() {
-                    if let Some(_) = context.erc1155_contract.delete_bid(address, bid_id).await {
+                    if let Some(_) = context.contract.delete_bid(address, bid_id).await {
                         bids.update(|bids| {
                             bids.remove(&bid_id);
                         });

@@ -27,7 +27,7 @@ where
             let token_id = token_id.clone();
             async move {
                 if let Some(address) = context.state.address().get_untracked() {
-                    if let Some(_) = context.erc1155_contract.burn(address, token_id).await {
+                    if let Some(_) = context.contract.burn(address, token_id).await {
                         tokens.update(|tokens| {
                             tokens.remove(&token_id);
                         });
@@ -66,7 +66,7 @@ where
                     (context.state.address().get_untracked(), edited_token.get_untracked())
                 {
                     context
-                        .erc1155_contract
+                        .contract
                         .set_minimum_bid(address, token.token_id, bids_minimum_price.get_untracked())
                         .await;
                 }
